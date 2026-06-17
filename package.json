@@ -1,0 +1,30 @@
+{
+  "name": "couple-lab-connection-practice",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A privacy-first desktop-ready couples practice lab for assessments, prompts, guided conversations, and relationship pattern reflection.",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit -p tsconfig.json && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "desktop": "concurrently -k \"npm:dev\" \"wait-on http://127.0.0.1:5173 && electron .\""
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "^0.10.35",
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^6.0.2",
+    "concurrently": "^10.0.3",
+    "electron": "^42.4.0",
+    "typescript": "^5.7.2",
+    "vite": "^8.0.16",
+    "wait-on": "^8.0.1"
+  }
+}
