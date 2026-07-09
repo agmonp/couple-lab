@@ -1,19 +1,44 @@
 # Weekend Builds
 
-Standalone weekend projects, independent of the Couple Lab app. Each folder
-is self-contained — no shared code, no build step, Python 3.10+ standard
-library only.
+Fifteen standalone weekend projects, independent of the Couple Lab app.
+Each folder is self-contained — no shared code, one main script, a README,
+and sample data where useful.
 
 Project ideas from [kju4q/ai-weekend-builds](https://github.com/kju4q/ai-weekend-builds)
-(vol-3, "Life-First Local Builds"), implemented from scratch. These two were
-chosen because they run fully local — no API keys, no accounts, no hardware:
+by [@qendresahhoti](https://github.com/qendresahhoti), implemented from scratch.
+Projects marked 🔑 call the Claude API (`pip install anthropic` +
+`export ANTHROPIC_API_KEY=...`); the others run fully offline.
 
-| Project | What it does | Run |
+## Fully local — run them right now
+
+| Project | What it does |
+|---|---|
+| [money-map](money-map/) | Bank CSV → spending breakdown + forgotten-subscription flags (MD/HTML report) |
+| [ambient-dashboard](ambient-dashboard/) | Calm animated day/night display for a tablet: calendar, weather, tasks |
+| [decision-simulator](decision-simulator/) | Monte Carlo over a big decision: distributions, P(A beats B), downside view (🔑 optional narrative) |
+| [voice-journal](voice-journal/) | Voice memos → local whisper transcripts → weekly pattern stats (🔑 optional reflection) |
+
+## Claude-powered 🔑
+
+| Project | What it does | Pattern it teaches |
 |---|---|---|
-| [money-map](money-map/) | Analyze a bank CSV: spending by category/month + forgotten-subscription detection → MD/HTML report | `python3 money_map.py sample-statement.csv` |
-| [ambient-dashboard](ambient-dashboard/) | Calm animated day/night display for a tablet: today's calendar, weather, tasks | `python3 server.py` → `localhost:8500` |
+| [personal-rag](personal-rag/) | Chat with your docs + conversation memory | RAG (local BM25 retrieval) |
+| [life-admin-brain](life-admin-brain/) | Ask your lease/policies questions, get the exact clause + calendar-worthy dates | RAG with citations |
+| [web-researcher](web-researcher/) | Topic → sourced research report | server-side web search/fetch tools |
+| [research-crew](research-crew/) | Researcher → analyst → writer pipeline | multi-agent orchestration |
+| [excalidraw-diagrams](excalidraw-diagrams/) | Describe a system → editable .excalidraw file | structured outputs + deterministic rendering |
+| [coding-agent](coding-agent/) | Task + repo → explored, edited, tested fix | tool runner agent loop |
+| [screenshot-to-code](screenshot-to-code/) | UI image → React component / HTML page | vision |
+| [daily-digest](daily-digest/) | RSS feeds → one ranked morning briefing (+email) | automation pipeline |
+| [skill-builder](skill-builder/) | Chat transcript → installable SKILL.md files | structure extraction |
+| [content-repurposer](content-repurposer/) | One post → Twitter/LinkedIn/newsletter/IG/YouTube, same voice | prompt chaining |
+| [inbox-triage](inbox-triage/) | IMAP inbox → triage board + ready-to-edit reply drafts | agent loop w/ human in the loop |
 
-The other ideas in that repo (Personal RAG Assistant, AI Inbox Triage,
-Screenshot-to-Code, Offline Voice Journal…) need an Anthropic API key,
-email access, or a microphone — good next steps to build on your own
-machine.
+## Conventions
+
+- Python 3.10+; the only dependency is `anthropic` (plus opt-ins:
+  `pypdf` for PDFs, `faster-whisper` for the voice journal).
+- Model: `claude-opus-4-8` with adaptive thinking; long outputs stream.
+- Local-first wherever possible: retrieval, parsing, stats, and simulation
+  run on your machine; only what must reach the model is sent.
+- Nothing sends email, replies, or pushes code without you reviewing it first.
