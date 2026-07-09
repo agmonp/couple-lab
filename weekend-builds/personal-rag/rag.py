@@ -1,16 +1,22 @@
 #!/usr/bin/env python3
 """Personal RAG Assistant — chat with your own docs, with memory.
 
-Drop .txt / .md / .pdf files into docs/, then:
+Drop .txt / .md / .pdf files into docs/ (or point --docs at any folder), then:
 
     export ANTHROPIC_API_KEY=sk-ant-...
-    python3 rag.py            # interactive chat
-    python3 rag.py --search "keyword"   # test retrieval only (no API call)
+    python3 rag.py                        # interactive chat over ./docs
+    python3 rag.py --docs ~/Desktop --exclude Pictures תמונות
+    python3 rag.py --search "keyword"     # test retrieval only (no API call)
 
 Retrieval is a local BM25 index built at startup — no vector database, no
 embedding model, no data leaves your machine except the retrieved chunks
 sent to Claude with your question. Conversation memory (last 10 exchanges)
 persists in memory.json.
+
+Optional GraphRAG: if you keep a knowledge graph in Neo4j (people, events,
+places...), add --graph and set NEO4J_URI / NEO4J_USER / NEO4J_PASSWORD.
+Facts from the graph neighborhood of your question are added to the context
+alongside the text chunks (pip install neo4j).
 """
 
 from __future__ import annotations
@@ -31,6 +37,15 @@ CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200
 TOP_K = 4
 MEMORY_TURNS = 10
+MAX_FILE_MB = 20
+TEXT_EXTS = (".txt", ".md", ".pdf")
+
+# Folders skipped by default when indexing arbitrary directories (--docs).
+# Images and other binary files are skipped anyway (only TEXT_EXTS are read);
+# these prune whole subtrees for speed. Add your own with --exclude.
+DEFAULT_EXCLUDES = ["pictures", "תמונות", "images", "photos", "camera",
+                    ".git", "node_modules", "__pycache__", "venv", ".venv",
+                    "appdata", "library", "$recycle.bin"]
 
 
 # ---------------------------------------------------------------------------
@@ -63,19 +78,35 @@ def chunk_text(text: str, source: str) -> list[dict]:
     return [{"source": source, "text": c.strip()} for c in chunks]
 
 
-def load_chunks() -> list[dict]:
-    DOCS_DIR.mkdir(exist_ok=True)
+def is_excluded(path: Path, root: Path, excludes: list[str]) -> bool:
+    relative_parts = [p.lower() for p in path.relative_to(root).parts]
+    return any(pattern.lower() in part for pattern in excludes for part in relative_parts)
+
+
+def load_chunks(roots: list[Path], excludes: list[str]) -> list[dict]:
     chunks = []
-    files = sorted(p for p in DOCS_DIR.rglob("*")
-                   if p.suffix.lower() in (".txt", ".md", ".pdf") and p.is_file())
-    if not files:
-        sys.exit(f"No documents found. Put .txt / .md / .pdf files in {DOCS_DIR}/ and rerun.")
-    for path in files:
-        text = read_document(path)
-        if text.strip():
-            file_chunks = chunk_text(text, path.name)
-            chunks.extend(file_chunks)
-            print(f"  {path.name}: {len(file_chunks)} chunks")
+    for root in roots:
+        root = root.expanduser().resolve()
+        if not root.is_dir():
+            sys.exit(f"No such folder: {root}")
+        files = sorted(p for p in root.rglob("*")
+                       if p.is_file() and p.suffix.lower() in TEXT_EXTS
+                       and not is_excluded(p, root, excludes)
+                       and p.stat().st_size <= MAX_FILE_MB * 1024 * 1024)
+        for path in files:
+            try:
+                text = read_document(path)
+            except Exception as exc:  # one unreadable file shouldn't kill the index
+                print(f"  {path.name}: skipped ({exc})")
+                continue
+            if text.strip():
+                label = str(path.relative_to(root))
+                file_chunks = chunk_text(text, label)
+                chunks.extend(file_chunks)
+                print(f"  {label}: {len(file_chunks)} chunks")
+    if not chunks:
+        sys.exit(f"No readable {'/'.join(TEXT_EXTS)} documents found under "
+                 f"{', '.join(str(r) for r in roots)}.")
     return chunks
 
 
@@ -117,6 +148,78 @@ class BM25:
 
 
 # ---------------------------------------------------------------------------
+# GraphRAG — optional Neo4j knowledge-graph context
+# ---------------------------------------------------------------------------
+
+class GraphContext:
+    """Pulls facts from a Neo4j graph around the entities in a question.
+
+    For each meaningful question term, finds nodes whose string properties
+    contain it and returns their immediate relationships as readable triples:
+        (Dana:Person) -[KNOWS]-> (Yossi:Person)
+    """
+
+    def __init__(self, uri: str, user: str, password: str):
+        from neo4j import GraphDatabase  # pip install neo4j
+        self.driver = GraphDatabase.driver(uri, auth=(user, password))
+        self.driver.verify_connectivity()
+
+    @staticmethod
+    def describe(node) -> str:
+        props = dict(node)
+        name = next((props[k] for k in ("name", "title", "id", "label")
+                     if props.get(k)), None) or str(props)[:60]
+        labels = ":".join(node.labels) or "Node"
+        return f"({name}:{labels})"
+
+    def facts(self, question: str, limit: int = 30) -> list[str]:
+        terms = [t for t in set(tokenize(question)) if len(t) > 2][:8]
+        if not terms:
+            return []
+        facts: list[str] = []
+        with self.driver.session() as session:
+            for term in terms:
+                result = session.run(
+                    "MATCH (n) "
+                    "WHERE any(k IN keys(n) WHERE toLower(toString(n[k])) CONTAINS $term) "
+                    "OPTIONAL MATCH (n)-[r]-(m) "
+                    "RETURN n, type(r) AS rel, m, startNode(r) = n AS outgoing "
+                    "LIMIT $limit",
+                    term=term, limit=limit)
+                for record in result:
+                    n = self.describe(record["n"])
+                    if record["rel"] is None:
+                        facts.append(n)
+                    elif record["outgoing"]:
+                        facts.append(f"{n} -[{record['rel']}]-> {self.describe(record['m'])}")
+                    else:
+                        facts.append(f"{self.describe(record['m'])} -[{record['rel']}]-> {n}")
+        seen, unique = set(), []
+        for fact in facts:
+            if fact not in seen:
+                seen.add(fact)
+                unique.append(fact)
+        return unique[:limit]
+
+
+def connect_graph() -> GraphContext | None:
+    import os
+
+    uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
+    user = os.environ.get("NEO4J_USER", "neo4j")
+    password = os.environ.get("NEO4J_PASSWORD", "")
+    try:
+        graph = GraphContext(uri, user, password)
+        print(f"Graph connected: {uri}")
+        return graph
+    except ImportError:
+        print("Graph disabled: pip install neo4j")
+    except Exception as exc:
+        print(f"Graph disabled: cannot reach {uri} ({exc})")
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Memory
 # ---------------------------------------------------------------------------
 
@@ -137,11 +240,13 @@ def save_memory(memory: list[dict]) -> None:
 
 SYSTEM = """You are a personal assistant answering questions about the user's own documents.
 Ground every answer in the provided context chunks and cite the source file names.
+A <graph> section, when present, contains facts from the user's personal knowledge
+graph — treat them as reliable structured facts and cite them as (graph).
 If the context doesn't contain the answer, say so plainly instead of guessing.
 Answer in the language the user asked in."""
 
 
-def chat(index: BM25) -> None:
+def chat(index: BM25, graph: GraphContext | None = None) -> None:
     import anthropic
 
     client = anthropic.Anthropic()
@@ -158,10 +263,13 @@ def chat(index: BM25) -> None:
         retrieved = index.search(question)
         context = "\n\n---\n\n".join(f"[{c['source']}]\n{c['text']}" for c in retrieved) \
             or "(no relevant chunks found)"
-        messages = memory + [{
-            "role": "user",
-            "content": f"<context>\n{context}\n</context>\n\nQuestion: {question}",
-        }]
+        user_content = f"<context>\n{context}\n</context>"
+        if graph is not None:
+            facts = graph.facts(question)
+            if facts:
+                user_content += "\n\n<graph>\n" + "\n".join(facts) + "\n</graph>"
+        user_content += f"\n\nQuestion: {question}"
+        messages = memory + [{"role": "user", "content": user_content}]
 
         try:
             print("\nAssistant: ", end="", flush=True)
@@ -192,6 +300,15 @@ def chat(index: BM25) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Chat with your own documents.")
+    parser.add_argument("--docs", nargs="+", type=Path, default=[DOCS_DIR],
+                        help="Folder(s) to index (default: ./docs). "
+                             "Example: --docs ~/Desktop ~/Documents")
+    parser.add_argument("--exclude", nargs="*", default=[],
+                        help="Extra folder-name patterns to skip "
+                             f"(always skipped: {', '.join(DEFAULT_EXCLUDES[:5])}...)")
+    parser.add_argument("--graph", action="store_true",
+                        help="Also pull facts from a Neo4j knowledge graph "
+                             "(NEO4J_URI / NEO4J_USER / NEO4J_PASSWORD)")
     parser.add_argument("--search", help="Test retrieval only: print top chunks, no API call")
     parser.add_argument("--forget", action="store_true", help="Clear conversation memory")
     args = parser.parse_args()
@@ -200,8 +317,10 @@ def main() -> None:
         MEMORY_FILE.unlink()
         print("Memory cleared.")
 
-    print(f"Indexing {DOCS_DIR}/ ...")
-    index = BM25(load_chunks())
+    if args.docs == [DOCS_DIR]:
+        DOCS_DIR.mkdir(exist_ok=True)
+    print(f"Indexing {', '.join(str(d) for d in args.docs)} ...")
+    index = BM25(load_chunks(args.docs, DEFAULT_EXCLUDES + args.exclude))
     print(f"Indexed {len(index.chunks)} chunks.")
 
     if args.search:
@@ -209,7 +328,8 @@ def main() -> None:
             print(f"\n--- {c['source']} (score {c['score']}) ---\n{c['text'][:400]}")
         return
 
-    chat(index)
+    graph = connect_graph() if args.graph else None
+    chat(index, graph)
 
 
 if __name__ == "__main__":

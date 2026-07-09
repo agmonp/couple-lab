@@ -38,6 +38,49 @@ python3 rag.py --search "renovation budget"
 python3 rag.py --forget
 ```
 
+### Index any folder (e.g. your Desktop)
+
+```bash
+# macOS / Linux
+python3 rag.py --docs ~/Desktop ~/Documents --exclude drafts
+
+# Windows
+python rag.py --docs "C:\Users\<you>\Desktop" --exclude טיוטות
+```
+
+Only `.txt` / `.md` / `.pdf` files are read — images and other binaries are
+skipped automatically, and common image/junk folders (`Pictures`, `תמונות`,
+`images`, `photos`, `.git`, `node_modules`, …) are pruned by default.
+`--exclude` adds your own folder-name patterns. Files over 20MB are skipped.
+
+### Optional: GraphRAG with Neo4j
+
+Already keep a personal knowledge graph (people, events, places) in Neo4j?
+Blend it into the context:
+
+```bash
+pip install neo4j
+export NEO4J_URI=bolt://localhost:7687 NEO4J_USER=neo4j NEO4J_PASSWORD=...
+python3 rag.py --graph
+```
+
+Per question, the entities in your question are matched against node
+properties and their immediate relationships come back as readable triples —
+`(Dana:Person) -[KNOWS]-> (Yossi:Person)` — in a `<graph>` section next to
+the text chunks. If the graph is unreachable, the assistant runs without it.
+
+**Does a graph improve RAG, or weigh it down?** It depends on the questions:
+
+| Question shape | Winner |
+|---|---|
+| "What does my lease say about X?" (facts inside one document) | Text retrieval — the graph adds nothing |
+| "Who was involved in X?", "What connects A to B?", "What happened around Y?" (relations across entities) | Graph — keyword/vector retrieval routinely misses multi-hop links |
+
+The costs are real: a running Neo4j, ingestion upkeep, and per-question
+latency. That's why here it's a **flag, not a dependency** — the text path
+never pays for the graph, and you can A/B the same question with and without
+`--graph` to see if *your* graph earns its keep.
+
 ## How it works
 
 ```
