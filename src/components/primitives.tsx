@@ -1,4 +1,5 @@
 import { Check } from "lucide-react";
+import { clamp } from "../lib/utils";
 
 export function Progress({ label, value }: { label: string; value: number }) {
   return (
@@ -8,7 +9,7 @@ export function Progress({ label, value }: { label: string; value: number }) {
         <b>{value}%</b>
       </span>
       <div>
-        <i style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
+        <i style={{ width: `${clamp(value, 0, 100)}%` }} />
       </div>
     </div>
   );
@@ -31,7 +32,7 @@ export function MiniMetric({
       <span>{label}</span>
       <strong>{raw ? value : `${value}%`}</strong>
       <div className={invert ? "invert" : ""}>
-        <i style={{ width: `${Math.max(3, Math.min(100, colorValue))}%` }} />
+        <i style={{ width: `${clamp(colorValue, 3, 100)}%` }} />
       </div>
     </div>
   );

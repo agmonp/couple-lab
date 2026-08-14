@@ -118,10 +118,6 @@ export default function App() {
               setSignals(defaultSignals);
               setSafety(defaultSafety);
               setDeckStats({});
-              localStorage.removeItem(storageKeys.assessment);
-              localStorage.removeItem(storageKeys.sessions);
-              localStorage.removeItem(storageKeys.safety);
-              localStorage.removeItem(storageKeys.deckStats);
             }}
           />
         )}
