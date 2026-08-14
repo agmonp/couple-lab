@@ -39,6 +39,12 @@ import {
 import { BrandLogo, CoupleHero, CameraEmptyArt, EmptyArt } from "./illustrations";
 import { formatDuration, formatTime } from "./lib/format";
 import {
+  computeNonverbalMetrics,
+  sessionNonverbalMetrics,
+  sumNonverbalMetrics
+} from "./lib/nonverbal";
+import { hasSafetyConcern, safetyItems } from "./lib/safety";
+import {
   chooseInitialSpeechLanguage,
   detectScriptLanguage,
   estimateSpeechDuration
@@ -65,33 +71,6 @@ import {
 } from "./types";
 
 type View = "dashboard" | "assess" | "practice" | "insights" | "adviser" | "report" | "export";
-
-const VISUAL_SAMPLE_SECONDS = 1.2;
-
-function visualSeconds(count: number) {
-  return Math.round(count * VISUAL_SAMPLE_SECONDS);
-}
-
-function computeNonverbalMetrics(observations: VisualObservation[]): NonverbalMetrics {
-  const count = (label: VisualObservation["label"], subject?: PartnerId) =>
-    observations.filter((observation) => observation.label === label && (!subject || observation.subject === subject)).length;
-
-  return {
-    sampleCount: new Set(observations.map((observation) => Math.round(observation.seconds))).size,
-    sharedFrameSeconds: visualSeconds(count("shared-frame")),
-    mutualAttentionSeconds: visualSeconds(count("mutual-attention")),
-    partnerGazeSecondsA: visualSeconds(count("partner-gaze", "A")),
-    partnerGazeSecondsB: visualSeconds(count("partner-gaze", "B")),
-    lookAwaySecondsA: visualSeconds(count("looking-away", "A")),
-    lookAwaySecondsB: visualSeconds(count("looking-away", "B")),
-    warmExpressionSeconds: visualSeconds(count("warm-expression")),
-    tensionSeconds: visualSeconds(
-      count("brow-tension") + count("mouth-tension") + count("closed-posture") + count("leaning-away") + count("head-turned-away")
-    ),
-    engagementSeconds: visualSeconds(count("possible-engagement") + count("mutual-attention") + count("partner-gaze")),
-    withdrawalSeconds: visualSeconds(count("possible-withdrawal") + count("leaning-away") + count("head-turned-away"))
-  };
-}
 
 const sessionTypes: { id: SessionType; label: string }[] = [
   { id: "daily-check-in", label: "Daily check-in" },
@@ -163,12 +142,7 @@ export default function App() {
   const [safety, setSafety] = useLocalState<SafetyState>(storageKeys.safety, defaultSafety);
   const [deckStats, setDeckStats] = useLocalState<Record<string, number>>(storageKeys.deckStats, {});
 
-  const safetyFlag = Object.values({
-    fearOrCoercion: safety.fearOrCoercion,
-    violenceOrThreats: safety.violenceOrThreats,
-    pressuredToParticipate: safety.pressuredToParticipate,
-    seriousDepressionOrAddiction: safety.seriousDepressionOrAddiction
-  }).some(Boolean);
+  const safetyFlag = hasSafetyConcern(safety);
 
   const scores = useMemo(() => {
     const valuesA = domains.map((domain) => assessment.A[domain.key] ?? 0);
@@ -545,11 +519,7 @@ function ReportView({
   const [coachDraft, setCoachDraft] = useState("");
   const [coachStatus, setCoachStatus] = useState("Ready");
   const latest = sessions[0];
-  const safetyFlag =
-    safety.fearOrCoercion ||
-    safety.violenceOrThreats ||
-    safety.pressuredToParticipate ||
-    safety.seriousDepressionOrAddiction;
+  const safetyFlag = hasSafetyConcern(safety);
   const domainRows = domains
     .map((domain) => {
       const a = assessment.A[domain.key] ?? 0;
@@ -576,37 +546,7 @@ function ReportView({
   const totalRepairs = sessions.reduce((sum, session) => sum + session.analysis.metrics.repairSignals, 0);
   const totalRisks = sessions.reduce((sum, session) => sum + session.analysis.metrics.riskSignals, 0);
   const visualCount = sessions.reduce((sum, session) => sum + (session.visualObservations?.length ?? 0), 0);
-  const reportNonverbal = sessions.reduce<NonverbalMetrics>(
-    (acc, session) => {
-      const metrics = session.nonverbalMetrics ?? computeNonverbalMetrics(session.visualObservations ?? []);
-      return {
-        sampleCount: acc.sampleCount + metrics.sampleCount,
-        sharedFrameSeconds: acc.sharedFrameSeconds + metrics.sharedFrameSeconds,
-        mutualAttentionSeconds: acc.mutualAttentionSeconds + metrics.mutualAttentionSeconds,
-        partnerGazeSecondsA: acc.partnerGazeSecondsA + metrics.partnerGazeSecondsA,
-        partnerGazeSecondsB: acc.partnerGazeSecondsB + metrics.partnerGazeSecondsB,
-        lookAwaySecondsA: acc.lookAwaySecondsA + metrics.lookAwaySecondsA,
-        lookAwaySecondsB: acc.lookAwaySecondsB + metrics.lookAwaySecondsB,
-        warmExpressionSeconds: acc.warmExpressionSeconds + metrics.warmExpressionSeconds,
-        tensionSeconds: acc.tensionSeconds + metrics.tensionSeconds,
-        engagementSeconds: acc.engagementSeconds + (metrics.engagementSeconds ?? 0),
-        withdrawalSeconds: acc.withdrawalSeconds + (metrics.withdrawalSeconds ?? 0)
-      };
-    },
-    {
-      sampleCount: 0,
-      sharedFrameSeconds: 0,
-      mutualAttentionSeconds: 0,
-      partnerGazeSecondsA: 0,
-      partnerGazeSecondsB: 0,
-      lookAwaySecondsA: 0,
-      lookAwaySecondsB: 0,
-      warmExpressionSeconds: 0,
-      tensionSeconds: 0,
-      engagementSeconds: 0,
-      withdrawalSeconds: 0
-    }
-  );
+  const reportNonverbal = sumNonverbalMetrics(sessions.map(sessionNonverbalMetrics));
   const focusRows = domainRows.slice(0, 3);
   const exercises = [
     ...(latest?.analysis.nextSteps ?? []),
@@ -2029,11 +1969,7 @@ function AdviserView({
   setView: (view: View) => void;
 }) {
   const latest = sessions[0];
-  const safetyFlag =
-    safety.fearOrCoercion ||
-    safety.violenceOrThreats ||
-    safety.pressuredToParticipate ||
-    safety.seriousDepressionOrAddiction;
+  const safetyFlag = hasSafetyConcern(safety);
   const domainRows = domains
     .map((domain) => ({
       ...domain,
@@ -2307,13 +2243,7 @@ function ExportSafetyView({
   setSafety: (safety: SafetyState) => void;
   clearAll: () => void;
 }) {
-  const safetyItems: { key: keyof SafetyState; label: string }[] = [
-    { key: "fearOrCoercion", label: "One partner feels afraid or coerced." },
-    { key: "violenceOrThreats", label: "There has been violence, threats, stalking, or intimidation." },
-    { key: "pressuredToParticipate", label: "One partner feels pressured to record or share." },
-    { key: "seriousDepressionOrAddiction", label: "Serious depression, addiction, or crisis is active." }
-  ];
-  const safetyFlag = safetyItems.some((item) => Boolean(safety[item.key]));
+  const safetyFlag = hasSafetyConcern(safety);
 
   const exportJson = () => {
     downloadBlob(
