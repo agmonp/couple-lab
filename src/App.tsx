@@ -1,9 +1,4 @@
 import {
-  FaceLandmarker,
-  FilesetResolver,
-  PoseLandmarker
-} from "@mediapipe/tasks-vision";
-import {
   Activity,
   BookOpenCheck,
   Camera,
@@ -44,6 +39,13 @@ import {
   sumNonverbalMetrics
 } from "./lib/nonverbal";
 import { hasSafetyConcern, safetyItems } from "./lib/safety";
+import {
+  countVisibleFaces,
+  detectFrameObservations,
+  deriveVisualWindowObservations,
+  loadVisionModels,
+  VisionModels
+} from "./lib/vision";
 import {
   chooseInitialSpeechLanguage,
   detectScriptLanguage,
@@ -924,8 +926,7 @@ function PracticeStudio({
   const elapsedRef = useRef(0);
   const activeSpeakerRef = useRef<PartnerId>("A");
   const autoSpeechLanguageRef = useRef<SpeechLanguage>("he-IL");
-  const faceLandmarkerRef = useRef<FaceLandmarker | null>(null);
-  const poseLandmarkerRef = useRef<PoseLandmarker | null>(null);
+  const visionModelsRef = useRef<VisionModels | null>(null);
   const [cameraReady, setCameraReady] = useState(false);
   const [recording, setRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -1028,341 +1029,48 @@ function PracticeStudio({
   };
 
   const loadVisualModels = async () => {
-    if (faceLandmarkerRef.current && poseLandmarkerRef.current) return;
+    if (visionModelsRef.current) return visionModelsRef.current;
     setVisualStatus("Loading face/body models");
-    const vision = await FilesetResolver.forVisionTasks(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm"
-    );
-
-    const createFace = (delegate: "GPU" | "CPU") =>
-      FaceLandmarker.createFromOptions(vision, {
-        baseOptions: {
-          delegate,
-          modelAssetPath:
-            "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task"
-        },
-        runningMode: "VIDEO",
-        numFaces: 2,
-        outputFaceBlendshapes: true
-      });
-
-    const createPose = (delegate: "GPU" | "CPU") =>
-      PoseLandmarker.createFromOptions(vision, {
-        baseOptions: {
-          delegate,
-          modelAssetPath:
-            "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task"
-        },
-        runningMode: "VIDEO",
-        numPoses: 2
-      });
-
-    try {
-      faceLandmarkerRef.current = await createFace("GPU");
-      poseLandmarkerRef.current = await createPose("GPU");
-    } catch {
-      faceLandmarkerRef.current = await createFace("CPU");
-      poseLandmarkerRef.current = await createPose("CPU");
-    }
+    visionModelsRef.current = await loadVisionModels();
     setVisualStatus("Visual AI active");
-  };
-
-  const readBlendshape = (categories: Array<{ categoryName?: string; score?: number }>, name: string) =>
-    categories.find((category) => category.categoryName === name)?.score ?? 0;
-
-  const subjectForSlot = (slot: "left" | "right"): PartnerId => {
-    if (profile.visualCalibration) {
-      return profile.visualCalibration.A === slot ? "A" : "B";
-    }
-    return slot === "left" ? "A" : "B";
-  };
-
-  const faceSlot = (landmarks: Array<{ x?: number }>): "left" | "right" => {
-    const xs = landmarks.map((landmark) => landmark.x ?? 0.5);
-    return average(xs) < 0.5 ? "left" : "right";
-  };
-
-  const deriveVisualWindowObservations = (current: VisualObservation[], batch: VisualObservation[], sampleSeconds: number) => {
-    const windowItems = [...current.slice(-50), ...batch].filter((item) => sampleSeconds - item.seconds <= 14);
-    const derived: VisualObservation[] = [];
-    const count = (labels: VisualObservation["label"][], subject?: PartnerId) =>
-      windowItems.filter((item) => labels.includes(item.label) && (!subject || item.subject === subject)).length;
-
-    (["A", "B"] as PartnerId[]).forEach((subject) => {
-      const warmth = count(["warm-expression", "partner-gaze"], subject);
-      const stress = count(["brow-tension", "mouth-tension", "closed-posture", "leaning-away", "head-turned-away"], subject);
-      const withdrawal = count(["looking-away", "leaning-away", "head-turned-away", "closed-posture"], subject);
-
-      if (warmth >= 2) {
-        derived.push({
-          id: nowId("visual-derived"),
-          seconds: sampleSeconds,
-          label: "sustained-warmth",
-          subject,
-          score: clamp(0.52 + warmth * 0.08, 0.52, 0.86),
-          evidence: `${warmth} warmth/partner-gaze cues in the last 14 seconds`,
-          provider: "derived",
-          metadata: { windowSeconds: 14, cueCount: warmth }
-        });
-      }
-      if (stress >= 3) {
-        derived.push({
-          id: nowId("visual-derived"),
-          seconds: sampleSeconds,
-          label: "sustained-tension",
-          subject,
-          score: clamp(0.5 + stress * 0.07, 0.5, 0.84),
-          evidence: `${stress} tension/posture cues in the last 14 seconds`,
-          provider: "derived",
-          metadata: { windowSeconds: 14, cueCount: stress }
-        });
-      }
-      if (withdrawal >= 3) {
-        derived.push({
-          id: nowId("visual-derived"),
-          seconds: sampleSeconds,
-          label: "possible-withdrawal",
-          subject,
-          score: clamp(0.48 + withdrawal * 0.07, 0.48, 0.82),
-          evidence: `${withdrawal} look-away/lean-away cues in the last 14 seconds`,
-          provider: "derived",
-          metadata: { windowSeconds: 14, cueCount: withdrawal }
-        });
-      }
-    });
-
-    const engagement = count(["warm-expression", "partner-gaze", "mutual-attention", "shared-frame", "sustained-warmth"]);
-    if (engagement >= 4) {
-      derived.push({
-        id: nowId("visual-derived"),
-        seconds: sampleSeconds,
-        label: "possible-engagement",
-        score: clamp(0.5 + engagement * 0.05, 0.5, 0.84),
-        evidence: `${engagement} warmth/gaze/shared-frame cues in the last 14 seconds`,
-        provider: "derived",
-        metadata: { windowSeconds: 14, cueCount: engagement }
-      });
-    }
-
-    return derived;
+    return visionModelsRef.current;
   };
 
   const collectVisualObservations = () => {
     const video = videoRef.current;
+    const models = visionModelsRef.current;
     if (!recordingRef.current) {
       setVisualStatus("Visual AI ready; record to tag cues");
       return;
     }
-    if (!video || video.readyState < 2 || !faceLandmarkerRef.current || !poseLandmarkerRef.current) return;
+    if (!video || video.readyState < 2 || !models) return;
 
-    const timestamp = Date.now();
     const sampleSeconds = elapsedRef.current;
-    const observations: VisualObservation[] = [];
-    const faceResults = faceLandmarkerRef.current.detectForVideo(video, timestamp);
-    const poseResults = poseLandmarkerRef.current.detectForVideo(video, timestamp);
-    const faceCount = faceResults.faceLandmarks?.length ?? 0;
-    const partnerGazeSubjects = new Set<PartnerId>();
+    const observations = detectFrameObservations(models, video, profile, sampleSeconds, calibrationText);
+    if (observations.length === 0) return;
 
-    if (faceCount > 0) {
-      const calibratedNote = profile.visualCalibration ? `; ${calibrationText}` : "";
-      observations.push({
-        id: nowId("visual"),
-        seconds: sampleSeconds,
-        label: "face-visible",
-        score: Math.min(0.9, 0.45 + faceCount * 0.2),
-        evidence: `${faceCount} face${faceCount > 1 ? "s" : ""} visible${calibratedNote}`
-      });
-    } else if (recordingRef.current) {
-      observations.push({
-        id: nowId("visual"),
-        seconds: sampleSeconds,
-        label: "looking-away",
-        score: 0.55,
-        evidence: "No face visible in sampled frame"
-      });
-    }
-
-    if (faceCount >= 2) {
-      observations.push({
-        id: nowId("visual"),
-        seconds: sampleSeconds,
-        label: "shared-frame",
-        score: 0.82,
-        evidence: "Both partners appeared in the same frame"
-      });
-    }
-
-    const blendshapeSets = faceResults.faceBlendshapes ?? [];
-    blendshapeSets.forEach((blendshapeSet, faceIndex) => {
-      const categories = blendshapeSet.categories ?? [];
-      const landmarks = faceResults.faceLandmarks?.[faceIndex] ?? [];
-      const subject = subjectForSlot(faceSlot(landmarks));
-      const smile = (readBlendshape(categories, "mouthSmileLeft") + readBlendshape(categories, "mouthSmileRight")) / 2;
-      const brow =
-        (readBlendshape(categories, "browDownLeft") +
-          readBlendshape(categories, "browDownRight") +
-          readBlendshape(categories, "browInnerUp")) /
-        3;
-      const mouthTension =
-        (readBlendshape(categories, "mouthPressLeft") +
-          readBlendshape(categories, "mouthPressRight") +
-          readBlendshape(categories, "mouthFrownLeft") +
-          readBlendshape(categories, "mouthFrownRight")) /
-        4;
-      const eyeAway =
-        (readBlendshape(categories, "eyeLookOutLeft") + readBlendshape(categories, "eyeLookOutRight")) / 2;
-      const eyeInside =
-        (readBlendshape(categories, "eyeLookInLeft") + readBlendshape(categories, "eyeLookInRight")) / 2;
-      const nose = landmarks[1];
-      const leftEye = landmarks[33];
-      const rightEye = landmarks[263];
-      const eyeCenter = leftEye && rightEye ? ((leftEye.x ?? 0.5) + (rightEye.x ?? 0.5)) / 2 : 0.5;
-      const headYawOffset = nose ? Math.abs((nose.x ?? 0.5) - eyeCenter) : 0;
-      const partnerGaze = faceCount >= 2 && eyeAway < 0.22 && eyeInside < 0.42;
-
-      if (smile > 0.28) {
-        observations.push({
-          id: nowId("visual"),
-          seconds: sampleSeconds,
-          label: "warm-expression",
-          subject,
-          score: smile,
-          evidence: "Smile-related face blendshapes rose"
-        });
-      }
-      if (brow > 0.24) {
-        observations.push({
-          id: nowId("visual"),
-          seconds: sampleSeconds,
-          label: "brow-tension",
-          subject,
-          score: brow,
-          evidence: "Brow tension blendshapes rose"
-        });
-      }
-      if (mouthTension > 0.2) {
-        observations.push({
-          id: nowId("visual"),
-          seconds: sampleSeconds,
-          label: "mouth-tension",
-          subject,
-          score: mouthTension,
-          evidence: "Mouth press/frown blendshapes rose"
-        });
-      }
-      if (eyeAway > 0.35) {
-        observations.push({
-          id: nowId("visual"),
-          seconds: sampleSeconds,
-          label: "looking-away",
-          subject,
-          score: eyeAway,
-          evidence: "Eye-look-away blendshapes rose"
-        });
-      }
-      if (headYawOffset > 0.04) {
-        observations.push({
-          id: nowId("visual"),
-          seconds: sampleSeconds,
-          label: "head-turned-away",
-          subject,
-          score: clamp(headYawOffset * 9, 0.38, 0.78),
-          evidence: "Head orientation shifted away from the face center",
-          metadata: { headYawOffset: Number(headYawOffset.toFixed(3)) }
-        });
-      }
-      if (partnerGaze) {
-        partnerGazeSubjects.add(subject);
-        observations.push({
-          id: nowId("visual"),
-          seconds: sampleSeconds,
-          label: "partner-gaze",
-          subject,
-          score: 0.7,
-          evidence: `${partnerName(profile, subject)} likely oriented toward the partner in a shared frame`
-        });
-      }
-    });
-
-    if (partnerGazeSubjects.has("A") && partnerGazeSubjects.has("B")) {
-      observations.push({
-        id: nowId("visual"),
-        seconds: sampleSeconds,
-        label: "mutual-attention",
-        score: 0.76,
-        evidence: "Both calibrated partners were likely oriented toward each other"
-      });
-    }
-
-    const poses = poseResults.landmarks ?? [];
-    if (poses.length > 0) {
-      observations.push({
-        id: nowId("visual"),
-        seconds: sampleSeconds,
-        label: "body-visible",
-        score: Math.min(0.9, 0.48 + poses.length * 0.18),
-        evidence: `${poses.length} body pose${poses.length > 1 ? "s" : ""} visible`
-      });
-    }
-
-    poses.forEach((pose) => {
-      const leftShoulder = pose[11];
-      const rightShoulder = pose[12];
-      const leftWrist = pose[15];
-      const rightWrist = pose[16];
-      if (!leftShoulder || !rightShoulder) return;
-      const shoulderCenter = (leftShoulder.x + rightShoulder.x) / 2;
-      if (shoulderCenter < 0.28 || shoulderCenter > 0.72) {
-        observations.push({
-          id: nowId("visual"),
-          seconds: sampleSeconds,
-          label: "leaning-away",
-          score: Math.abs(shoulderCenter - 0.5),
-          evidence: "Pose center shifted toward the edge of frame"
-        });
-      }
-      if (leftWrist && rightWrist) {
-        const wristsNearChest =
-          Math.abs(leftWrist.x - rightShoulder.x) < 0.14 && Math.abs(rightWrist.x - leftShoulder.x) < 0.14;
-        if (wristsNearChest) {
-          observations.push({
-            id: nowId("visual"),
-            seconds: sampleSeconds,
-            label: "closed-posture",
-            score: 0.58,
-            evidence: "Wrists crossed near opposite shoulders"
-          });
+    setVisualObservations((current) => {
+      const enriched = observations.map((observation) => ({
+        provider: "mediapipe" as const,
+        ...observation,
+        metadata: {
+          ...(observation.metadata ?? {}),
+          sampleSeconds,
+          model: observation.provider ?? "mediapipe"
         }
-      }
+      }));
+      const derived = deriveVisualWindowObservations(current, enriched, sampleSeconds);
+      return [...current.slice(-260), ...enriched, ...derived];
     });
-
-    if (observations.length > 0) {
-      setVisualObservations((current) => {
-        const enriched = observations.map((observation) => ({
-          provider: "mediapipe" as const,
-          ...observation,
-          metadata: {
-            ...(observation.metadata ?? {}),
-            sampleSeconds,
-            model: observation.provider ?? "mediapipe"
-          }
-        }));
-        const derived = deriveVisualWindowObservations(current, enriched, sampleSeconds);
-        return [...current.slice(-260), ...enriched, ...derived];
-      });
-    }
   };
 
   const calibrateVisualIdentity = async (aSlot: "left" | "right") => {
     if (!streamRef.current) {
       await startCamera();
     }
-    await loadVisualModels();
+    const models = await loadVisualModels();
     const video = videoRef.current;
-    const faceCount =
-      video && video.readyState >= 2 && faceLandmarkerRef.current
-        ? faceLandmarkerRef.current.detectForVideo(video, Date.now()).faceLandmarks?.length ?? 0
-        : 0;
+    const faceCount = video && video.readyState >= 2 ? countVisibleFaces(models, video) : 0;
     const nextCalibration = {
       A: aSlot,
       B: aSlot === "left" ? ("right" as const) : ("left" as const),
