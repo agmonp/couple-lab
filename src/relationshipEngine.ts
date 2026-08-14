@@ -4,7 +4,6 @@ import {
   InteractionTag,
   InteractionTagFamily,
   LiveCue,
-  PartnerId,
   PatternHit,
   SessionAnalysis,
   SessionMetrics,
@@ -12,6 +11,8 @@ import {
   TranscriptSegment,
   VisualObservation
 } from "./types";
+import { otherPartner } from "./lib/partners";
+import { clamp, countWords } from "./lib/utils";
 
 type TranscriptPattern = {
   label: string;
@@ -174,21 +175,8 @@ const visualEngagementLabels = new Set<VisualObservation["label"]>([
   "possible-engagement"
 ]);
 
-function countWords(text: string) {
-  return text.trim().split(/\s+/).filter(Boolean).length;
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
-}
-
 function slug(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-}
-
-function otherPartner(partner?: PartnerId): PartnerId | undefined {
-  if (!partner) return undefined;
-  return partner === "A" ? "B" : "A";
 }
 
 function segmentEnd(segment: TranscriptSegment) {

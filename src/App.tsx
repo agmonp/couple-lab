@@ -37,6 +37,15 @@ import {
   evidenceNotes
 } from "./data";
 import { BrandLogo, CoupleHero, CameraEmptyArt, EmptyArt } from "./illustrations";
+import { formatDuration, formatTime } from "./lib/format";
+import {
+  chooseInitialSpeechLanguage,
+  detectScriptLanguage,
+  estimateSpeechDuration
+} from "./lib/language";
+import { otherPartner, partnerName, slotName } from "./lib/partners";
+import { downloadBlob, storageKeys, useLocalState } from "./lib/storage";
+import { average, clamp, countWords, nowId } from "./lib/utils";
 import {
   AssessmentState,
   BodySignals,
@@ -49,120 +58,18 @@ import {
   SafetyState,
   SessionRecord,
   SessionType,
+  SpeechLanguage,
   SpeechRecognitionLike,
   TranscriptSegment,
   VisualObservation
 } from "./types";
 
 type View = "dashboard" | "assess" | "practice" | "insights" | "adviser" | "report" | "export";
-type SpeechLanguage = "he-IL" | "en-US";
-
-const storageKeys = {
-  profile: "couple-lab-profile",
-  assessment: "couple-lab-assessment",
-  sessions: "couple-lab-sessions",
-  signals: "couple-lab-signals",
-  safety: "couple-lab-safety",
-  deckStats: "couple-lab-deck-stats"
-};
-
-function nowId(prefix: string) {
-  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function formatTime(seconds: number) {
-  const mins = Math.floor(seconds / 60)
-    .toString()
-    .padStart(2, "0");
-  const secs = Math.floor(seconds % 60)
-    .toString()
-    .padStart(2, "0");
-  return `${mins}:${secs}`;
-}
-
-function useLocalState<T>(key: string, fallback: T) {
-  const [value, setValue] = useState<T>(() => {
-    try {
-      const stored = localStorage.getItem(key);
-      return stored ? (JSON.parse(stored) as T) : fallback;
-    } catch {
-      return fallback;
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem(key, JSON.stringify(value));
-  }, [key, value]);
-
-  return [value, setValue] as const;
-}
-
-function partnerName(profile: CoupleProfile, partner: PartnerId) {
-  return partner === "A" ? profile.partnerAName || "Partner A" : profile.partnerBName || "Partner B";
-}
-
-function slotName(slot: "left" | "right") {
-  return slot === "left" ? "left side of the frame" : "right side of the frame";
-}
-
-function average(values: number[]) {
-  if (!values.length) return 0;
-  return values.reduce((sum, item) => sum + item, 0) / values.length;
-}
-
-function otherPartner(partner: PartnerId): PartnerId {
-  return partner === "A" ? "B" : "A";
-}
-
-function spokenWordCount(text: string) {
-  return text.trim().split(/\s+/).filter(Boolean).length;
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function estimateSpeechDuration(text: string) {
-  return clamp(Math.ceil(spokenWordCount(text) / 2.4), 2, 18);
-}
 
 const VISUAL_SAMPLE_SECONDS = 1.2;
 
 function visualSeconds(count: number) {
   return Math.round(count * VISUAL_SAMPLE_SECONDS);
-}
-
-function formatDuration(seconds: number) {
-  if (seconds < 60) {
-    return `${seconds}s`;
-  }
-  return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
-}
-
-function detectScriptLanguage(text: string): SpeechLanguage | null {
-  const hebrewCount = (text.match(/[\u0590-\u05FF]/g) ?? []).length;
-  const latinCount = (text.match(/[A-Za-z]/g) ?? []).length;
-
-  if (hebrewCount >= 2 && hebrewCount >= latinCount) return "he-IL";
-  if (latinCount >= 4 && latinCount > hebrewCount) return "en-US";
-  return null;
-}
-
-function hasHebrewText(text: string) {
-  return /[\u0590-\u05FF]/.test(text);
-}
-
-function chooseInitialSpeechLanguage(profile: CoupleProfile, segments: TranscriptSegment[]): SpeechLanguage {
-  const recentTranscript = segments
-    .slice(-6)
-    .map((segment) => segment.text)
-    .join(" ");
-  const detected = detectScriptLanguage(recentTranscript);
-
-  if (detected) return detected;
-  if (hasHebrewText(`${profile.partnerAName} ${profile.partnerBName}`)) return "he-IL";
-  if (typeof navigator !== "undefined" && navigator.language?.toLowerCase().startsWith("he")) return "he-IL";
-  return "en-US";
 }
 
 function computeNonverbalMetrics(observations: VisualObservation[]): NonverbalMetrics {
@@ -184,16 +91,6 @@ function computeNonverbalMetrics(observations: VisualObservation[]): NonverbalMe
     engagementSeconds: visualSeconds(count("possible-engagement") + count("mutual-attention") + count("partner-gaze")),
     withdrawalSeconds: visualSeconds(count("possible-withdrawal") + count("leaning-away") + count("head-turned-away"))
   };
-}
-
-function downloadBlob(filename: string, content: string, type = "application/json") {
-  const blob = new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
 }
 
 const sessionTypes: { id: SessionType; label: string }[] = [
@@ -1179,7 +1076,7 @@ function PracticeStudio({
       endSeconds,
       source,
       detectedLanguage,
-      wordCount: spokenWordCount(clean)
+      wordCount: countWords(clean)
     };
   };
 
