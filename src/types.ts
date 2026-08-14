@@ -1,5 +1,7 @@
 export type PartnerId = "A" | "B";
 
+export type SpeechLanguage = "he-IL" | "en-US";
+
 export type SessionType =
   | "daily-check-in"
   | "conflict"
@@ -80,7 +82,7 @@ export interface TranscriptSegment {
   seconds: number;
   endSeconds?: number;
   source: "speech" | "manual";
-  detectedLanguage?: "he-IL" | "en-US" | "unknown";
+  detectedLanguage?: SpeechLanguage | "unknown";
   wordCount?: number;
 }
 

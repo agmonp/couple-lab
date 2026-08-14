@@ -4,7 +4,6 @@ import {
   InteractionTag,
   InteractionTagFamily,
   LiveCue,
-  PartnerId,
   PatternHit,
   SessionAnalysis,
   SessionMetrics,
@@ -12,6 +11,8 @@ import {
   TranscriptSegment,
   VisualObservation
 } from "./types";
+import { otherPartner } from "./lib/partners";
+import { clamp, countWords } from "./lib/utils";
 
 type TranscriptPattern = {
   label: string;
@@ -165,6 +166,27 @@ const visualStressLabels = new Set<VisualObservation["label"]>([
   "possible-withdrawal"
 ]);
 
+/** Cue tones the couple marked as going well, versus tones that signal overload. */
+const positiveCueTones = new Set<LiveCue["tone"]>(["warmth", "repair", "humor", "softening"]);
+const overwhelmCueTones = new Set<LiveCue["tone"]>(["overwhelm", "pause"]);
+
+const visualPositiveLabels = new Set<VisualObservation["label"]>([
+  "face-visible",
+  "warm-expression",
+  "partner-gaze",
+  "mutual-attention",
+  "shared-frame",
+  "body-visible"
+]);
+
+const visualWithdrawalLabels = new Set<VisualObservation["label"]>([
+  "looking-away",
+  "leaning-away",
+  "closed-posture",
+  "head-turned-away",
+  "possible-withdrawal"
+]);
+
 const visualEngagementLabels = new Set<VisualObservation["label"]>([
   "warm-expression",
   "sustained-warmth",
@@ -174,21 +196,8 @@ const visualEngagementLabels = new Set<VisualObservation["label"]>([
   "possible-engagement"
 ]);
 
-function countWords(text: string) {
-  return text.trim().split(/\s+/).filter(Boolean).length;
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
-}
-
 function slug(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-}
-
-function otherPartner(partner?: PartnerId): PartnerId | undefined {
-  if (!partner) return undefined;
-  return partner === "A" ? "B" : "A";
 }
 
 function segmentEnd(segment: TranscriptSegment) {
@@ -269,7 +278,7 @@ function scanSegments(segments: TranscriptSegment[]) {
 
 function cueHits(cues: LiveCue[]): PatternHit[] {
   return cues.map((cue) => {
-    const positive = cue.tone === "warmth" || cue.tone === "repair" || cue.tone === "humor" || cue.tone === "softening";
+    const positive = positiveCueTones.has(cue.tone);
     return {
       id: `cue-${cue.id}`,
       label: `Observed ${cue.tone}`,
@@ -290,11 +299,11 @@ function cueHits(cues: LiveCue[]): PatternHit[] {
 
 function cueTags(cues: LiveCue[]): InteractionTag[] {
   return cues.map((cue) => {
-    const positive = cue.tone === "warmth" || cue.tone === "repair" || cue.tone === "humor" || cue.tone === "softening";
+    const positive = positiveCueTones.has(cue.tone);
     return {
       id: `tag-cue-${cue.id}`,
       label: `Manual cue: ${cue.tone}`,
-      family: cue.tone === "overwhelm" || cue.tone === "pause" ? "flooding" : positive ? "strength" : "nonverbal",
+      family: overwhelmCueTones.has(cue.tone) ? "flooding" : positive ? "strength" : "nonverbal",
       source: "manual-cue",
       seconds: cue.seconds,
       speaker: cue.speaker,
@@ -308,43 +317,33 @@ function cueTags(cues: LiveCue[]): InteractionTag[] {
   });
 }
 
-function visualLabel(observation: VisualObservation) {
-  const labelMap: Record<VisualObservation["label"], string> = {
-    "face-visible": "Face visible",
-    "warm-expression": "Possible warmth",
-    "brow-tension": "Possible facial tension",
-    "mouth-tension": "Possible mouth tension",
-    "looking-away": "Possible looking away",
-    "partner-gaze": "Possible partner gaze",
-    "mutual-attention": "Possible mutual attention",
-    "shared-frame": "Shared frame",
-    "body-visible": "Body posture visible",
-    "closed-posture": "Possible closed posture",
-    "leaning-away": "Possible leaning away",
-    "head-turned-away": "Possible head turned away",
-    "sustained-warmth": "Sustained warmth pattern",
-    "sustained-tension": "Sustained tension pattern",
-    "possible-engagement": "Possible engagement",
-    "possible-withdrawal": "Possible withdrawal"
-  };
-
-  return labelMap[observation.label];
-}
+const visualLabels: Record<VisualObservation["label"], string> = {
+  "face-visible": "Face visible",
+  "warm-expression": "Possible warmth",
+  "brow-tension": "Possible facial tension",
+  "mouth-tension": "Possible mouth tension",
+  "looking-away": "Possible looking away",
+  "partner-gaze": "Possible partner gaze",
+  "mutual-attention": "Possible mutual attention",
+  "shared-frame": "Shared frame",
+  "body-visible": "Body posture visible",
+  "closed-posture": "Possible closed posture",
+  "leaning-away": "Possible leaning away",
+  "head-turned-away": "Possible head turned away",
+  "sustained-warmth": "Sustained warmth pattern",
+  "sustained-tension": "Sustained tension pattern",
+  "possible-engagement": "Possible engagement",
+  "possible-withdrawal": "Possible withdrawal"
+};
 
 function visualHits(observations: VisualObservation[], segments: TranscriptSegment[]): PatternHit[] {
   return observations.slice(-40).map((observation) => {
     const linkedSegment = findLinkedSegment(segments, observation.seconds);
-    const positive =
-      observation.label === "face-visible" ||
-      observation.label === "warm-expression" ||
-      observation.label === "partner-gaze" ||
-      observation.label === "mutual-attention" ||
-      observation.label === "shared-frame" ||
-      observation.label === "body-visible";
+    const positive = visualPositiveLabels.has(observation.label);
 
     return {
       id: `visual-${observation.id}`,
-      label: visualLabel(observation),
+      label: visualLabels[observation.label],
       family: positive ? "strength" : "body",
       speaker: observation.subject ?? linkedSegment?.speaker,
       target: observation.subject ? otherPartner(observation.subject) : linkedSegment?.target,
@@ -368,7 +367,7 @@ function visualTags(observations: VisualObservation[], segments: TranscriptSegme
 
     return {
       id: `tag-visual-${observation.id}`,
-      label: visualLabel(observation),
+      label: visualLabels[observation.label],
       family: stressCue ? "flooding" : "nonverbal",
       source: "visual",
       seconds: observation.seconds,
@@ -558,8 +557,8 @@ function floodingRisk(signals: BodySignals, cues: LiveCue[], observations: Visua
   const heartRateRisk =
     (signals.A.heartRate && signals.A.heartRate > 100 ? 1 : 0) +
     (signals.B.heartRate && signals.B.heartRate > 100 ? 1 : 0);
-  const overwhelmCues = cues.filter((cue) => cue.tone === "overwhelm" || cue.tone === "pause").length;
-  const visualStress = observations.filter((observation) => visualStressLabels.has(observation.label)).length;
+  const overwhelmCues = cues.filter((cue) => overwhelmCueTones.has(cue.tone)).length;
+  const visualStress = countVisual(observations, visualStressLabels);
 
   return clamp(
     Math.round(stressAverage * 8 + heartRateRisk * 12 + overwhelmCues * 6 + visualStress * 2 - relaxationAverage * 3),
@@ -588,13 +587,11 @@ function scoreEmotionalState(
   const softStartups = tags.filter((tag) => tag.label === "Soft startup").length;
   const horsemenSignals = tags.filter((tag) => tag.family === "four-horsemen").length;
   const stonewallingSignals = tags.filter((tag) => tag.metadata?.horseman === "stonewalling").length;
-  const positiveCues = cues.filter((cue) => cue.tone === "warmth" || cue.tone === "repair" || cue.tone === "humor" || cue.tone === "softening").length;
-  const overwhelmCues = cues.filter((cue) => cue.tone === "overwhelm" || cue.tone === "pause").length;
+  const positiveCues = cues.filter((cue) => positiveCueTones.has(cue.tone)).length;
+  const overwhelmCues = cues.filter((cue) => overwhelmCueTones.has(cue.tone)).length;
   const visualEngagement = countVisual(observations, visualEngagementLabels);
   const visualStress = countVisual(observations, visualStressLabels);
-  const visualWithdrawal = observations.filter((observation) =>
-    ["looking-away", "leaning-away", "closed-posture", "head-turned-away", "possible-withdrawal"].includes(observation.label)
-  ).length;
+  const visualWithdrawal = countVisual(observations, visualWithdrawalLabels);
 
   const warmth = clamp(18 + bankDeposits * 12 + validationSignals * 8 + positiveCues * 7 + visualEngagement * 3 + repairSignals * 4 - riskSignals * 6, 0, 100);
   const engagement = clamp(22 + curiositySignals * 10 + turningToward * 10 + softStartups * 5 + visualEngagement * 4 - visualWithdrawal * 3, 0, 100);
@@ -697,7 +694,7 @@ function buildMetrics(
   const emotionalBankDeposits = tags.filter((tag) => tag.label === "Emotional bank deposit").length;
   const bidsOrTurningToward = tags.filter((tag) => tag.label === "Turning toward / bid response").length;
   const interruptionRisks = tags.filter((tag) => tag.label === "Possible interruption / overlap").length;
-  const nonverbalStressSignals = observations.filter((observation) => visualStressLabels.has(observation.label)).length;
+  const nonverbalStressSignals = countVisual(observations, visualStressLabels);
   const risk = floodingRisk(signals, cues, observations);
   const emotionalState = scoreEmotionalState(hits, cues, observations, tags, risk);
   const balanceBonus = turnBalance > 60 ? 8 : turnBalance > 40 ? 3 : -7;
