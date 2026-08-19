@@ -1670,3 +1670,71 @@ blockquote {
     max-width: 330px;
   }
 }
+
+/* Choosing between the live camera and a recording made earlier. */
+.source-switch {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 3;
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--line);
+}
+
+/*
+   Reviewing a recording: show the whole frame rather than cropping to fill, and
+   keep the player's own controls clear of the studio's control bar.
+*/
+.lab-stage.reviewing .video-preview {
+  inset: 0 0 112px;
+  height: auto;
+  object-fit: contain;
+  background: #0f100e;
+}
+
+.lab-stage.reviewing .video-placeholder {
+  inset: 0 0 112px;
+}
+
+.source-switch button {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 900;
+  padding: 6px 14px;
+}
+
+.source-switch button.active {
+  background: var(--teal);
+  color: #fff;
+}
+
+/* A file input styled as a button; the input itself stays reachable by keyboard. */
+.file-picker {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.file-picker input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.video-placeholder small {
+  max-width: 260px;
+  text-align: center;
+  color: var(--muted);
+  font-weight: 700;
+}

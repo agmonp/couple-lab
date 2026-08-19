@@ -14,6 +14,7 @@ import {
   Eye,
   FileDown,
   FileText,
+  FileVideo,
   HeartHandshake,
   Lock,
   Mic,
@@ -62,6 +63,8 @@ import {
 } from "./types";
 
 type View = "dashboard" | "assess" | "practice" | "insights" | "adviser" | "report" | "export";
+/** Where the studio takes its picture from: the camera now, or a video recorded earlier. */
+type VideoSource = "live" | "file";
 
 const storageKeys = {
   profile: "couple-lab-profile",
@@ -1144,6 +1147,8 @@ function PracticeStudio({
   const mediaChunksRef = useRef<Blob[]>([]);
   const transcriberRef = useRef<Transcriber | null>(null);
   const recordingRef = useRef(false);
+  /** True whenever cues should be sampled: recording live, or playing a file for analysis. */
+  const captureActiveRef = useRef(false);
   const elapsedRef = useRef(0);
   /** performance.now() at the moment recording started, so utterance timestamps map onto the session clock. */
   const recordingStartMsRef = useRef(0);
@@ -1173,6 +1178,10 @@ function PracticeStudio({
   const [nonverbalMetrics, setNonverbalMetrics] = useState<NonverbalMetrics>(emptyNonverbalMetrics);
   const [manualText, setManualText] = useState("");
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [sourceMode, setSourceMode] = useState<VideoSource>("live");
+  const [videoFile, setVideoFile] = useState<{ name: string; url: string } | null>(null);
+  const [fileAnalyzing, setFileAnalyzing] = useState(false);
+  const [fileDuration, setFileDuration] = useState(0);
   const [interimText, setInterimText] = useState("");
   const [speechState, setSpeechState] = useState<TranscriberStatus>({
     state: "idle",
@@ -1191,6 +1200,10 @@ function PracticeStudio({
   useEffect(() => {
     recordingRef.current = recording;
   }, [recording]);
+
+  useEffect(() => {
+    captureActiveRef.current = recording || fileAnalyzing;
+  }, [recording, fileAnalyzing]);
 
   useEffect(() => {
     elapsedRef.current = elapsed;
@@ -1238,6 +1251,14 @@ function PracticeStudio({
       transcriberRef.current = null;
     },
     []
+  );
+
+  const videoFileUrl = videoFile?.url;
+  useEffect(
+    () => () => {
+      if (videoFileUrl) URL.revokeObjectURL(videoFileUrl);
+    },
+    [videoFileUrl]
   );
 
   // Follow the conversation as it arrives, but leave the scroll alone while
@@ -1417,7 +1438,7 @@ function PracticeStudio({
 
   const collectVisualObservations = () => {
     const video = videoRef.current;
-    if (!recordingRef.current) {
+    if (!captureActiveRef.current) {
       setVisualStatus("Visual AI ready; record to tag cues");
       return;
     }
@@ -1440,7 +1461,7 @@ function PracticeStudio({
         score: Math.min(0.9, 0.45 + faceCount * 0.2),
         evidence: `${faceCount} face${faceCount > 1 ? "s" : ""} visible${calibratedNote}`
       });
-    } else if (recordingRef.current) {
+    } else if (captureActiveRef.current) {
       observations.push({
         id: nowId("visual"),
         seconds: sampleSeconds,
@@ -1672,7 +1693,7 @@ function PracticeStudio({
   };
 
   useEffect(() => {
-    if (!cameraReady || safetyFlag) return;
+    if ((!cameraReady && !videoFile) || safetyFlag) return;
     let cancelled = false;
     let intervalId = 0;
 
@@ -1691,10 +1712,9 @@ function PracticeStudio({
   }, [cameraReady, safetyFlag, profile]);
 
   useEffect(() => {
-    if (!streamRef.current && !safetyFlag) {
-      startCamera();
-    }
-  }, [safetyFlag]);
+    if (sourceMode !== "live" || streamRef.current || safetyFlag) return;
+    startCamera();
+  }, [safetyFlag, sourceMode]);
 
   const startSpeech = () => {
     transcriberRef.current?.stop();
@@ -1762,11 +1782,59 @@ function PracticeStudio({
 
   const stopRecording = () => {
     recordingRef.current = false;
+    captureActiveRef.current = false;
     mediaRecorderRef.current?.stop();
     transcriberRef.current?.stop();
     transcriberRef.current = null;
     setRecording(false);
     setInterimText("");
+  };
+
+  const clearVideoFile = () => {
+    if (videoFile) URL.revokeObjectURL(videoFile.url);
+    setVideoFile(null);
+    setFileAnalyzing(false);
+    setFileDuration(0);
+  };
+
+  /**
+   * Loads a session recorded earlier. Everything stays on this machine: the file is
+   * read through a local object URL and never uploaded.
+   */
+  const chooseVideoFile = (file?: File | null) => {
+    if (!file) return;
+    stopCamera();
+    if (videoFile) URL.revokeObjectURL(videoFile.url);
+    setVideoFile({ name: file.name, url: URL.createObjectURL(file) });
+    setFileAnalyzing(false);
+    setElapsed(0);
+    elapsedRef.current = 0;
+    setVisualStatus("Video loaded - press play to read the cues");
+  };
+
+  const switchSource = (mode: VideoSource) => {
+    if (mode === sourceMode) return;
+    if (recordingRef.current) stopRecording();
+    setSourceMode(mode);
+    if (mode === "live") {
+      clearVideoFile();
+    } else {
+      stopCamera();
+      setSpeechState({
+        state: "unsupported",
+        language: autoSpeechLanguageRef.current,
+        // Browser speech recognition only listens to a microphone; it cannot read a file.
+        message: "Recorded video: add transcript notes by hand"
+      });
+    }
+  };
+
+  /** Video-file playback drives the session clock, so cues land at the right moment. */
+  const handleFileTimeUpdate = () => {
+    const video = videoRef.current;
+    if (!video || sourceMode !== "file") return;
+    elapsedRef.current = video.currentTime;
+    setElapsed(Math.floor(video.currentTime));
   };
 
   /** Corrects a turn attributed to the wrong partner. */
@@ -1806,7 +1874,7 @@ function PracticeStudio({
       title: `${activeDeck.title} / ${sessionTypes.find((type) => type.id === sessionType)?.label ?? "Session"} - ${new Date().toLocaleDateString()}`,
       type: sessionType,
       startedAt: new Date().toISOString(),
-      durationSeconds: elapsed,
+      durationSeconds: sourceMode === "file" && fileDuration > 0 ? Math.round(fileDuration) : elapsed,
       segments: segmentsToSave,
       cues,
       visualObservations,
@@ -1880,30 +1948,88 @@ function PracticeStudio({
         </div>
       </div>
 
-      <div className="lab-stage">
+      <div className={`lab-stage ${sourceMode === "file" ? "reviewing" : ""}`}>
         {safetyFlag && (
           <div className="safety-banner">
             <ShieldCheck size={18} />
             Practice mode is paused until the safety checklist is reviewed.
           </div>
         )}
-        <video ref={videoRef} autoPlay playsInline muted className="video-preview" />
-        {!cameraReady && (
+        <video
+          ref={videoRef}
+          autoPlay={sourceMode === "live"}
+          playsInline
+          muted={sourceMode === "live"}
+          controls={sourceMode === "file" && Boolean(videoFile)}
+          src={sourceMode === "file" && videoFile ? videoFile.url : undefined}
+          className="video-preview"
+          onLoadedMetadata={(event) => {
+            if (sourceMode === "file") setFileDuration(event.currentTarget.duration || 0);
+          }}
+          onTimeUpdate={handleFileTimeUpdate}
+          onPlay={() => sourceMode === "file" && setFileAnalyzing(true)}
+          onPause={() => sourceMode === "file" && setFileAnalyzing(false)}
+          onEnded={() => sourceMode === "file" && setFileAnalyzing(false)}
+        />
+        {sourceMode === "live" && !cameraReady && (
           <div className="video-placeholder">
             <CameraEmptyArt size={92} />
             <span>Camera preview</span>
           </div>
         )}
+        {sourceMode === "file" && !videoFile && (
+          <div className="video-placeholder">
+            <CameraEmptyArt size={92} />
+            <span>Choose a recording to read</span>
+            <small>The file is read on this computer and never uploaded.</small>
+          </div>
+        )}
+        <div className="source-switch">
+          <button className={sourceMode === "live" ? "active" : ""} onClick={() => switchSource("live")}>
+            Live camera
+          </button>
+          <button className={sourceMode === "file" ? "active" : ""} onClick={() => switchSource("file")}>
+            Recorded video
+          </button>
+        </div>
         <div className="lab-controls">
-          <button className="secondary" onClick={cameraReady ? stopCamera : startCamera}>
-            <Camera size={17} />
-            {cameraReady ? "Stop camera" : "Camera"}
-          </button>
-          <button className="primary" onClick={recording ? stopRecording : startRecording} disabled={safetyFlag}>
-            {recording ? <Square size={17} /> : <Play size={17} />}
-            {recording ? "Stop" : "Record"}
-          </button>
-          <span className="timer">{formatTime(elapsed)}</span>
+          {sourceMode === "live" ? (
+            <>
+              <button className="secondary" onClick={cameraReady ? stopCamera : startCamera}>
+                <Camera size={17} />
+                {cameraReady ? "Stop camera" : "Camera"}
+              </button>
+              <button className="primary" onClick={recording ? stopRecording : startRecording} disabled={safetyFlag}>
+                {recording ? <Square size={17} /> : <Play size={17} />}
+                {recording ? "Stop" : "Record"}
+              </button>
+            </>
+          ) : (
+            <>
+              <label className="secondary file-picker">
+                <FileVideo size={17} />
+                {videoFile ? "Choose another" : "Choose video"}
+                <input
+                  type="file"
+                  accept="video/*"
+                  onChange={(event) => {
+                    chooseVideoFile(event.target.files?.[0]);
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+              {videoFile && (
+                <button className="secondary" onClick={clearVideoFile}>
+                  <Trash2 size={17} />
+                  Remove
+                </button>
+              )}
+            </>
+          )}
+          <span className="timer">
+            {formatTime(elapsed)}
+            {sourceMode === "file" && fileDuration > 0 && ` / ${formatTime(fileDuration)}`}
+          </span>
           <span className={`status-dot speech-${speechState.state}`}>
             <Mic size={15} />
             {speechStatus}

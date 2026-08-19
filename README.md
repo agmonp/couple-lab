@@ -28,6 +28,10 @@ friendship/conflict research and Esther Perel-style attention to desire, play, a
   Aliveness, Shared Meaning (Gottman/Perel-inspired prompts).
 - **Practice Studio** — one workspace with prompts, optional camera + recording, live transcript,
   manual notes, and nonverbal cues.
+- **Read a recording you already have** — point the studio at a video file instead of the live
+  camera and it reads the same nonverbal cues from it. The file is opened on your machine and never
+  uploaded. Speech-to-text does not work on a file (the browser API only listens to a microphone),
+  so use transcript notes, or a local Whisper service, for the words.
 - **Hebrew / English transcription** — speech is grouped into whole turns rather than scraps, timed
   from the clock, marked when the audio was unclear, and laid out right-to-left for Hebrew. Set the
   language yourself, or leave it on Automatic and let confidence decide.

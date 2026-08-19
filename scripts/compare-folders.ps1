@@ -199,4 +199,25 @@ if ($null -ne $spare) {
 }
 
 Write-Host ""
+Write-Host "-----------------------------------------------------" -ForegroundColor White
+Write-Host " Summary you can copy and paste" -ForegroundColor White
+Write-Host "-----------------------------------------------------" -ForegroundColor White
+Write-Host ""
+
+# Metadata only - names, sizes, dates, git state. No file contents.
+foreach ($item in @(@{ N = "FOLDER 1"; R = $reportA }, @{ N = "FOLDER 2"; R = $reportB })) {
+    $r = $item.R
+    if (-not $r.Exists) {
+        Write-Host "$($item.N): missing - $($r.Path)"
+        continue
+    }
+    $edits = if ($r.HasLocalEdit) { "uncommitted-changes" } else { "clean" }
+    $git = if ($r.HasGit) { "git:$($r.Branch)/$edits" } else { "no-git" }
+    $mods = if ($r.HasModules) { "deps" } else { "no-deps" }
+    $app = if ($r.IsCoupleLab) { "couple-lab" } else { "NOT-couple-lab" }
+    Write-Host "$($item.N): $($r.Path)"
+    Write-Host "  $app | $($r.FileCount) files | $($r.SizeMB) MB | last edit $($r.NewestWhen) | $git | $mods"
+}
+
+Write-Host ""
 Read-Host "Press Enter to close"
