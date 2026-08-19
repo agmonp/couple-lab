@@ -65,6 +65,7 @@ npm run dev      # then open http://127.0.0.1:5173
 | `Create Desktop Shortcut.cmd` | Puts a **Couple Lab** icon on the desktop. Run once. |
 | `Open Couple Lab.cmd` | Starts the app and opens it. Installs dependencies on first run. |
 | `Check Couple Lab Folders.cmd` | Reports which of two Couple Lab folders is the live one. Deletes nothing. |
+| `Sync with GitHub.cmd` | Two-way sync with GitHub. Saves local work first, then merges and uploads — never overwrites this computer's copy, never force-pushes. |
 
 The desktop shortcut points at `Open Couple Lab.cmd` in whichever folder you ran it from, so create
 it from the copy you intend to keep.
