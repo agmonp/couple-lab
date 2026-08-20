@@ -14,6 +14,7 @@ import {
   Eye,
   FileDown,
   FileText,
+  FileVideo,
   HeartHandshake,
   Lock,
   Mic,
@@ -27,6 +28,13 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { analyzeSession } from "./relationshipEngine";
+import {
+  Transcriber,
+  TranscriberStatus,
+  detectScriptLanguage,
+  hasHebrewText,
+  isSpeechRecognitionSupported
+} from "./speech";
 import {
   decks,
   defaultAssessment,
@@ -49,13 +57,14 @@ import {
   SafetyState,
   SessionRecord,
   SessionType,
-  SpeechRecognitionLike,
+  SpeechLanguage,
   TranscriptSegment,
   VisualObservation
 } from "./types";
 
 type View = "dashboard" | "assess" | "practice" | "insights" | "adviser" | "report" | "export";
-type SpeechLanguage = "he-IL" | "en-US";
+/** Where the studio takes its picture from: the camera now, or a video recorded earlier. */
+type VideoSource = "live" | "file";
 
 const storageKeys = {
   profile: "couple-lab-profile",
@@ -122,11 +131,11 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-function estimateSpeechDuration(text: string) {
-  return clamp(Math.ceil(spokenWordCount(text) / 2.4), 2, 18);
-}
-
 const VISUAL_SAMPLE_SECONDS = 1.2;
+/** How often the live reflection re-analyses the session while recording. */
+const ANALYSIS_SAMPLE_MS = 1500;
+/** Turns recognised below this confidence are marked as worth checking by ear. */
+const LOW_CONFIDENCE = 0.6;
 
 function visualSeconds(count: number) {
   return Math.round(count * VISUAL_SAMPLE_SECONDS);
@@ -137,19 +146,6 @@ function formatDuration(seconds: number) {
     return `${seconds}s`;
   }
   return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
-}
-
-function detectScriptLanguage(text: string): SpeechLanguage | null {
-  const hebrewCount = (text.match(/[\u0590-\u05FF]/g) ?? []).length;
-  const latinCount = (text.match(/[A-Za-z]/g) ?? []).length;
-
-  if (hebrewCount >= 2 && hebrewCount >= latinCount) return "he-IL";
-  if (latinCount >= 4 && latinCount > hebrewCount) return "en-US";
-  return null;
-}
-
-function hasHebrewText(text: string) {
-  return /[\u0590-\u05FF]/.test(text);
 }
 
 function chooseInitialSpeechLanguage(profile: CoupleProfile, segments: TranscriptSegment[]): SpeechLanguage {
@@ -165,12 +161,12 @@ function chooseInitialSpeechLanguage(profile: CoupleProfile, segments: Transcrip
   return "en-US";
 }
 
-function computeNonverbalMetrics(observations: VisualObservation[]): NonverbalMetrics {
-  const count = (label: VisualObservation["label"], subject?: PartnerId) =>
-    observations.filter((observation) => observation.label === label && (!subject || observation.subject === subject)).length;
-
+function buildNonverbalMetrics(
+  count: (label: VisualObservation["label"], subject?: PartnerId) => number,
+  sampleCount: number
+): NonverbalMetrics {
   return {
-    sampleCount: new Set(observations.map((observation) => Math.round(observation.seconds))).size,
+    sampleCount,
     sharedFrameSeconds: visualSeconds(count("shared-frame")),
     mutualAttentionSeconds: visualSeconds(count("mutual-attention")),
     partnerGazeSecondsA: visualSeconds(count("partner-gaze", "A")),
@@ -184,6 +180,73 @@ function computeNonverbalMetrics(observations: VisualObservation[]): NonverbalMe
     engagementSeconds: visualSeconds(count("possible-engagement") + count("mutual-attention") + count("partner-gaze")),
     withdrawalSeconds: visualSeconds(count("possible-withdrawal") + count("leaning-away") + count("head-turned-away"))
   };
+}
+
+/** Used for sessions saved before running totals were kept. */
+function computeNonverbalMetrics(observations: VisualObservation[]): NonverbalMetrics {
+  const count = (label: VisualObservation["label"], subject?: PartnerId) =>
+    observations.filter((observation) => observation.label === label && (!subject || observation.subject === subject)).length;
+
+  return buildNonverbalMetrics(count, new Set(observations.map((observation) => Math.round(observation.seconds))).size);
+}
+
+/**
+ * Running totals for a whole session.
+ *
+ * The stored observation list is trimmed to bound memory, so counting it directly
+ * would report only the last minute or so of a long conversation while presenting
+ * the figures as session totals.
+ */
+class VisualTally {
+  private counts = new Map<string, number>();
+  private sampleSeconds = new Set<number>();
+
+  add(observations: VisualObservation[]) {
+    observations.forEach((observation) => {
+      const key = `${observation.label}|${observation.subject ?? ""}`;
+      this.counts.set(key, (this.counts.get(key) ?? 0) + 1);
+      this.sampleSeconds.add(Math.round(observation.seconds));
+    });
+  }
+
+  reset() {
+    this.counts.clear();
+    this.sampleSeconds.clear();
+  }
+
+  count = (label: VisualObservation["label"], subject?: PartnerId) => {
+    if (subject) return this.counts.get(`${label}|${subject}`) ?? 0;
+    let total = 0;
+    this.counts.forEach((value, key) => {
+      if (key.slice(0, key.lastIndexOf("|")) === label) total += value;
+    });
+    return total;
+  };
+
+  metrics(): NonverbalMetrics {
+    return buildNonverbalMetrics(this.count, this.sampleSeconds.size);
+  }
+}
+
+const emptyNonverbalMetrics = computeNonverbalMetrics([]);
+
+/**
+ * Samples a fast-changing value on a fixed interval so expensive derived work runs
+ * on a budget rather than on every update.
+ */
+function useThrottledValue<T>(value: T, intervalMs: number): T {
+  const [sampled, setSampled] = useState(value);
+  const latest = useRef(value);
+  latest.current = value;
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setSampled((current) => (current === latest.current ? current : latest.current));
+    }, intervalMs);
+    return () => window.clearInterval(timer);
+  }, [intervalMs]);
+
+  return sampled;
 }
 
 function downloadBlob(filename: string, content: string, type = "application/json") {
@@ -205,7 +268,7 @@ const sessionTypes: { id: SessionType; label: string }[] = [
 ];
 
 const transcriptLanguages: { id: "auto" | SpeechLanguage; label: string }[] = [
-  { id: "auto", label: "Auto Hebrew / English" },
+  { id: "auto", label: "Automatic" },
   { id: "he-IL", label: "Hebrew" },
   { id: "en-US", label: "English" }
 ];
@@ -1061,74 +1124,6 @@ function AssessView({
   );
 }
 
-function DecksView({
-  deckStats,
-  setDeckStats,
-  profile
-}: {
-  deckStats: Record<string, number>;
-  setDeckStats: (stats: Record<string, number>) => void;
-  profile: CoupleProfile;
-}) {
-  const [activeDeck, setActiveDeck] = useState<Deck>(decks[0]);
-  const [cardIndex, setCardIndex] = useState(0);
-
-  const draw = (deck = activeDeck) => {
-    const next = Math.floor(Math.random() * deck.cards.length);
-    setCardIndex(next === cardIndex ? (next + 1) % deck.cards.length : next);
-  };
-
-  return (
-    <section className="deck-layout">
-      <div className="deck-list">
-        {decks.map((deck) => (
-          <button
-            key={deck.id}
-            className={`deck-button ${activeDeck.id === deck.id ? "active" : ""}`}
-            onClick={() => {
-              setActiveDeck(deck);
-              setCardIndex(0);
-            }}
-          >
-            <span>{deck.lens}</span>
-            <strong>{deck.title}</strong>
-            <small>{deckStats[deck.id] ?? 0} practiced</small>
-          </button>
-        ))}
-      </div>
-
-      <div className="prompt-stage">
-        <div className="prompt-meta">
-          <span>{activeDeck.lens}</span>
-          <strong>{activeDeck.title}</strong>
-          <p>{activeDeck.purpose}</p>
-        </div>
-        <blockquote>{activeDeck.cards[cardIndex]}</blockquote>
-        <div className="prompt-actions">
-          <button className="secondary" onClick={() => draw()}>
-            <RefreshCw size={17} />
-            Draw
-          </button>
-          <button
-            className="primary"
-            onClick={() => setDeckStats({ ...deckStats, [activeDeck.id]: (deckStats[activeDeck.id] ?? 0) + 1 })}
-          >
-            <Check size={17} />
-            Practiced
-          </button>
-        </div>
-        <div className="closing-line">
-          <HeartHandshake size={18} />
-          <span>
-            Close with: one thing I heard, one thing I appreciate, and one next step I can do for{" "}
-            {profile.partnerAName && profile.partnerBName ? `${profile.partnerAName} and ${profile.partnerBName}` : "us"}.
-          </span>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function PracticeStudio({
   profile,
   setProfile,
@@ -1150,13 +1145,21 @@ function PracticeStudio({
   const streamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaChunksRef = useRef<Blob[]>([]);
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const transcriberRef = useRef<Transcriber | null>(null);
   const recordingRef = useRef(false);
+  /** True whenever cues should be sampled: recording live, or playing a file for analysis. */
+  const captureActiveRef = useRef(false);
   const elapsedRef = useRef(0);
+  /** performance.now() at the moment recording started, so utterance timestamps map onto the session clock. */
+  const recordingStartMsRef = useRef(0);
   const activeSpeakerRef = useRef<PartnerId>("A");
   const autoSpeechLanguageRef = useRef<SpeechLanguage>("he-IL");
   const faceLandmarkerRef = useRef<FaceLandmarker | null>(null);
   const poseLandmarkerRef = useRef<PoseLandmarker | null>(null);
+  const visualTallyRef = useRef(new VisualTally());
+  /** Short window kept for deriving sustained cues, separate from the trimmed display list. */
+  const recentObservationsRef = useRef<VisualObservation[]>([]);
+  const transcriptListRef = useRef<HTMLDivElement | null>(null);
   const [cameraReady, setCameraReady] = useState(false);
   const [recording, setRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -1172,9 +1175,21 @@ function PracticeStudio({
   const [segments, setSegments] = useState<TranscriptSegment[]>([]);
   const [cues, setCues] = useState<LiveCue[]>([]);
   const [visualObservations, setVisualObservations] = useState<VisualObservation[]>([]);
+  const [nonverbalMetrics, setNonverbalMetrics] = useState<NonverbalMetrics>(emptyNonverbalMetrics);
   const [manualText, setManualText] = useState("");
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [speechStatus, setSpeechStatus] = useState("Ready");
+  const [sourceMode, setSourceMode] = useState<VideoSource>("live");
+  const [videoFile, setVideoFile] = useState<{ name: string; url: string } | null>(null);
+  const [fileAnalyzing, setFileAnalyzing] = useState(false);
+  const [fileDuration, setFileDuration] = useState(0);
+  const [interimText, setInterimText] = useState("");
+  const [speechState, setSpeechState] = useState<TranscriberStatus>({
+    state: "idle",
+    language: "he-IL",
+    message: isSpeechRecognitionSupported() ? "Ready" : "Speech recognition unavailable — use transcript notes"
+  });
+  const speechStatus = speechState.message;
+  const [cameraStatus, setCameraStatus] = useState("Camera off");
   const [visualStatus, setVisualStatus] = useState("Visual AI warming up");
   const calibrationText = profile.visualCalibration
     ? `${partnerName(profile, "A")} = ${slotName(profile.visualCalibration.A)}, ${partnerName(profile, "B")} = ${slotName(
@@ -1185,6 +1200,10 @@ function PracticeStudio({
   useEffect(() => {
     recordingRef.current = recording;
   }, [recording]);
+
+  useEffect(() => {
+    captureActiveRef.current = recording || fileAnalyzing;
+  }, [recording, fileAnalyzing]);
 
   useEffect(() => {
     elapsedRef.current = elapsed;
@@ -1226,35 +1245,74 @@ function PracticeStudio({
     };
   }, [videoUrl]);
 
+  useEffect(
+    () => () => {
+      transcriberRef.current?.stop();
+      transcriberRef.current = null;
+    },
+    []
+  );
+
+  const videoFileUrl = videoFile?.url;
+  useEffect(
+    () => () => {
+      if (videoFileUrl) URL.revokeObjectURL(videoFileUrl);
+    },
+    [videoFileUrl]
+  );
+
+  // Follow the conversation as it arrives, but leave the scroll alone while
+  // someone is reading back through earlier turns.
+  useEffect(() => {
+    const list = transcriptListRef.current;
+    if (!list) return;
+    const distanceFromBottom = list.scrollHeight - list.scrollTop - list.clientHeight;
+    if (distanceFromBottom < 120) {
+      list.scrollTop = list.scrollHeight;
+    }
+  }, [segments, interimText]);
+
   const draw = (deck = activeDeck) => {
     const next = Math.floor(Math.random() * deck.cards.length);
     setCardIndex(next === cardIndex ? (next + 1) % deck.cards.length : next);
   };
 
-  const buildSegment = (text: string, source: TranscriptSegment["source"], speaker = activeSpeakerRef.current): TranscriptSegment => {
+  const buildSegment = (
+    text: string,
+    source: TranscriptSegment["source"],
+    timing?: { startSeconds: number; endSeconds: number; confidence?: number; language?: SpeechLanguage },
+    speaker = activeSpeakerRef.current
+  ): TranscriptSegment => {
     const clean = text.trim();
-    const endSeconds = elapsedRef.current;
-    const startSeconds = source === "speech" ? Math.max(0, endSeconds - estimateSpeechDuration(clean)) : endSeconds;
+    const endSeconds = timing?.endSeconds ?? elapsedRef.current;
+    const startSeconds = timing?.startSeconds ?? endSeconds;
     const detectedLanguage =
-      detectScriptLanguage(clean) ?? (transcriptLanguage === "auto" ? autoSpeechLanguageRef.current : transcriptLanguage);
+      detectScriptLanguage(clean) ??
+      timing?.language ??
+      (transcriptLanguage === "auto" ? autoSpeechLanguageRef.current : transcriptLanguage);
 
     return {
       id: nowId("segment"),
       speaker,
       target: otherPartner(speaker),
       text: clean,
-      seconds: startSeconds,
-      endSeconds,
+      seconds: Math.max(0, Math.round(startSeconds)),
+      endSeconds: Math.max(0, Math.round(endSeconds)),
       source,
       detectedLanguage,
-      wordCount: spokenWordCount(clean)
+      wordCount: spokenWordCount(clean),
+      confidence: timing?.confidence
     };
   };
 
-  const appendSegment = (text: string, source: TranscriptSegment["source"]) => {
+  const appendSegment = (
+    text: string,
+    source: TranscriptSegment["source"],
+    timing?: { startSeconds: number; endSeconds: number; confidence?: number; language?: SpeechLanguage }
+  ) => {
     const clean = text.trim();
     if (!clean) return;
-    const segment = buildSegment(clean, source);
+    const segment = buildSegment(clean, source, timing);
     setSegments((current) => [...current, segment]);
   };
 
@@ -1380,7 +1438,7 @@ function PracticeStudio({
 
   const collectVisualObservations = () => {
     const video = videoRef.current;
-    if (!recordingRef.current) {
+    if (!captureActiveRef.current) {
       setVisualStatus("Visual AI ready; record to tag cues");
       return;
     }
@@ -1403,7 +1461,7 @@ function PracticeStudio({
         score: Math.min(0.9, 0.45 + faceCount * 0.2),
         evidence: `${faceCount} face${faceCount > 1 ? "s" : ""} visible${calibratedNote}`
       });
-    } else if (recordingRef.current) {
+    } else if (captureActiveRef.current) {
       observations.push({
         id: nowId("visual"),
         seconds: sampleSeconds,
@@ -1568,19 +1626,22 @@ function PracticeStudio({
     });
 
     if (observations.length > 0) {
-      setVisualObservations((current) => {
-        const enriched = observations.map((observation) => ({
-          provider: "mediapipe" as const,
-          ...observation,
-          metadata: {
-            ...(observation.metadata ?? {}),
-            sampleSeconds,
-            model: observation.provider ?? "mediapipe"
-          }
-        }));
-        const derived = deriveVisualWindowObservations(current, enriched, sampleSeconds);
-        return [...current.slice(-260), ...enriched, ...derived];
-      });
+      const enriched = observations.map((observation) => ({
+        provider: "mediapipe" as const,
+        ...observation,
+        metadata: {
+          ...(observation.metadata ?? {}),
+          sampleSeconds,
+          model: observation.provider ?? "mediapipe"
+        }
+      }));
+      const derived = deriveVisualWindowObservations(recentObservationsRef.current, enriched, sampleSeconds);
+      const batch = [...enriched, ...derived];
+
+      recentObservationsRef.current = [...recentObservationsRef.current, ...batch].slice(-60);
+      visualTallyRef.current.add(batch);
+      setNonverbalMetrics(visualTallyRef.current.metrics());
+      setVisualObservations((current) => [...current.slice(-260), ...batch]);
     }
   };
 
@@ -1615,9 +1676,9 @@ function PracticeStudio({
         videoRef.current.srcObject = stream;
       }
       setCameraReady(true);
-      setSpeechStatus("Camera ready");
+      setCameraStatus("Camera ready");
     } catch {
-      setSpeechStatus("Camera permission needed");
+      setCameraStatus("Camera permission needed");
     }
   };
 
@@ -1628,10 +1689,11 @@ function PracticeStudio({
       videoRef.current.srcObject = null;
     }
     setCameraReady(false);
+    setCameraStatus("Camera off");
   };
 
   useEffect(() => {
-    if (!cameraReady || safetyFlag) return;
+    if ((!cameraReady && !videoFile) || safetyFlag) return;
     let cancelled = false;
     let intervalId = 0;
 
@@ -1650,56 +1712,39 @@ function PracticeStudio({
   }, [cameraReady, safetyFlag, profile]);
 
   useEffect(() => {
-    if (!streamRef.current && !safetyFlag) {
-      startCamera();
-    }
-  }, [safetyFlag]);
+    if (sourceMode !== "live" || streamRef.current || safetyFlag) return;
+    startCamera();
+  }, [safetyFlag, sourceMode]);
 
   const startSpeech = () => {
-    const SpeechConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechConstructor) {
-      setSpeechStatus("Manual transcript mode");
-      return;
-    }
-    const recognition = new SpeechConstructor();
-    recognition.continuous = true;
-    recognition.interimResults = false;
-    const effectiveLanguage = transcriptLanguage === "auto" ? autoSpeechLanguageRef.current : transcriptLanguage;
-    recognition.lang = effectiveLanguage;
-    recognition.onresult = (event) => {
-      for (let index = event.resultIndex; index < event.results.length; index += 1) {
-        const result = event.results[index];
-        if (result.isFinal) {
-          const transcript = result[0].transcript;
-          appendSegment(transcript, "speech");
-          const detectedLanguage = detectScriptLanguage(transcript);
-          if (transcriptLanguage === "auto" && detectedLanguage && detectedLanguage !== autoSpeechLanguageRef.current) {
-            autoSpeechLanguageRef.current = detectedLanguage;
-            setAutoSpeechLanguage(detectedLanguage);
-            setSpeechStatus(`Detected ${detectedLanguage === "he-IL" ? "Hebrew" : "English"}; switching transcription`);
-            recognition.stop();
-            return;
-          }
+    transcriberRef.current?.stop();
+
+    const transcriber = new Transcriber({
+      language: transcriptLanguage,
+      initialLanguage: autoSpeechLanguageRef.current,
+      onInterim: setInterimText,
+      onUtterance: (utterance) => {
+        // Utterance timestamps are on the performance clock; place them on the session clock.
+        const startSeconds = (utterance.startedAtMs - recordingStartMsRef.current) / 1000;
+        const endSeconds = (utterance.endedAtMs - recordingStartMsRef.current) / 1000;
+        appendSegment(utterance.text, "speech", {
+          startSeconds,
+          endSeconds: Math.max(startSeconds, endSeconds),
+          confidence: utterance.confidence,
+          language: utterance.language
+        });
+      },
+      onStatus: (status) => {
+        setSpeechState(status);
+        if (transcriptLanguage === "auto" && status.language !== autoSpeechLanguageRef.current) {
+          autoSpeechLanguageRef.current = status.language;
+          setAutoSpeechLanguage(status.language);
         }
       }
-    };
-    recognition.onerror = () => setSpeechStatus("Speech capture paused");
-    recognition.onend = () => {
-      if (recordingRef.current) {
-        try {
-          startSpeech();
-        } catch {
-          setSpeechStatus("Speech restart blocked");
-        }
-      }
-    };
-    recognitionRef.current = recognition;
-    recognition.start();
-    const languageLabel =
-      transcriptLanguage === "auto"
-        ? `Auto (${effectiveLanguage === "he-IL" ? "Hebrew" : "English"})`
-        : transcriptLanguages.find((language) => language.id === transcriptLanguage)?.label ?? "browser";
-    setSpeechStatus(`Speech capture on (${languageLabel})`);
+    });
+
+    transcriberRef.current = transcriber;
+    transcriber.start();
   };
 
   const startRecording = async () => {
@@ -1723,6 +1768,7 @@ function PracticeStudio({
     mediaRecorderRef.current = recorder;
     setElapsed(0);
     elapsedRef.current = 0;
+    recordingStartMsRef.current = performance.now();
     if (transcriptLanguage === "auto") {
       const nextLanguage = chooseInitialSpeechLanguage(profile, segments);
       autoSpeechLanguageRef.current = nextLanguage;
@@ -1736,11 +1782,86 @@ function PracticeStudio({
 
   const stopRecording = () => {
     recordingRef.current = false;
+    captureActiveRef.current = false;
     mediaRecorderRef.current?.stop();
-    recognitionRef.current?.stop();
+    transcriberRef.current?.stop();
+    transcriberRef.current = null;
     setRecording(false);
-    setSpeechStatus("Stopped");
+    setInterimText("");
   };
+
+  const clearVideoFile = () => {
+    if (videoFile) URL.revokeObjectURL(videoFile.url);
+    setVideoFile(null);
+    setFileAnalyzing(false);
+    setFileDuration(0);
+  };
+
+  /**
+   * Loads a session recorded earlier. Everything stays on this machine: the file is
+   * read through a local object URL and never uploaded.
+   */
+  const chooseVideoFile = (file?: File | null) => {
+    if (!file) return;
+    stopCamera();
+    if (videoFile) URL.revokeObjectURL(videoFile.url);
+    setVideoFile({ name: file.name, url: URL.createObjectURL(file) });
+    setFileAnalyzing(false);
+    setElapsed(0);
+    elapsedRef.current = 0;
+    setVisualStatus("Video loaded - press play to read the cues");
+  };
+
+  const switchSource = (mode: VideoSource) => {
+    if (mode === sourceMode) return;
+    if (recordingRef.current) stopRecording();
+    setSourceMode(mode);
+    if (mode === "live") {
+      clearVideoFile();
+    } else {
+      stopCamera();
+      setSpeechState({
+        state: "unsupported",
+        language: autoSpeechLanguageRef.current,
+        // Browser speech recognition only listens to a microphone; it cannot read a file.
+        message: "Recorded video: add transcript notes by hand"
+      });
+    }
+  };
+
+  /** Video-file playback drives the session clock, so cues land at the right moment. */
+  const handleFileTimeUpdate = () => {
+    const video = videoRef.current;
+    if (!video || sourceMode !== "file") return;
+    elapsedRef.current = video.currentTime;
+    setElapsed(Math.floor(video.currentTime));
+  };
+
+  /** Corrects a turn attributed to the wrong partner. */
+  const reassignSegment = (segmentId: string) => {
+    setSegments((current) =>
+      current.map((segment) => {
+        if (segment.id !== segmentId) return segment;
+        const speaker = otherPartner(segment.speaker);
+        return { ...segment, speaker, target: otherPartner(speaker) };
+      })
+    );
+  };
+
+  /** A turn belongs to whoever was speaking when it started, so close it before switching. */
+  const changeSpeaker = (speaker: PartnerId) => {
+    transcriberRef.current?.flush();
+    activeSpeakerRef.current = speaker;
+    setActiveSpeaker(speaker);
+  };
+
+  // Changing the language mid-session re-arms the recogniser instead of waiting
+  // for the next recording.
+  useEffect(() => {
+    if (!recordingRef.current) return;
+    startSpeech();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transcriptLanguage]);
 
   const saveSession = () => {
     const pendingText = manualText.trim();
@@ -1748,17 +1869,16 @@ function PracticeStudio({
       ? [...segments, buildSegment(pendingText, "manual")]
       : segments;
     const analysis = analyzeSession(segmentsToSave, signals, cues, sessionType, visualObservations);
-    const nonverbalMetrics = computeNonverbalMetrics(visualObservations);
     const record: SessionRecord = {
       id: nowId("session"),
       title: `${activeDeck.title} / ${sessionTypes.find((type) => type.id === sessionType)?.label ?? "Session"} - ${new Date().toLocaleDateString()}`,
       type: sessionType,
       startedAt: new Date().toISOString(),
-      durationSeconds: elapsed,
+      durationSeconds: sourceMode === "file" && fileDuration > 0 ? Math.round(fileDuration) : elapsed,
       segments: segmentsToSave,
       cues,
       visualObservations,
-      nonverbalMetrics,
+      nonverbalMetrics: visualTallyRef.current.metrics(),
       signals,
       analysis
     };
@@ -1766,17 +1886,22 @@ function PracticeStudio({
     setSegments([]);
     setCues([]);
     setVisualObservations([]);
+    visualTallyRef.current.reset();
+    recentObservationsRef.current = [];
+    setNonverbalMetrics(emptyNonverbalMetrics);
     setManualText("");
     setElapsed(0);
     elapsedRef.current = 0;
     setDeckStats({ ...deckStats, [activeDeck.id]: (deckStats[activeDeck.id] ?? 0) + 1 });
   };
 
+  // Visual observations arrive several times a second. Sampling them keeps the full
+  // transcript analysis off the capture path instead of re-running it on every frame batch.
+  const analysisObservations = useThrottledValue(visualObservations, ANALYSIS_SAMPLE_MS);
   const previewAnalysis = useMemo(
-    () => analyzeSession(segments, signals, cues, sessionType, visualObservations),
-    [segments, signals, cues, sessionType, visualObservations]
+    () => analyzeSession(segments, signals, cues, sessionType, analysisObservations),
+    [segments, signals, cues, sessionType, analysisObservations]
   );
-  const currentNonverbalMetrics = useMemo(() => computeNonverbalMetrics(visualObservations), [visualObservations]);
   const tagsBySegment = useMemo(() => {
     return previewAnalysis.tags.reduce<Record<string, InteractionTag[]>>((acc, tag) => {
       if (!tag.segmentId) return acc;
@@ -1823,33 +1948,96 @@ function PracticeStudio({
         </div>
       </div>
 
-      <div className="lab-stage">
+      <div className={`lab-stage ${sourceMode === "file" ? "reviewing" : ""}`}>
         {safetyFlag && (
           <div className="safety-banner">
             <ShieldCheck size={18} />
             Practice mode is paused until the safety checklist is reviewed.
           </div>
         )}
-        <video ref={videoRef} autoPlay playsInline muted className="video-preview" />
-        {!cameraReady && (
+        <video
+          ref={videoRef}
+          autoPlay={sourceMode === "live"}
+          playsInline
+          muted={sourceMode === "live"}
+          controls={sourceMode === "file" && Boolean(videoFile)}
+          src={sourceMode === "file" && videoFile ? videoFile.url : undefined}
+          className="video-preview"
+          onLoadedMetadata={(event) => {
+            if (sourceMode === "file") setFileDuration(event.currentTarget.duration || 0);
+          }}
+          onTimeUpdate={handleFileTimeUpdate}
+          onPlay={() => sourceMode === "file" && setFileAnalyzing(true)}
+          onPause={() => sourceMode === "file" && setFileAnalyzing(false)}
+          onEnded={() => sourceMode === "file" && setFileAnalyzing(false)}
+        />
+        {sourceMode === "live" && !cameraReady && (
           <div className="video-placeholder">
             <CameraEmptyArt size={92} />
             <span>Camera preview</span>
           </div>
         )}
+        {sourceMode === "file" && !videoFile && (
+          <div className="video-placeholder">
+            <CameraEmptyArt size={92} />
+            <span>Choose a recording to read</span>
+            <small>The file is read on this computer and never uploaded.</small>
+          </div>
+        )}
+        <div className="source-switch">
+          <button className={sourceMode === "live" ? "active" : ""} onClick={() => switchSource("live")}>
+            Live camera
+          </button>
+          <button className={sourceMode === "file" ? "active" : ""} onClick={() => switchSource("file")}>
+            Recorded video
+          </button>
+        </div>
         <div className="lab-controls">
-          <button className="secondary" onClick={cameraReady ? stopCamera : startCamera}>
-            <Camera size={17} />
-            {cameraReady ? "Stop camera" : "Camera"}
-          </button>
-          <button className="primary" onClick={recording ? stopRecording : startRecording} disabled={safetyFlag}>
-            {recording ? <Square size={17} /> : <Play size={17} />}
-            {recording ? "Stop" : "Record"}
-          </button>
-          <span className="timer">{formatTime(elapsed)}</span>
-          <span className="status-dot">
+          {sourceMode === "live" ? (
+            <>
+              <button className="secondary" onClick={cameraReady ? stopCamera : startCamera}>
+                <Camera size={17} />
+                {cameraReady ? "Stop camera" : "Camera"}
+              </button>
+              <button className="primary" onClick={recording ? stopRecording : startRecording} disabled={safetyFlag}>
+                {recording ? <Square size={17} /> : <Play size={17} />}
+                {recording ? "Stop" : "Record"}
+              </button>
+            </>
+          ) : (
+            <>
+              <label className="secondary file-picker">
+                <FileVideo size={17} />
+                {videoFile ? "Choose another" : "Choose video"}
+                <input
+                  type="file"
+                  accept="video/*"
+                  onChange={(event) => {
+                    chooseVideoFile(event.target.files?.[0]);
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+              {videoFile && (
+                <button className="secondary" onClick={clearVideoFile}>
+                  <Trash2 size={17} />
+                  Remove
+                </button>
+              )}
+            </>
+          )}
+          <span className="timer">
+            {formatTime(elapsed)}
+            {sourceMode === "file" && fileDuration > 0 && ` / ${formatTime(fileDuration)}`}
+          </span>
+          <span className={`status-dot speech-${speechState.state}`}>
             <Mic size={15} />
             {speechStatus}
+            {speechState.confidence !== undefined && ` · ${Math.round(speechState.confidence * 100)}%`}
+          </span>
+          <span className="status-dot">
+            <Camera size={15} />
+            {cameraStatus}
           </span>
           <span className="status-dot">
             <Activity size={15} />
@@ -1866,7 +2054,7 @@ function PracticeStudio({
 
       <NonverbalPanel
         profile={profile}
-        metrics={currentNonverbalMetrics}
+        metrics={nonverbalMetrics}
         observations={visualObservations}
         calibrationText={calibrationText}
       />
@@ -1885,7 +2073,7 @@ function PracticeStudio({
           </label>
           <label>
             Speaker
-            <select value={activeSpeaker} onChange={(event) => setActiveSpeaker(event.target.value as PartnerId)}>
+            <select value={activeSpeaker} onChange={(event) => changeSpeaker(event.target.value as PartnerId)}>
               <option value="A">{partnerName(profile, "A")}</option>
               <option value="B">{partnerName(profile, "B")}</option>
             </select>
@@ -1957,24 +2145,35 @@ function PracticeStudio({
       <div className="panel transcript-panel">
         <div className="panel-heading">
           <h2>Transcript</h2>
-          <button className="text-button" onClick={() => setSegments([])}>
+          <span className="panel-count">{segments.length === 1 ? "1 turn" : `${segments.length} turns`}</span>
+          <button className="text-button" onClick={() => setSegments([])} disabled={segments.length === 0}>
             <Trash2 size={15} />
             Clear
           </button>
         </div>
-        <div className="transcript-list">
-          {segments.length === 0 && <p className="muted">No transcript segments yet.</p>}
+        <div className="transcript-list" ref={transcriptListRef}>
+          {segments.length === 0 && !interimText && (
+            <p className="muted">Nothing captured yet. Press record, or write a transcript note.</p>
+          )}
           {segments.map((segment) => {
             const segmentTags = tagsBySegment[segment.id] ?? [];
+            const unclear = segment.confidence !== undefined && segment.confidence < LOW_CONFIDENCE;
             return (
               <article key={segment.id} className={`segment speaker-${segment.speaker.toLowerCase()}`}>
-                <span>
-                  {partnerName(profile, segment.speaker)} to {partnerName(profile, segment.target ?? otherPartner(segment.speaker))} -{" "}
-                  {formatTime(segment.seconds)}
-                  {segment.endSeconds !== undefined ? `-${formatTime(segment.endSeconds)}` : ""} - {segment.source}
-                  {segment.detectedLanguage ? ` - ${segment.detectedLanguage}` : ""}
-                </span>
-                <p>{segment.text}</p>
+                <div className="segment-meta">
+                  <button
+                    className="segment-speaker"
+                    onClick={() => reassignSegment(segment.id)}
+                    title={`Move this turn to ${partnerName(profile, otherPartner(segment.speaker))}`}
+                  >
+                    {partnerName(profile, segment.speaker)}
+                  </button>
+                  <span>{formatTime(segment.seconds)}</span>
+                  {segment.source === "manual" && <span className="segment-flag">note</span>}
+                  {unclear && <span className="segment-flag unclear">unclear audio</span>}
+                </div>
+                {/* dir="auto" so Hebrew turns lay out right-to-left and English left-to-right. */}
+                <p dir="auto">{segment.text}</p>
                 {segmentTags.length > 0 && (
                   <div className="segment-tags">
                     {segmentTags.slice(0, 6).map((tag) => (
@@ -1987,6 +2186,15 @@ function PracticeStudio({
               </article>
             );
           })}
+          {interimText && (
+            <article className={`segment interim speaker-${activeSpeaker.toLowerCase()}`} aria-live="polite">
+              <div className="segment-meta">
+                <span className="segment-speaker-static">{partnerName(profile, activeSpeaker)}</span>
+                <span>listening…</span>
+              </div>
+              <p dir="auto">{interimText}</p>
+            </article>
+          )}
         </div>
       </div>
 

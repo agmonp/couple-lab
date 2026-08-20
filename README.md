@@ -28,6 +28,13 @@ friendship/conflict research and Esther Perel-style attention to desire, play, a
   Aliveness, Shared Meaning (Gottman/Perel-inspired prompts).
 - **Practice Studio** — one workspace with prompts, optional camera + recording, live transcript,
   manual notes, and nonverbal cues.
+- **Read a recording you already have** — point the studio at a video file instead of the live
+  camera and it reads the same nonverbal cues from it. The file is opened on your machine and never
+  uploaded. Speech-to-text does not work on a file (the browser API only listens to a microphone),
+  so use transcript notes, or a local Whisper service, for the words.
+- **Hebrew / English transcription** — speech is grouped into whole turns rather than scraps, timed
+  from the clock, marked when the audio was unclear, and laid out right-to-left for Hebrew. Set the
+  language yourself, or leave it on Automatic and let confidence decide.
 - **Relationship analysis** — tags validation, fondness, soft startup, repair attempts, bids/turning
   toward, and risk patterns (Four Horsemen-style), each linked to evidence in the transcript.
 - **Coaching report** — strengths, risks, next steps, and scripts; print / save as PDF; optional
@@ -47,15 +54,33 @@ npm install
 npm run dev      # then open http://127.0.0.1:5173
 ```
 
-On Windows you can also double-click **`Open Couple Lab.cmd`**.
-
 **Desktop app** (Electron wrapper): `npm run desktop`
 **Build / verify**: `npm run build`
+**Tests**: `npm test`
+
+### On Windows
+
+| File | What it does |
+| --- | --- |
+| `Create Desktop Shortcut.cmd` | Puts a **Couple Lab** icon on the desktop. Run once. |
+| `Open Couple Lab.cmd` | Starts the app and opens it. Installs dependencies on first run. |
+| `Check Couple Lab Folders.cmd` | Reports which of two Couple Lab folders is the live one. Deletes nothing. |
+| `Sync with GitHub.cmd` | Two-way sync with GitHub. Saves local work first, then merges and uploads — never overwrites this computer's copy, never force-pushes. |
+
+The desktop shortcut points at `Open Couple Lab.cmd` in whichever folder you ran it from, so create
+it from the copy you intend to keep.
+
+> Your sessions, scores, and transcripts live in the browser under
+> `http://127.0.0.1:5173`, not inside the project folder. Moving or deleting a folder does not
+> remove them — but export from the app before any big cleanup if you want a file copy.
 
 ## Tech
 
 React 18 + TypeScript + Vite, an Electron entry point, `@mediapipe/tasks-vision` for face/body
 cues, `lucide-react` icons, and the browser SpeechRecognition + MediaRecorder APIs. No backend.
+
+Transcription lives in `src/speech.ts`, apart from the UI and covered by `test/speech.test.ts`. Tests
+run on Node's own runner against the TypeScript sources, so there is no test bundler to maintain.
 
 ## Ethics & accuracy
 

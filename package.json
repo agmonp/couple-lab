@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit -p tsconfig.json && vite build",
+    "test": "node --experimental-transform-types --import ./test/register.mjs --test test/**/*.test.ts",
     "preview": "vite preview --host 127.0.0.1",
     "desktop": "concurrently -k \"npm:dev\" \"wait-on http://127.0.0.1:5173 && electron .\""
   },

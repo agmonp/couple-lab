@@ -1,3 +1,4 @@
+const path = require("node:path");
 const { app, BrowserWindow, shell } = require("electron");
 
 function createWindow() {
@@ -7,6 +8,7 @@ function createWindow() {
     minWidth: 1040,
     minHeight: 720,
     title: "Couple Lab",
+    icon: path.join(__dirname, "..", "public", "couple-lab.ico"),
     backgroundColor: "#f6f7f2",
     webPreferences: {
       contextIsolation: true,

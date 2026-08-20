@@ -1,5 +1,7 @@
 export type PartnerId = "A" | "B";
 
+export type SpeechLanguage = "he-IL" | "en-US";
+
 export type SessionType =
   | "daily-check-in"
   | "conflict"
@@ -82,6 +84,8 @@ export interface TranscriptSegment {
   source: "speech" | "manual";
   detectedLanguage?: "he-IL" | "en-US" | "unknown";
   wordCount?: number;
+  /** Mean recogniser confidence 0-1. Undefined for manual notes or browsers that omit it. */
+  confidence?: number;
 }
 
 export interface LiveCue {
@@ -239,12 +243,15 @@ export interface SafetyState {
 export interface SpeechRecognitionLike extends EventTarget {
   continuous: boolean;
   interimResults: boolean;
+  maxAlternatives: number;
   lang: string;
-  onresult: ((event: SpeechRecognitionEvent) => void) | null;
-  onerror: ((event: Event) => void) | null;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorLike) => void) | null;
   onend: (() => void) | null;
+  onstart: (() => void) | null;
   start: () => void;
   stop: () => void;
+  abort: () => void;
 }
 
 export interface SpeechRecognitionConstructor {
@@ -258,7 +265,26 @@ declare global {
   }
 }
 
-interface SpeechRecognitionEvent extends Event {
+export interface SpeechRecognitionAlternativeLike {
+  transcript: string;
+  confidence: number;
+}
+
+export interface SpeechRecognitionResultLike {
+  readonly length: number;
+  readonly isFinal: boolean;
+  [index: number]: SpeechRecognitionAlternativeLike;
+}
+
+export interface SpeechRecognitionEventLike extends Event {
   resultIndex: number;
-  results: SpeechRecognitionResultList;
+  results: {
+    readonly length: number;
+    [index: number]: SpeechRecognitionResultLike;
+  };
+}
+
+export interface SpeechRecognitionErrorLike extends Event {
+  error: string;
+  message?: string;
 }
