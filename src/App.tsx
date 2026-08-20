@@ -38,6 +38,7 @@ import { CALIBRATION_STORAGE_KEY, readCalibrationState, summarizeCalibration } f
 import { type GoldenMoment, goldenMomentsForSession } from "./goldenMoments";
 import { highlightPieces, searchTranscripts } from "./transcriptSearch";
 import { addTranscriptRate, analyzeAcousticFeatures } from "./acousticFeatures";
+import { VocalAnalyser, type VocalObservationLite } from "./audioAnalysis";
 import { inspectAudioQuality, matchPartnerVector, resampleAudio } from "./biometricQuality";
 import { incompleteBiometricPartners } from "./biometricReadiness";
 import { BiometricEnrollmentWizard } from "./BiometricEnrollmentWizard";
@@ -96,7 +97,8 @@ import {
   SpeechRecognitionLike,
   StoredTranscriptionMetadata,
   TranscriptSegment,
-  VisualObservation
+  VisualObservation,
+  VocalObservation
 } from "./types";
 
 type View = "dashboard" | "setup" | "assess" | "practice" | "insights" | "adviser" | "report" | "settings" | "export" | "diagnostics" | "more";
@@ -678,6 +680,105 @@ function visualSignalLabel(label: VisualObservation["label"]) {
     "body-movement": "תנועת גוף בין רגעים"
   };
   return labels[label];
+}
+
+/**
+ * Hebrew label, family, and an accessible glyph for each live vocal state. The
+ * family drives the pill colour so the tone tags read the same as the
+ * transcript interaction tags.
+ */
+const VOCAL_STATE_META: Record<
+  VocalObservation["label"],
+  { label: string; family: "flooding" | "strength" | "four-horsemen" | "nonverbal"; glyph: string }
+> = {
+  "raised-voice": { label: "הרמת קול", family: "flooding", glyph: "🔊" },
+  "tense-voice": { label: "מתח בקול", family: "four-horsemen", glyph: "📈" },
+  "flat-withdrawn": { label: "קול שטוח/מרוחק", family: "nonverbal", glyph: "🌫️" },
+  "warm-engaged": { label: "טון חם ומעורב", family: "strength", glyph: "💛" },
+  "long-pause": { label: "שתיקה ארוכה", family: "nonverbal", glyph: "⏸️" }
+};
+
+function VocalToneTag({
+  observation,
+  profile,
+  live = false
+}: {
+  observation: VocalObservation;
+  profile: CoupleProfile;
+  live?: boolean;
+}) {
+  const meta = VOCAL_STATE_META[observation.label];
+  const who = observation.subject ? partnerName(profile, observation.subject) : null;
+  return (
+    <span className={`vocal-tone-tag tag-pill ${meta.family}${live ? " live" : ""}`} title={observation.evidence}>
+      <span aria-hidden="true">{meta.glyph}</span>
+      <span>{meta.label}{who ? ` · ${who}` : ""}</span>
+    </span>
+  );
+}
+
+const VOCAL_LABEL_ORDER: VocalObservation["label"][] = [
+  "warm-engaged",
+  "tense-voice",
+  "raised-voice",
+  "flat-withdrawn",
+  "long-pause"
+];
+
+function VocalTonePanel({
+  profile,
+  observations
+}: {
+  profile: CoupleProfile;
+  observations: VocalObservation[];
+}) {
+  const counts = observations.reduce<Partial<Record<VocalObservation["label"], number>>>((grouped, observation) => {
+    grouped[observation.label] = (grouped[observation.label] ?? 0) + 1;
+    return grouped;
+  }, {});
+  const recent = observations.slice(-6).reverse();
+
+  return (
+    <div className="panel vocal-panel">
+      <div className="panel-heading">
+        <h2>טון הקול שנשמע</h2>
+        <Mic size={18} aria-hidden="true" />
+      </div>
+      <p className="muted">
+        המדדים מתארים את צליל הקול — עוצמה, גובה ושתיקות — כפי שנקלט במיקרופון. הם אינם קובעים רגש או כוונה.
+      </p>
+      {observations.length === 0 ? (
+        <p className="muted">לא נקלט מספיק קול לניתוח טון בשיחה הזו.</p>
+      ) : (
+        <>
+          <div className="vocal-tone-summary">
+            {VOCAL_LABEL_ORDER.map((label) => {
+              const count = counts[label] ?? 0;
+              if (count === 0) return null;
+              const meta = VOCAL_STATE_META[label];
+              return (
+                <span key={label} className={`tag-pill ${meta.family}`}>
+                  <span aria-hidden="true">{meta.glyph}</span> {meta.label}: {count}
+                </span>
+              );
+            })}
+          </div>
+          {recent.length > 0 && (
+            <ul className="vocal-tone-list">
+              {recent.map((observation) => (
+                <li key={observation.id}>
+                  <VocalToneTag observation={observation} profile={profile} />
+                  <span className="vocal-tone-when">
+                    <bdi dir="ltr">{formatTime(observation.seconds)}</bdi> · {observation.evidence}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </div>
+  );
 }
 
 const navItems: { view: View; label: string; icon: typeof HeartHandshake; desktopOnly?: boolean }[] = [
@@ -2454,6 +2555,8 @@ function PracticeStudio({
   const cuesRef = useRef<LiveCue[]>([]);
   const observationsRef = useRef<VisualObservation[]>([]);
   const visualMetricObservationsRef = useRef<VisualObservation[]>([]);
+  const vocalObservationsRef = useRef<VocalObservation[]>([]);
+  const vocalAnalyserRef = useRef<VocalAnalyser | null>(null);
   const manualTextRef = useRef("");
   const [cameraReady, setCameraReady] = useState(false);
   const [lightingHint, setLightingHint] = useState("");
@@ -2488,11 +2591,14 @@ function PracticeStudio({
   const [segments, setSegments] = useState<TranscriptSegment[]>([]);
   const [cues, setCues] = useState<LiveCue[]>([]);
   const [visualObservations, setVisualObservations] = useState<VisualObservation[]>([]);
+  const [vocalObservations, setVocalObservations] = useState<VocalObservation[]>([]);
+  const [liveVocalTone, setLiveVocalTone] = useState<VocalObservation | null>(null);
   const [manualText, setManualText] = useState("");
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [speechStatus, setSpeechStatus] = useState("מוכן לבדיקה");
   const [transcriptionStatusKind, setTranscriptionStatusKind] = useState<TranscriptionStatusKind>("idle");
   const [visualStatus, setVisualStatus] = useState("לא הופעל");
+  const [vocalStatus, setVocalStatus] = useState("יופעל עם ההקלטה");
   const [identityStatus, setIdentityStatus] = useState("ממתינים למצלמה");
   const [speakerStatus, setSpeakerStatus] = useState("הדובר יזוהה אוטומטית");
   const [incompleteIdentity, setIncompleteIdentity] = useState<PartnerId[]>(["A", "B"]);
@@ -2672,6 +2778,7 @@ function PracticeStudio({
       speakerSourceRef.current?.disconnect();
       speakerSilentGainRef.current?.disconnect();
       void speakerAudioContextRef.current?.close();
+      vocalAnalyserRef.current?.stop();
       if (videoUrlRef.current) URL.revokeObjectURL(videoUrlRef.current);
     };
   }, []);
@@ -3097,6 +3204,7 @@ function PracticeStudio({
   }, [safetyFlag]);
 
   const stopCamera = () => {
+    stopVocalAnalysis();
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     if (videoRef.current) {
@@ -3349,6 +3457,62 @@ function PracticeStudio({
     speakerChunksRef.current = [];
     speakerSamplesRef.current = 0;
     speakerMatchBusyRef.current = false;
+  };
+
+  // Live vocal (prosody) analysis: reads loudness, pitch and pauses straight
+  // from the microphone signal and streams observations into the session, the
+  // same way the camera streams visual observations. Self-contained Web Audio,
+  // so it runs in the browser and the desktop build alike — unlike the speaker
+  // matcher above, which needs the desktop bridge.
+  const startVocalAnalysis = () => {
+    const stream = streamRef.current;
+    if (!stream || stream.getAudioTracks().length === 0) {
+      setVocalStatus("אין מיקרופון זמין לניתוח הקול");
+      return;
+    }
+    stopVocalAnalysis();
+    const analyser = new VocalAnalyser({
+      activeSpeaker: () => activeSpeakerRef.current,
+      onObservations: (observations: VocalObservationLite[]) => {
+        if (!recordingRef.current) return;
+        // A quiet, unremarkable window clears the live tone so the tag next to
+        // the active turn always reflects the here-and-now, never a stale cue.
+        if (observations.length === 0) {
+          setLiveVocalTone(null);
+          return;
+        }
+        const seconds = Math.round(elapsedRef.current);
+        const stamped: VocalObservation[] = observations.map((observation, index) => ({
+          id: `vocal-${observation.label}-${observation.subject ?? "x"}-${seconds}-${index}`,
+          seconds,
+          label: observation.label,
+          subject: observation.subject,
+          score: observation.score,
+          evidence: observation.evidence,
+          provider: "local-prosody-v1",
+          metadata: observation.metadata
+        }));
+        vocalObservationsRef.current = [...vocalObservationsRef.current, ...stamped];
+        setVocalObservations((current) => [...current.slice(-200), ...stamped]);
+        // Surface the strongest cue as the live tone next to the active turn.
+        const strongest = [...stamped].sort((first, second) => second.score - first.score)[0];
+        setLiveVocalTone(strongest);
+      }
+    });
+    try {
+      analyser.start(stream);
+      vocalAnalyserRef.current = analyser;
+      setVocalStatus("מקשיב לטון הקול בזמן אמת");
+    } catch {
+      vocalAnalyserRef.current = null;
+      setVocalStatus("ניתוח הקול לא זמין בדפדפן הזה");
+    }
+  };
+
+  const stopVocalAnalysis = () => {
+    vocalAnalyserRef.current?.stop();
+    vocalAnalyserRef.current = null;
+    setLiveVocalTone(null);
   };
 
   const startLiveSpeakerMatching = () => {
@@ -3662,6 +3826,7 @@ function PracticeStudio({
         acousticMetrics: acousticMetricsRef.current,
         cues: currentCues,
         visualObservations: currentObservations,
+        vocalObservations: vocalObservationsRef.current,
         nonverbalMetrics,
         signals,
         analysis,
@@ -3754,6 +3919,9 @@ function PracticeStudio({
       acousticMetricsRef.current = undefined;
       visualSampleIndexRef.current = 0;
       visualMetricObservationsRef.current = [];
+      vocalObservationsRef.current = [];
+      setVocalObservations([]);
+      setLiveVocalTone(null);
       // Prefer VP9: noticeably better quality at the same bitrate on modern
       // Chromium; VP8 remains the compatibility fallback.
       const mimeType = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus"]
@@ -3798,6 +3966,7 @@ function PracticeStudio({
         startSpeech();
       }
       startLiveSpeakerMatching();
+      startVocalAnalysis();
       void logDiagnostic({ name: "recording.started", status: "success", phase: "recording" });
     } catch {
       setPhase("error");
@@ -3812,6 +3981,8 @@ function PracticeStudio({
     recordingRef.current = false;
     setRecording(false);
     stopLiveSpeakerMatching();
+    stopVocalAnalysis();
+    setVocalStatus("ניתוח הקול הסתיים");
     setPhase("finalizing");
     const speechFinalized = new Promise<void>((resolve) => {
       let settled = false;
@@ -4108,6 +4279,12 @@ function PracticeStudio({
             <div className="identity-status-copy">
               <strong>{recording ? `נראה ש${partnerName(profile, activeSpeaker)} מדבר/ת עכשיו` : "הזיהוי יתחיל עם השיחה"}</strong>
               <small>{identityStatus}</small>
+              {recording && liveVocalTone && (
+                <div className="live-tone-row" aria-live="polite">
+                  <span className="live-tone-label">טון הקול עכשיו:</span>
+                  <VocalToneTag observation={liveVocalTone} profile={profile} live />
+                </div>
+              )}
             </div>
             {incompleteIdentity.length > 0 ? (
               <div className="identity-setup-actions">
@@ -4157,7 +4334,15 @@ function PracticeStudio({
             observations={lastCompletedSession.visualObservations}
             calibrationText={calibrationText}
             visualStatus={visualStatus}
+            vocalStatus={vocalStatus}
           />
+        </details>
+      )}
+
+      {phase === "ready" && lastCompletedSession && (lastCompletedSession.vocalObservations?.length ?? 0) > 0 && (
+        <details className="advanced-panel">
+          <summary>טון הקול שנשמע</summary>
+          <VocalTonePanel profile={profile} observations={lastCompletedSession.vocalObservations ?? []} />
         </details>
       )}
 
@@ -4229,6 +4414,11 @@ function PracticeStudio({
             <article className={`segment interim speaker-${activeSpeaker.toLowerCase()}`}>
               <span>{partnerName(profile, activeSpeaker)} · נקלט עכשיו…</span>
               <p dir="auto">{interimTranscript}</p>
+              {liveVocalTone && (
+                <div className="segment-tags" aria-label="טון הקול בתור הזה">
+                  <VocalToneTag observation={liveVocalTone} profile={profile} live />
+                </div>
+              )}
             </article>
           )}
           <TranscriptSegments profile={profile} segments={visibleSegments} tags={visibleTranscriptTags} />
@@ -4403,7 +4593,7 @@ function TaggedTimeline({ profile, tags, title }: { profile: CoupleProfile; tags
   );
 }
 
-function AdvancedEnginesPanel({ visualStatus }: { visualStatus: string }) {
+function AdvancedEnginesPanel({ visualStatus, vocalStatus }: { visualStatus: string; vocalStatus: string }) {
   return (
     <div className="advanced-engines">
       <div className="mini-heading">
@@ -4417,8 +4607,8 @@ function AdvancedEnginesPanel({ visualStatus }: { visualStatus: string }) {
         </div>
         <div className="engine-card active">
           <span>קול</span>
-          <small>לאחר סיום השיחה</small>
-          <b>דיבור, שקט ועוצמה יחסית</b>
+          <small>{vocalStatus}</small>
+          <b>טון, גובה צליל, עוצמה ושתיקות</b>
         </div>
       </div>
       <small className="muted">כאן מוצג רק עיבוד שפועל בפועל במחשב. כל מדד מתאר את מה שנקלט ואינו קובע רגש או כוונה.</small>
@@ -4431,13 +4621,15 @@ function NonverbalPanel({
   metrics,
   observations,
   calibrationText,
-  visualStatus
+  visualStatus,
+  vocalStatus = "טון הקול נותח מההקלטה"
 }: {
   profile: CoupleProfile;
   metrics: NonverbalMetrics;
   observations: VisualObservation[];
   calibrationText: string;
   visualStatus: string;
+  vocalStatus?: string;
 }) {
   const recent = observations.filter((observation) => observation.label !== "capture-quality").slice(-8).reverse();
 
@@ -4471,7 +4663,7 @@ function NonverbalPanel({
           זמן שבו הכיסוי לא הספיק למדידה מלאה: <b>{formatDuration(metrics.lowQualitySeconds ?? 0)}</b>
         </span>
       </div>
-      <AdvancedEnginesPanel visualStatus={visualStatus} />
+      <AdvancedEnginesPanel visualStatus={visualStatus} vocalStatus={vocalStatus} />
       <div className="visual-feed">
         {recent.length === 0 && <span>עדיין לא נדגמו רמזים לא־מילוליים.</span>}
         {recent.map((observation) => (
@@ -4999,6 +5191,12 @@ function InsightsView({
               </div>
               <small>המדדים מתארים קול שנקלט במיקרופון; הם אינם מסיקים רגש או כוונה.</small>
             </section>}
+            {(selected.vocalObservations?.length ?? 0) > 0 && (
+              <section className="saved-analysis-block" aria-labelledby={`saved-vocal-${selected.id}`}>
+                <h3 id={`saved-vocal-${selected.id}`}>טון הקול שנשמע</h3>
+                <VocalTonePanel profile={profile} observations={selected.vocalObservations ?? []} />
+              </section>
+            )}
             {selected.closingReflection && (
               <section className="session-shared-step" aria-labelledby={`shared-step-${selected.id}`}>
                 <HeartHandshake size={20} />

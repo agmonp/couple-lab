@@ -2119,6 +2119,82 @@ blockquote {
   color: #5c4164;
 }
 
+/* Live vocal (prosody) tone tags + saved summary panel. */
+.vocal-tone-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.vocal-tone-tag.live {
+  box-shadow: 0 0 0 2px rgba(46, 111, 101, 0.16);
+}
+
+.live-tone-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.live-tone-label {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+@keyframes vocal-tone-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 0.75;
+  }
+}
+
+.vocal-tone-tag.live > span[aria-hidden="true"] {
+  animation: vocal-tone-pulse 1.8s ease-in-out infinite;
+}
+
+.vocal-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.vocal-tone-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.vocal-tone-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.vocal-tone-list li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  padding: 8px 10px;
+}
+
+.vocal-tone-when {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
 .speaker-a {
   background: var(--teal-soft);
 }
