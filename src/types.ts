@@ -214,6 +214,28 @@ export interface VisualObservation {
   metadata?: Record<string, string | number | boolean>;
 }
 
+/**
+ * Live vocal (prosody) states, read from the audio signal itself rather than
+ * the words. Each maps to an interaction family the way visual signals do.
+ */
+export type VocalStateLabel =
+  | "raised-voice"
+  | "tense-voice"
+  | "flat-withdrawn"
+  | "warm-engaged"
+  | "long-pause";
+
+export interface VocalObservation {
+  id: string;
+  seconds: number;
+  label: VocalStateLabel;
+  subject?: PartnerId;
+  score: number;
+  evidence: string;
+  provider?: "local-prosody-v1";
+  metadata?: Record<string, string | number | boolean>;
+}
+
 export interface NonverbalMetrics {
   sampleCount: number;
   analyzedSeconds?: number;
@@ -361,6 +383,7 @@ export interface SessionRecord {
   acousticMetrics?: AcousticMetrics;
   cues: LiveCue[];
   visualObservations: VisualObservation[];
+  vocalObservations?: VocalObservation[];
   nonverbalMetrics?: NonverbalMetrics;
   signals: BodySignals;
   analysis: SessionAnalysis;
