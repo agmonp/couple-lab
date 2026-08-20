@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-13T00:00:00.000Z",
+  "title": "Design System: Couple Lab",
+  "extensions": {
+    "colorMeta": {
+      "ink": { "role": "neutral", "displayName": "דיו ירקרק", "canonical": "#20312c", "tonalRamp": ["#14201c", "#20312c", "#354841", "#53675f", "#788a83", "#a6b2ad", "#d1d8d4", "#f1f4f2"] },
+      "mineral-bg": { "role": "neutral", "displayName": "אבן מינרלית", "canonical": "#f2eee7", "tonalRamp": ["#282520", "#48433b", "#6b6459", "#90887b", "#b5aea3", "#d2ccc4", "#e7e2db", "#f7f4ef"] },
+      "paper": { "role": "neutral", "displayName": "נייר חם", "canonical": "#fffdf9", "tonalRamp": ["#2b2925", "#4c4943", "#706c64", "#969187", "#bbb6ad", "#d7d3cb", "#ece8e2", "#fffdf9"] },
+      "muted": { "role": "neutral", "displayName": "ערפל", "canonical": "#65716c", "tonalRamp": ["#18201d", "#2c3934", "#47554f", "#65716c", "#87928d", "#abb3af", "#d0d5d2", "#f1f3f2"] },
+      "divider": { "role": "neutral", "displayName": "קו אבן", "canonical": "#d8d4ca", "tonalRamp": ["#272520", "#47433b", "#69645a", "#8d877b", "#b0aa9f", "#cec9bf", "#e4dfd8", "#f6f3ee"] },
+      "forest": { "role": "primary", "displayName": "יער עמוק", "canonical": "#1f6259", "tonalRamp": ["#0b2421", "#103a35", "#165148", "#1f6a5f", "#44887d", "#76aa9f", "#add0c8", "#e5f1ed"] },
+      "clay": { "role": "secondary", "displayName": "חמרה מרוסנת", "canonical": "#b85849", "tonalRamp": ["#351410", "#5a211a", "#80352b", "#a94e40", "#c87366", "#dda098", "#edcdc7", "#faeeeb"] },
+      "honey": { "role": "tertiary", "displayName": "דבש חם", "canonical": "#e5b970", "tonalRamp": ["#33250e", "#574017", "#7c5d26", "#a57d3d", "#c99e58", "#dfbb7a", "#efd8ad", "#fbf1dc"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "השאלה הפעילה והפעולה הראשית בבית בלבד." },
+      "headline": { "displayName": "Headline", "purpose": "כותרת מסך ורגעי מעבר." },
+      "body": { "displayName": "Body", "purpose": "הסבר תפעולי וטקסט שיחה קריא." },
+      "label": { "displayName": "Label", "purpose": "פעולות, שמות ומצבים." }
+    },
+    "shadows": [
+      { "name": "ambient-hero", "value": "0 18px 50px rgba(32, 49, 44, 0.09)", "purpose": "נכס ההיכרות בלבד." },
+      { "name": "live-stage", "value": "0 20px 60px rgba(25, 26, 23, 0.16)", "purpose": "במת המצלמה." },
+      { "name": "primary-action", "value": "0 8px 24px rgba(31, 98, 89, 0.18)", "purpose": "כפתור ראשי על רקע בהיר." }
+    ],
+    "motion": [
+      { "name": "reduced-motion", "value": "0.01ms", "purpose": "מבטל אנימציה מעשית כאשר המשתמש מבקש reduced motion." }
+    ],
+    "breakpoints": [
+      { "name": "single-column-practice", "value": "1120px" },
+      { "name": "mobile-shell", "value": "760px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "הפעולה היחידה שמקדמת את הזרימה.",
+      "html": "<button class=\"ds-btn-primary\">התחלת השיחה</button>",
+      "css": ".ds-btn-primary { min-height: 48px; padding: 14px 20px; border: 0; border-radius: 8px; color: #fffdf9; background: var(--teal, #1f6259); font: 700 1rem/1.2 'Noto Sans Hebrew', Arial, sans-serif; box-shadow: 0 8px 24px rgba(31,98,89,.18); transition: background .18s ease, transform .18s ease; cursor: pointer; } .ds-btn-primary:hover { background: #174f48; transform: translateY(-1px); } .ds-btn-primary:focus-visible { outline: 3px solid #e5b970; outline-offset: 3px; } .ds-btn-primary:active { transform: translateY(0); }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "פעולה חלופית שאינה מתחרה בפעולה הראשית.",
+      "html": "<button class=\"ds-btn-secondary\">שאלה אחרת</button>",
+      "css": ".ds-btn-secondary { min-height: 46px; padding: 12px 18px; border: 1px solid #d8d4ca; border-radius: 8px; color: #20312c; background: #ecefe9; font: 700 1rem/1.2 'Noto Sans Hebrew', Arial, sans-serif; transition: background .18s ease; cursor: pointer; } .ds-btn-secondary:hover { background: #dce9e3; } .ds-btn-secondary:focus-visible { outline: 3px solid #1f6259; outline-offset: 3px; } .ds-btn-secondary:active { background: #d2dfd9; }"
+    },
+    {
+      "name": "Input Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "שדה חם, פשוט וברור עם יעד מגע נוח.",
+      "html": "<input class=\"ds-input\" dir=\"rtl\" value=\"העולם הפנימי שלנו\" aria-label=\"נושא לשיחה\">",
+      "css": ".ds-input { width: 100%; min-height: 48px; padding: 12px 14px; border: 1px solid #d8d4ca; border-radius: 10px; color: #20312c; background: #fffdf9; font: 400 1rem/1.4 'Noto Sans Hebrew', Arial, sans-serif; } .ds-input:hover { border-color: #9ba7a2; } .ds-input:focus-visible { outline: 3px solid rgba(31,98,89,.25); border-color: #1f6259; }"
+    },
+    {
+      "name": "Primary Navigation",
+      "kind": "nav",
+      "refersTo": "navigation-active",
+      "description": "שישה יעדים במחשב וארבעה במובייל; היעד הפעיל מקבל משטח ירוק שקט.",
+      "html": "<nav class=\"ds-nav\" dir=\"rtl\"><button class=\"ds-nav-item ds-active\">בית</button><button class=\"ds-nav-item\">תרגול</button><button class=\"ds-nav-item\">תובנות</button><button class=\"ds-nav-item\">מדריך</button><button class=\"ds-nav-item\">דוח</button><button class=\"ds-nav-item\">עוד</button></nav>",
+      "css": ".ds-nav { display: grid; gap: 2px; width: 210px; font-family: 'Noto Sans Hebrew', Arial, sans-serif; } .ds-nav-item { min-height: 46px; padding: 0 14px; border: 0; border-radius: 10px; color: #65716c; background: transparent; text-align: right; cursor: pointer; } .ds-nav-item:hover, .ds-nav-item.ds-active { color: #20312c; background: #dce9e3; } .ds-nav-item:focus-visible { outline: 3px solid #1f6259; outline-offset: 2px; }"
+    },
+    {
+      "name": "Live Conversation Stage",
+      "kind": "custom",
+      "description": "המשטח הגדול והכהה ששומר את המצלמה במרכז התרגול ואת Record/Stop גלויים מיד מתחתיה.",
+      "html": "<section class=\"ds-live-stage\" dir=\"rtl\"><div class=\"ds-stage-notice\">המצלמה אינה זמינה כרגע</div><strong>המצלמה והשיחה במרכז</strong><span>הפקדים נשארים מתחת לבמה.</span></section>",
+      "css": ".ds-live-stage { position: relative; min-height: 320px; padding: 22px; display: grid; place-content: center; gap: 8px; border-radius: 18px; color: #fffdf9; background: radial-gradient(circle at 50% 45%, #34433e, #151c1a 72%); font-family: 'Noto Sans Hebrew', Arial, sans-serif; text-align: center; box-shadow: 0 20px 60px rgba(25,26,23,.16); } .ds-stage-notice { position: absolute; inset: 12px; padding: 10px 14px; border-radius: 8px; color: #8b1f17; background: #f6e3df; } .ds-live-stage:focus-within { outline: 3px solid #e5b970; outline-offset: 4px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "אינטימיות עריכתית שקטה",
+    "overview": "Couple Lab מרגיש כמו חדר פרטי ונעים לשני אנשים, לא כמו לוח בקרה ולא כמו מערכת טיפולית. הממשק משתמש במשטח מינרלי חם, אזורי עבודה ירוקים־עמוקים, טיפוגרפיה עברית עריכתית ותמונות אמיתיות כדי לתת לשיחה עצמה משקל.\n\nהצפיפות נמוכה וההיררכיה מכוונת לפעולה אחת בכל רגע. מידע טכני, מדדים ופעולות משניות נסוגים אל שכבות מאוחרות; בזמן תרגול השאלה והמצלמה הן מוקד המסך.",
+    "keyCharacteristics": [
+      "משטח מינרלי חם עם אזורי forest כהים ומעט צבעי חמרה ודבש.",
+      "כותרות עבריות עריכתיות מול טקסט תפעולי פשוט וקריא.",
+      "מקטעים פתוחים ומפרידים דקים במקום פסיפס של כרטיסים.",
+      "תמונות אמיתיות של בני הזוג ונכס איור אמיתי בהיכרות הראשונה.",
+      "פעולה ראשית אחת ברורה, עם מעט הקלקות בזמן השיחה."
+    ],
+    "rules": [
+      { "name": "Rare Accent", "body": "חמרה ודבש אינם צבעי מילוי כלליים; בכל מסך הם שמורים למסר או פעולה אחת בעלת משמעות.", "section": "colors" },
+      { "name": "Same-Hue Support", "body": "על משטח ירוק, טקסט משני מקבל גוון ירקרק בהיר ולא אפור ניטרלי.", "section": "colors" },
+      { "name": "One Serif Moment", "body": "בכל אזור יש כותרת serif דומיננטית אחת; טקסטי עזר ופקדים נשארים sans.", "section": "typography" },
+      { "name": "Heading Speaks", "body": "אין eyebrow או kicker מעל כותרת. אם ההקשר נחוץ, הוא נכנס למשפט העזר שמתחתיה.", "section": "typography" },
+      { "name": "Conversation First", "body": "בזמן תרגול השאלה והמצלמה חייבות להופיע לפני תמלול, ניתוח והגדרות מתקדמות.", "section": "layout" },
+      { "name": "Flat-by-Default", "body": "מקטע תוכן רגיל מופרד בגוון או בקו, לא בצל.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do הציגו פעולה ראשית אחת בכל רגע והעבירו מורכבות לשלב שבו היא נחוצה.",
+      "Do השתמשו בתמונה האמיתית של כל בן/בת זוג כאשר היא קיימת.",
+      "Do שמרו את השאלה והמצלמה יחד בתחילת תרגול גם ברוחב קטן.",
+      "Do כתבו בעברית אנושית, רגועה ולא־קלינית.",
+      "Do השתמשו באייקוני Lucide באותו משקל וקנה מידה."
+    ],
+    "donts": [
+      "Don't החזירו פסיפס של כרטיסי metric, ציונים או פעולות לבית.",
+      "Don't הציגו vectors, models, Windows או מונחי implementation במסלול הראשי.",
+      "Don't הוסיפו eyebrow, gradient text, glass, צל קשיח או פס צד עבה.",
+      "Don't השתמשו ב־emoji או glyph טקסטואלי במקום אייקון.",
+      "Don't הציגו רמזי מצלמה או קול כאבחון של רגש, כוונה או אמת זוגית."
+    ]
+  }
+}

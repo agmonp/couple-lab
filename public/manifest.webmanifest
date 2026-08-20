@@ -1,0 +1,21 @@
+{
+  "id": "/",
+  "name": "Couple Lab — מרחב לשיחה זוגית",
+  "short_name": "Couple Lab",
+  "description": "מרחב פרטי לשיחה זוגית מונחית, תרגול וסיכום מקומי.",
+  "start_url": "/?view=dashboard&source=installed",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f2eee7",
+  "theme_color": "#1f6259",
+  "orientation": "any",
+  "categories": ["lifestyle"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
