@@ -3812,7 +3812,7 @@ function PracticeStudio({
       setPhase("analyzing");
       void logDiagnostic({ name: "analysis.started", status: "info", sessionId, phase: "analyzing" });
       const analysisStartedAt = performance.now();
-      const analysis = analyzeSession(segmentsToSave, signals, currentCues, sessionType, currentObservations);
+      const analysis = analyzeSession(segmentsToSave, signals, currentCues, sessionType, currentObservations, vocalObservationsRef.current);
       const nonverbalMetrics = computeNonverbalMetrics(visualMetricObservationsRef.current);
       const record: SessionRecord = {
         schemaVersion: 2,
@@ -5040,7 +5040,8 @@ function InsightsView({
       selected.signals,
       selected.cues,
       selected.type,
-      selected.visualObservations ?? []
+      selected.visualObservations ?? [],
+      selected.vocalObservations ?? []
     );
     setSessions((current) => current.map((session) => session.id === selected.id
       ? {

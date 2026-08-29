@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { analyzeSession } from "./relationshipEngine";
 import { defaultSignals } from "./data";
-import type { LiveCue, TranscriptSegment, VisualObservation } from "./types";
+import type { LiveCue, TranscriptSegment, VisualObservation, VocalObservation } from "./types";
 
 function segment(text: string): TranscriptSegment {
   return {
@@ -120,5 +120,81 @@ describe("analyzeSession data quality", () => {
 
     expect(result.metrics.floodingRisk).toBeGreaterThan(58);
     expect(result.nextSteps.some((step) => step.includes("20 דקות"))).toBe(true);
+  });
+});
+
+function vocal(label: VocalObservation["label"], seconds = 2): VocalObservation {
+  return {
+    id: `vocal-${label}-${seconds}`,
+    seconds,
+    label,
+    subject: "A",
+    score: 0.6,
+    evidence: "בדיקה",
+    provider: "local-prosody-v1"
+  };
+}
+
+const richSegment = () =>
+  segment("אני שומעת אותך וזה הגיוני לי תודה שסיפרת מה אתה צריך ממני עכשיו כדי שנרגיש קרובים");
+
+describe("vocal observations in the analysis", () => {
+  it("adds vocal cues to the timeline as descriptive nonverbal tags", () => {
+    const result = analyzeSession(
+      [richSegment()],
+      defaultSignals,
+      [],
+      "daily-check-in",
+      [],
+      [vocal("raised-voice"), vocal("warm-engaged", 4)]
+    );
+    const vocalTags = result.tags.filter((tag) => tag.source === "vocal");
+    expect(vocalTags.length).toBe(2);
+    expect(vocalTags.every((tag) => tag.family === "nonverbal")).toBe(true);
+  });
+
+  it("counts vocal stress cues toward the descriptive nonverbal-stress metric", () => {
+    const withVocal = analyzeSession(
+      [richSegment()],
+      defaultSignals,
+      [],
+      "daily-check-in",
+      [],
+      [vocal("raised-voice"), vocal("tense-voice", 4)]
+    );
+    const withoutVocal = analyzeSession([richSegment()], defaultSignals, [], "daily-check-in", [], []);
+    expect(withVocal.metrics.nonverbalStressSignals).toBe(withoutVocal.metrics.nonverbalStressSignals + 2);
+  });
+
+  it("does not let a warm vocal tone inflate the connection score (a cue is not proof)", () => {
+    const withWarmVoice = analyzeSession(
+      [richSegment()],
+      defaultSignals,
+      [],
+      "daily-check-in",
+      [],
+      [vocal("warm-engaged"), vocal("warm-engaged", 4)]
+    );
+    const baseline = analyzeSession([richSegment()], defaultSignals, [], "daily-check-in", [], []);
+    expect(withWarmVoice.metrics.positiveSignals).toBe(baseline.metrics.positiveSignals);
+    expect(withWarmVoice.metrics.connectionPracticeScore).toBe(baseline.metrics.connectionPracticeScore);
+  });
+
+  it("never raises flooding from vocal cues alone (product boundary)", () => {
+    const result = analyzeSession(
+      [richSegment()],
+      defaultSignals,
+      [],
+      "daily-check-in",
+      [],
+      [vocal("raised-voice"), vocal("tense-voice", 4), vocal("long-pause", 6)]
+    );
+    expect(result.metrics.floodingRisk).toBeLessThan(58);
+    expect(result.metrics.fourHorsemenSignals).toBe(0);
+  });
+
+  it("does not treat vocal cues as sufficient evidence on their own", () => {
+    const result = analyzeSession([], defaultSignals, [], "daily-check-in", [], [vocal("raised-voice")]);
+    expect(result.dataQuality?.status).toBe("insufficient");
   });
 });
