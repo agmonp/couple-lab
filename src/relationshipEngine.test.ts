@@ -198,3 +198,42 @@ describe("vocal observations in the analysis", () => {
     expect(result.dataQuality?.status).toBe("insufficient");
   });
 });
+
+describe("noise-tolerant transcript matching", () => {
+  function speech(text: string): TranscriptSegment {
+    return { ...segment(text), source: "speech", speakerAttribution: "automatic" };
+  }
+
+  // These two sentences are identical except מרגיש/מרגיז, and contain no other
+  // exact trigger phrase, so the only difference is exact vs fuzzy matching.
+  const exactStartup = "אני מרגיש שלא הקשיבו לי אתמול בערב כשניסיתי לדבר על מה שקרה לנו בחופשה";
+  const mishearedStartup = "אני מרגיז שלא הקשיבו לי אתמול בערב כשניסיתי לדבר על מה שקרה לנו בחופשה";
+
+  it("still catches a gentle startup when a long word is slightly misheard", () => {
+    // "מרגיש" heard as "מרגיז" — the exact regex misses; the fuzzy layer catches it.
+    const result = analyzeSession([speech(mishearedStartup)], defaultSignals, [], "daily-check-in", []);
+    const softStartup = result.tags.find((tag) => tag.label === "פתיחה רכה");
+    expect(softStartup).toBeDefined();
+    expect(softStartup?.metadata?.matchType).toBe("fuzzy");
+  });
+
+  it("reports a fuzzy match at lower confidence than an exact one", () => {
+    const exact = analyzeSession([speech(exactStartup)], defaultSignals, [], "daily-check-in", []);
+    const fuzzy = analyzeSession([speech(mishearedStartup)], defaultSignals, [], "daily-check-in", []);
+    const exactTag = exact.tags.find((tag) => tag.label === "פתיחה רכה");
+    const fuzzyTag = fuzzy.tags.find((tag) => tag.label === "פתיחה רכה");
+    expect(exactTag?.metadata?.matchType).toBe("exact");
+    expect(fuzzyTag!.confidence).toBeLessThan(exactTag!.confidence);
+  });
+
+  it("does not fabricate a horseman from an unrelated misheard word", () => {
+    const result = analyzeSession(
+      [speech("דיברנו על התוכניות שלנו לחופשה ועל מה שנשמח לעשות יחד בסוף השבוע הקרוב")],
+      defaultSignals,
+      [],
+      "daily-check-in",
+      []
+    );
+    expect(result.metrics.fourHorsemenSignals).toBe(0);
+  });
+});

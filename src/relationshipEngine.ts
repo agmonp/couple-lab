@@ -14,6 +14,7 @@ import {
   VocalObservation
 } from "./types";
 import { sessionEvidenceSummary } from "./sessionFlow";
+import { fuzzyMatchesAny } from "./transcriptMatch";
 
 /**
  * Stable label for the contempt-risk pattern. UI logic must key on this
@@ -30,6 +31,12 @@ type TranscriptPattern = {
   suggestion: string;
   confidence: number;
   metadata?: Record<string, string | number | boolean>;
+  /**
+   * Distinctive Hebrew phrases for the noise-tolerant fallback. Only consulted
+   * when the exact regex misses, and only ever at reduced confidence — so a
+   * misheard word can surface a likely pattern without ever asserting it.
+   */
+  fuzzyPhrases?: string[];
 };
 
 const transcriptPatterns: TranscriptPattern[] = [
@@ -41,7 +48,8 @@ const transcriptPatterns: TranscriptPattern[] = [
     tagFamily: "four-horsemen",
     suggestion: "נסחו פתיחה רכה: תארו אירוע מסוים, אמרו איך הוא השפיע עליכם ובקשו דבר מעשי אחד.",
     confidence: 0.76,
-    metadata: { horseman: "criticism", antidote: "gentle startup" }
+    metadata: { horseman: "criticism", antidote: "gentle startup" },
+    fuzzyPhrases: ["אתה תמיד", "את תמיד", "אתה אף פעם", "את אף פעם", "לא אכפת לך", "מה הבעיה שלך"]
   },
   {
     label: CONTEMPT_RISK_LABEL,
@@ -51,7 +59,8 @@ const transcriptPatterns: TranscriptPattern[] = [
     tagFamily: "four-horsemen",
     suggestion: "עצרו את הטון המתנשא, אמרו מה כאב והוסיפו משפט אחד של כבוד או הערכה.",
     confidence: 0.78,
-    metadata: { horseman: "contempt", antidote: "fondness and admiration" }
+    metadata: { horseman: "contempt", antidote: "fondness and admiration" },
+    fuzzyPhrases: ["אתה פתטי", "את פתטית", "זה מגוחך", "אתה מטומטם", "את מטומטמת", "זה הזוי"]
   },
   {
     label: "חשש להתגוננות",
@@ -61,7 +70,8 @@ const transcriptPatterns: TranscriptPattern[] = [
     tagFamily: "four-horsemen",
     suggestion: "קחו אחריות על חלק קטן אחד לפני שתסבירו את נקודת המבט שלכם.",
     confidence: 0.74,
-    metadata: { horseman: "defensiveness", antidote: "take responsibility" }
+    metadata: { horseman: "defensiveness", antidote: "take responsibility" },
+    fuzzyPhrases: ["זה לא אשמתי", "גם אתה", "גם את", "זה לא נכון", "למה אתה תוקף", "למה את תוקפת", "אתה התחלת", "את התחלת"]
   },
   {
     label: "חשש להיסגרות או ניתוק",
@@ -71,7 +81,8 @@ const transcriptPatterns: TranscriptPattern[] = [
     tagFamily: "four-horsemen",
     suggestion: "קחו הפסקה מתוזמנת להרגעה וחזרו לשיחה בזמן שעליו הסכמתם.",
     confidence: 0.72,
-    metadata: { horseman: "stonewalling", antidote: "self soothing break" }
+    metadata: { horseman: "stonewalling", antidote: "self soothing break" },
+    fuzzyPhrases: ["אין לי מה להגיד", "לא רוצה לדבר", "עזוב אותי", "עזבי אותי", "תפסיק לדבר", "תפסיקי לדבר"]
   },
   {
     label: "האשמה גורפת",
@@ -89,7 +100,8 @@ const transcriptPatterns: TranscriptPattern[] = [
     tagFamily: "conversation-structure",
     suggestion: "כיוון טוב. הישארו ממוקדים ובקשו שינוי מעשי אחד.",
     confidence: 0.8,
-    metadata: { skill: "gentle startup" }
+    metadata: { skill: "gentle startup" },
+    fuzzyPhrases: ["אני מרגיש", "אני מרגישה", "אני צריך", "אני צריכה", "היית מוכן", "היית מוכנה", "אפשר לדבר"]
   },
   {
     label: "תיקוף והקשבה",
@@ -99,7 +111,8 @@ const transcriptPatterns: TranscriptPattern[] = [
     tagFamily: "strength",
     suggestion: "הישארו עוד מעט בהקשבה לפני שעוברים לפתרונות.",
     confidence: 0.8,
-    metadata: { skill: "attunement" }
+    metadata: { skill: "attunement" },
+    fuzzyPhrases: ["אני שומע אותך", "אני שומעת אותך", "זה הגיוני", "אני מבין אותך", "אני מבינה אותך", "ספר לי עוד", "ספרי לי עוד"]
   },
   {
     label: "הפקדה בחשבון הרגשי",
@@ -109,7 +122,8 @@ const transcriptPatterns: TranscriptPattern[] = [
     tagFamily: "strength",
     suggestion: "הפכו את ההערכה למסוימת ועכשווית, כדי שתהיה משאב גם ברגעי לחץ.",
     confidence: 0.82,
-    metadata: { skill: "emotional bank account" }
+    metadata: { skill: "emotional bank account" },
+    fuzzyPhrases: ["אני מעריך אותך", "אני מעריכה אותך", "אני אוהב אותך", "אני אוהבת אותך", "שמתי לב ש", "אני גאה בך"]
   },
   {
     label: "היענות לפנייה לקרבה",
@@ -119,7 +133,8 @@ const transcriptPatterns: TranscriptPattern[] = [
     tagFamily: "strength",
     suggestion: "זה רגע של פנייה או היענות לקרבה. תגובות קטנות מצטברות לאורך זמן.",
     confidence: 0.72,
-    metadata: { skill: "turning toward" }
+    metadata: { skill: "turning toward" },
+    fuzzyPhrases: ["אני מקשיב", "אני מקשיבה", "מה קרה", "אפשר רגע", "תקשיב לי", "תקשיבי לי"]
   },
   {
     label: "סקרנות",
@@ -139,7 +154,8 @@ const transcriptPatterns: TranscriptPattern[] = [
     tagFamily: "repair",
     suggestion: "האטו ותנו לניסיון התיקון להיקלט לפני שממשיכים.",
     confidence: 0.84,
-    metadata: { skill: "repair attempt" }
+    metadata: { skill: "repair attempt" },
+    fuzzyPhrases: ["אני מצטער", "אני מצטערת", "תן לי לנסות שוב", "תני לי לנסות שוב", "לא רוצה לריב", "אנחנו באותו צד", "אפשר לעצור"]
   },
   {
     label: "לקיחת אחריות",
@@ -149,7 +165,8 @@ const transcriptPatterns: TranscriptPattern[] = [
     tagFamily: "repair",
     suggestion: "אמרו מה הייתה ההשפעה על בן או בת הזוג ומה תעשו בפעם הבאה.",
     confidence: 0.82,
-    metadata: { skill: "personal responsibility" }
+    metadata: { skill: "personal responsibility" },
+    fuzzyPhrases: ["החלק שלי", "אני לוקח אחריות", "אני לוקחת אחריות", "הייתי צריך", "הייתי צריכה", "אני אשם", "אני אשמה"]
   },
   {
     label: "רמז לתשוקה או חיות",
@@ -212,7 +229,19 @@ function findLinkedSegment(segments: TranscriptSegment[], seconds: number) {
   return bestSegment;
 }
 
-function makeHit(pattern: TranscriptPattern, segment: TranscriptSegment): PatternHit {
+type MatchType = "exact" | "fuzzy";
+
+// A fuzzy match rests on a possibly-misheard word, so it is always reported as
+// less certain than an exact one.
+const FUZZY_CONFIDENCE_FACTOR = 0.85;
+
+function matchConfidence(pattern: TranscriptPattern, matchType: MatchType) {
+  return matchType === "fuzzy"
+    ? Math.round(pattern.confidence * FUZZY_CONFIDENCE_FACTOR * 100) / 100
+    : pattern.confidence;
+}
+
+function makeHit(pattern: TranscriptPattern, segment: TranscriptSegment, matchType: MatchType = "exact"): PatternHit {
   return {
     id: `${pattern.hitFamily}-${segment.id}-${slug(pattern.label)}`,
     label: pattern.label,
@@ -224,12 +253,14 @@ function makeHit(pattern: TranscriptPattern, segment: TranscriptSegment): Patter
     source: "transcript",
     segmentId: segment.id,
     evidence: segment.text,
-    suggestion: pattern.suggestion,
-    confidence: pattern.confidence
+    suggestion: matchType === "fuzzy"
+      ? `${pattern.suggestion} (זוהה מתוך תמלול שאולי אינו מדויק — כדאי לוודא שזה מה שנאמר.)`
+      : pattern.suggestion,
+    confidence: matchConfidence(pattern, matchType)
   };
 }
 
-function makeTag(pattern: TranscriptPattern, segment: TranscriptSegment): InteractionTag {
+function makeTag(pattern: TranscriptPattern, segment: TranscriptSegment, matchType: MatchType = "exact"): InteractionTag {
   return {
     id: `tag-${segment.id}-${slug(pattern.label)}`,
     label: pattern.label,
@@ -242,9 +273,10 @@ function makeTag(pattern: TranscriptPattern, segment: TranscriptSegment): Intera
     segmentId: segment.id,
     evidence: segment.text,
     suggestion: pattern.suggestion,
-    confidence: pattern.confidence,
+    confidence: matchConfidence(pattern, matchType),
     metadata: {
       ...(pattern.metadata ?? {}),
+      matchType,
       wordCount: segment.wordCount ?? countWords(segment.text),
       detectedLanguage: segment.detectedLanguage ?? "unknown"
     }
@@ -257,9 +289,17 @@ function scanSegments(segments: TranscriptSegment[]) {
 
   segments.forEach((segment) => {
     transcriptPatterns.forEach((pattern) => {
-      if (pattern.regex.test(segment.text)) {
-        hits.push(makeHit(pattern, segment));
-        tags.push(makeTag(pattern, segment));
+      // Exact regex first (unchanged behaviour). Only when it misses do we fall
+      // back to the noise-tolerant phrase match, and then at lower confidence —
+      // a misheard transcript can surface a likely pattern, never assert it.
+      const matchType: MatchType | null = pattern.regex.test(segment.text)
+        ? "exact"
+        : fuzzyMatchesAny(segment.text, pattern.fuzzyPhrases ?? [])
+          ? "fuzzy"
+          : null;
+      if (matchType) {
+        hits.push(makeHit(pattern, segment, matchType));
+        tags.push(makeTag(pattern, segment, matchType));
       }
     });
   });
