@@ -19,5 +19,9 @@ contextBridge.exposeInMainWorld("coupleLabDesktop", {
     const handler = (_event, progress) => listener(progress);
     ipcRenderer.on("desktop:transcription-model-progress", handler);
     return () => ipcRenderer.removeListener("desktop:transcription-model-progress", handler);
-  }
+  },
+  saveCloudKey: (provider, key) => ipcRenderer.invoke("desktop:cloud-save-key", { provider, key }),
+  getCloudKeyStatus: () => ipcRenderer.invoke("desktop:cloud-key-status"),
+  clearCloudKey: () => ipcRenderer.invoke("desktop:cloud-clear-key"),
+  cloudComplete: (request) => ipcRenderer.invoke("desktop:cloud-complete", request)
 });
