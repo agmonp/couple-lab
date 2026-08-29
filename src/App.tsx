@@ -60,6 +60,12 @@ import {
   parseTranscriptCorrectionResponse,
   TranscriptCorrectionError
 } from "./transcriptCorrection";
+import {
+  buildCloudReflectionPrompt,
+  CLOUD_REFLECTION_SYSTEM,
+  CloudReflectionError,
+  parseCloudReflection
+} from "./cloudReflection";
 import { DesktopFoundationPanel } from "./desktopFoundation";
 import { getVisionAssetUrls } from "./visionAssets";
 import {
@@ -4934,7 +4940,20 @@ function InsightsView({
   const [correctionModel, setCorrectionModel] = useLocalState(storageKeys.ollamaModel, "gemma3:4b");
   const [correctionStatus, setCorrectionStatus] = useState("");
   const [correctionProposal, setCorrectionProposal] = useState<ReadonlyMap<string, string> | null>(null);
+  const [correctionProposalProvider, setCorrectionProposalProvider] = useState<"ollama-local" | "cloud">("ollama-local");
   const [correctionPending, setCorrectionPending] = useState(false);
+  // Optional, opt-in cloud (bring-your-own-key) correction + reflection. Desktop
+  // only, routed through the Electron main process; text-only, never recordings.
+  const cloudAvailable = Boolean(window.coupleLabDesktop?.cloudComplete);
+  const [cloudModel, setCloudModel] = useLocalState("couple-lab-cloud-model", "claude-opus-5");
+  const [cloudKeyPresent, setCloudKeyPresent] = useState(false);
+  const [cloudKeyInput, setCloudKeyInput] = useState("");
+  const [cloudBusy, setCloudBusy] = useState(false);
+  const [cloudStatus, setCloudStatus] = useState("");
+  useEffect(() => {
+    if (!cloudAvailable) return;
+    void window.coupleLabDesktop?.getCloudKeyStatus?.().then((status) => setCloudKeyPresent(Boolean(status?.hasKey))).catch(() => undefined);
+  }, [cloudAvailable]);
   const selected = sessions.find((session) => session.id === selectedId) ?? sessions[0];
   const scoredSessions = sessions.filter((session) => session.analysis.dataQuality?.status !== "insufficient" && session.processingStatus !== "insufficient-data");
   const trend = scoredSessions.length
@@ -4994,6 +5013,7 @@ function InsightsView({
         setCorrectionStatus("המודל המקומי לא הציע שינוי בטוח.");
         return;
       }
+      setCorrectionProposalProvider("ollama-local");
       setCorrectionProposal(changed);
       setCorrectionStatus(`${changed.size} תיקונים מוצעים לבדיקה. דבר לא ישתנה לפני אישור שלכם.`);
       void logDiagnostic({ name: "transcription.correction_proposed", status: "success", sessionId: selected.id, itemCount: changed.size });
@@ -5019,6 +5039,7 @@ function InsightsView({
 
   const acceptTranscriptCorrection = () => {
     if (!selected || !correctionProposal) return;
+    const fromCloud = correctionProposalProvider === "cloud";
     const correctedSegments = selected.segments.map((segment) => {
       const correctedText = correctionProposal.get(segment.id);
       if (!correctedText || correctedText === segment.text) return segment;
@@ -5028,8 +5049,8 @@ function InsightsView({
         text: correctedText,
         wordCount: spokenWordCount(correctedText),
         correction: {
-          provider: "ollama-local" as const,
-          modelId: correctionModel,
+          provider: fromCloud ? ("cloud-anthropic" as const) : ("ollama-local" as const),
+          modelId: fromCloud ? cloudModel : correctionModel,
           correctedAt: new Date().toISOString(),
           reviewedByPartners: true as const
         }
@@ -5054,6 +5075,125 @@ function InsightsView({
     setCorrectionProposal(null);
     setCorrectionStatus("התיקונים שאישרתם נשמרו, והסיכום חושב מחדש. התמלול המקורי נשמר לצפייה.");
     void logDiagnostic({ name: "transcription.correction_accepted", status: "success", sessionId: selected.id, itemCount: correctionProposal.size });
+    // When the correction came from the cloud, refresh the cloud reflection on
+    // the now-corrected text so the written analysis matches what was approved.
+    if (fromCloud) void runCloudReflection(selected.id, correctedSegments);
+  };
+
+  const cloudErrorMessage = (error: unknown) => {
+    const code = error instanceof Error ? error.message : "";
+    if (code.includes("cloud-auth")) return "מפתח ה-API נדחה. בדקו אותו בהגדרות מנוע הענן.";
+    if (code.includes("rate-limited")) return "הענן עמוס כרגע (מגבלת קצב). נסו שוב בעוד רגע.";
+    if (code.includes("cloud-refused")) return "המודל בענן סירב לבקשה הזו.";
+    if (code.includes("network")) return "אין חיבור לענן. בדקו את האינטרנט ונסו שוב.";
+    return "התיקון בענן לא זמין כרגע. אפשר לנסות שוב או להשתמש במודל המקומי.";
+  };
+
+  const runCloudReflection = async (sessionId: string, segments: TranscriptSegment[]) => {
+    const bridge = window.coupleLabDesktop;
+    if (!bridge?.cloudComplete) return;
+    const transcript = segments
+      .filter((segment) => segment.text.trim())
+      .map((segment) => {
+        const who = segment.speakerAttribution === "unknown" ? "דובר/ת" : partnerName(profile, segment.speaker);
+        return `${who}: ${segment.text}`;
+      })
+      .join("\n");
+    if (!transcript.trim()) return;
+    setCloudStatus("מבקשים ניתוח מורחב מ-Claude…");
+    try {
+      const result = await bridge.cloudComplete({
+        system: CLOUD_REFLECTION_SYSTEM,
+        user: buildCloudReflectionPrompt({
+          transcript,
+          partnerAName: partnerName(profile, "A"),
+          partnerBName: partnerName(profile, "B")
+        }),
+        model: cloudModel,
+        maxTokens: 1500
+      });
+      const parsed = parseCloudReflection(result.text);
+      const reflection = {
+        ...parsed,
+        provider: "anthropic",
+        model: result.model,
+        createdAt: new Date().toISOString()
+      };
+      setSessions((current) => current.map((session) => session.id === sessionId ? { ...session, cloudReflection: reflection } : session));
+      setCloudStatus("הניתוח המורחב מ-Claude מוכן ונשמר עם השיחה.");
+      void logDiagnostic({ name: "cloud.reflection_completed", status: "success", sessionId });
+    } catch (error) {
+      setCloudStatus(error instanceof CloudReflectionError ? "התשובה מהענן לא הייתה בפורמט צפוי; לא נשמר ניתוח." : cloudErrorMessage(error));
+      void logDiagnostic({ name: "cloud.reflection_failed", status: "error", sessionId, errorCode: error instanceof Error ? error.message.slice(0, 40) : "unknown" });
+    }
+  };
+
+  const requestCloudCorrection = async () => {
+    const bridge = window.coupleLabDesktop;
+    if (!selected?.segments.length || cloudBusy || !bridge?.cloudComplete) return;
+    if (!cloudKeyPresent) {
+      setCloudStatus("קודם הזינו מפתח API של Claude בהגדרות מנוע הענן למטה.");
+      return;
+    }
+    const sourceSegments = selected.segments.map((segment) => ({ id: segment.id, text: segment.originalText ?? segment.text }));
+    setCloudBusy(true);
+    setCorrectionProposal(null);
+    setCloudStatus("שולחים את הטקסט ל-Claude לתיקון וניתוח… (טקסט בלבד; ההקלטה לא נשלחת)");
+    try {
+      const result = await bridge.cloudComplete({
+        system: "אתה מתקן תמלול בעברית. החזר אך ורק JSON תקין לפי ההוראות, בלי טקסט נוסף.",
+        user: buildTranscriptCorrectionPrompt(sourceSegments),
+        model: cloudModel,
+        maxTokens: 2000
+      });
+      const proposed = parseTranscriptCorrectionResponse(result.text, sourceSegments);
+      const changed = new Map(
+        [...proposed].filter(([id, text]) => text !== sourceSegments.find((segment) => segment.id === id)?.text)
+      );
+      if (changed.size > 0) {
+        setCorrectionProposalProvider("cloud");
+        setCorrectionProposal(changed);
+        setCorrectionStatus(`${changed.size} תיקונים הוצעו על ידי Claude. דבר לא ישתנה לפני אישור שלכם.`);
+      }
+      if (changed.size > 0) {
+        // Reflect on the corrected text once the user approves (in accept), so
+        // we don't pay for a reflection on text that's about to change.
+        setCloudStatus("יש תיקונים מוצעים לאישור. הניתוח המורחב יופק אחרי האישור.");
+      } else {
+        setCloudStatus("Claude לא הציע תיקון; מפיקים ניתוח מורחב על הטקסט הקיים.");
+        await runCloudReflection(selected.id, selected.segments);
+      }
+      void logDiagnostic({ name: "cloud.correction_proposed", status: "success", sessionId: selected.id, itemCount: changed.size });
+    } catch (error) {
+      setCloudStatus(error instanceof TranscriptCorrectionError ? "ההצעה מהענן נדחתה כי שינתה משמעות (שלילה/מספר) או יותר מדי טקסט." : cloudErrorMessage(error));
+      void logDiagnostic({ name: "cloud.correction_failed", status: "error", sessionId: selected.id, errorCode: error instanceof Error ? error.message.slice(0, 40) : "unknown" });
+    } finally {
+      setCloudBusy(false);
+    }
+  };
+
+  const saveCloudApiKey = async () => {
+    const bridge = window.coupleLabDesktop;
+    if (!bridge?.saveCloudKey || !cloudKeyInput.trim()) return;
+    setCloudBusy(true);
+    try {
+      const status = await bridge.saveCloudKey("anthropic", cloudKeyInput.trim());
+      setCloudKeyPresent(Boolean(status?.hasKey));
+      setCloudKeyInput("");
+      setCloudStatus(status?.hasKey ? "המפתח נשמר מוצפן במכשיר. אפשר להשתמש בתיקון בענן." : "לא הצלחנו לשמור את המפתח.");
+    } catch {
+      setCloudStatus("שמירת המפתח נכשלה (ייתכן שהצפנת המערכת אינה זמינה).");
+    } finally {
+      setCloudBusy(false);
+    }
+  };
+
+  const clearCloudApiKey = async () => {
+    const bridge = window.coupleLabDesktop;
+    if (!bridge?.clearCloudKey) return;
+    await bridge.clearCloudKey().catch(() => undefined);
+    setCloudKeyPresent(false);
+    setCloudStatus("המפתח הוסר מהמכשיר.");
   };
 
   if (!sessions.length) {
@@ -5174,6 +5314,56 @@ function InsightsView({
                       </div>
                     </div>
                   )}
+
+                  {cloudAvailable && (
+                    <div className="cloud-correction">
+                      <div>
+                        <strong>תיקון וניתוח מורחב עם Claude (ענן)</strong>
+                        <small>
+                          שולח את <b>טקסט התמלול בלבד</b> ל-Claude עם מפתח ה-API שלכם — לתיקון ולרפלקציה מיודעת-גוטמן.
+                          ההקלטה עצמה לעולם אינה נשלחת. תיקונים תמיד עוברים אישור שלכם לפני שמירה.
+                        </small>
+                      </div>
+                      {cloudKeyPresent ? (
+                        <div className="cloud-correction-actions">
+                          <button className="secondary" onClick={requestCloudCorrection} disabled={cloudBusy || correctionPending}>
+                            <Sparkles size={16} aria-hidden="true" />
+                            {cloudBusy ? "שולחים ל-Claude…" : "תקן ונתח עם Claude"}
+                          </button>
+                          <details className="desktop-advanced">
+                            <summary>הגדרות מנוע הענן</summary>
+                            <label>
+                              מודל
+                              <select value={cloudModel} onChange={(event) => setCloudModel(event.target.value)}>
+                                <option value="claude-opus-5">Claude Opus 5 (החזק ביותר)</option>
+                                <option value="claude-sonnet-5">Claude Sonnet 5 (מהיר וזול יותר)</option>
+                                <option value="claude-haiku-4-5">Claude Haiku 4.5 (הזול ביותר)</option>
+                              </select>
+                            </label>
+                            <button className="text-button" onClick={() => void clearCloudApiKey()}>הסרת מפתח ה-API מהמכשיר</button>
+                          </details>
+                        </div>
+                      ) : (
+                        <div className="cloud-key-setup">
+                          <label>
+                            מפתח API של Claude (נשמר מוצפן במכשיר בלבד)
+                            <input
+                              type="password"
+                              autoComplete="off"
+                              value={cloudKeyInput}
+                              placeholder="sk-ant-…"
+                              onChange={(event) => setCloudKeyInput(event.target.value)}
+                            />
+                          </label>
+                          <button className="secondary" onClick={() => void saveCloudApiKey()} disabled={cloudBusy || !cloudKeyInput.trim()}>
+                            שמירת המפתח
+                          </button>
+                          <small>המפתח נשמר מוצפן דרך מערכת ההפעלה ואינו יוצא מהמכשיר, פרט לשליחת הבקשות שלכם ל-Claude.</small>
+                        </div>
+                      )}
+                      {cloudStatus && <p className="transcript-correction-status" role="status">{cloudStatus}</p>}
+                    </div>
+                  )}
                 </div>
               )}
             </section>
@@ -5182,6 +5372,31 @@ function InsightsView({
               <p>{selected.analysis.summary}</p>
               <small>זהו סיכום לתרגול המבוסס על המידע שנשמר, לא קביעה על רגשות או כוונות.</small>
             </section>
+            {selected.cloudReflection && (
+              <section className="saved-analysis-block cloud-reflection" aria-labelledby={`saved-cloud-${selected.id}`}>
+                <h3 id={`saved-cloud-${selected.id}`}>ניתוח מורחב (Claude · ענן)</h3>
+                <p>{selected.cloudReflection.summary}</p>
+                {selected.cloudReflection.strengths.length > 0 && (
+                  <div className="cloud-reflection-group">
+                    <strong>חוזקות שנשמעו</strong>
+                    <ul>{selected.cloudReflection.strengths.map((item, index) => <li key={`s-${index}`}>{item}</li>)}</ul>
+                  </div>
+                )}
+                {selected.cloudReflection.risks.length > 0 && (
+                  <div className="cloud-reflection-group">
+                    <strong>לשים לב</strong>
+                    <ul>{selected.cloudReflection.risks.map((item, index) => <li key={`r-${index}`}>{item}</li>)}</ul>
+                  </div>
+                )}
+                {selected.cloudReflection.nextSteps.length > 0 && (
+                  <div className="cloud-reflection-group">
+                    <strong>צעדים להמשך</strong>
+                    <ul>{selected.cloudReflection.nextSteps.map((item, index) => <li key={`n-${index}`}>{item}</li>)}</ul>
+                  </div>
+                )}
+                <small>הופק על ידי Claude בענן לפי בקשתכם, על טקסט התמלול בלבד. זהו חומר לתרגול — לא אבחון ולא קביעה על רגש או כוונה.</small>
+              </section>
+            )}
             {selected.acousticMetrics && <section className="saved-analysis-block" aria-labelledby={`saved-acoustic-${selected.id}`}>
               <h3 id={`saved-acoustic-${selected.id}`}>קצב והפסקות שנמדדו</h3>
               <div className="metric-row wide">

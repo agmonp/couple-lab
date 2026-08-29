@@ -8,6 +8,7 @@ const {
   enrollmentSummary,
   validateEnrollmentState
 } = require("./biometric-validation.cjs");
+const cloudAi = require("./cloud-ai.cjs");
 
 const APP_SCHEME = "couple-lab";
 const APP_ORIGIN = `${APP_SCHEME}://app`;
@@ -559,6 +560,22 @@ function registerIpcHandlers() {
     return installTranscriptionModel(modelKey, (progress) => {
       if (!sender.isDestroyed()) sender.send("desktop:transcription-model-progress", progress);
     });
+  });
+  ipcMain.handle("desktop:cloud-save-key", async (event, payload) => {
+    validateIpcSender(event);
+    return cloudAi.saveCloudKey(payload);
+  });
+  ipcMain.handle("desktop:cloud-key-status", async (event) => {
+    validateIpcSender(event);
+    return cloudAi.cloudKeyStatus();
+  });
+  ipcMain.handle("desktop:cloud-clear-key", async (event) => {
+    validateIpcSender(event);
+    return cloudAi.clearCloudKey();
+  });
+  ipcMain.handle("desktop:cloud-complete", async (event, payload) => {
+    validateIpcSender(event);
+    return cloudAi.cloudComplete(payload);
   });
 }
 

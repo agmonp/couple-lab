@@ -106,7 +106,7 @@ export interface TranscriptSegment {
   /** Immutable first ASR/manual text retained when a reviewed correction is accepted. */
   originalText?: string;
   correction?: {
-    provider: "ollama-local";
+    provider: "ollama-local" | "cloud-anthropic";
     modelId: string;
     correctedAt: string;
     reviewedByPartners: true;
@@ -234,6 +234,21 @@ export interface VocalObservation {
   evidence: string;
   provider?: "local-prosody-v1";
   metadata?: Record<string, string | number | boolean>;
+}
+
+/**
+ * A Gottman-informed written reflection produced by an opt-in cloud model on
+ * the corrected transcript text. It is an aid for practice, framed as
+ * observations and never as a verdict on emotion, intent, or the relationship.
+ */
+export interface CloudReflection {
+  summary: string;
+  strengths: string[];
+  risks: string[];
+  nextSteps: string[];
+  provider: string;
+  model: string;
+  createdAt: string;
 }
 
 export interface NonverbalMetrics {
@@ -384,6 +399,7 @@ export interface SessionRecord {
   cues: LiveCue[];
   visualObservations: VisualObservation[];
   vocalObservations?: VocalObservation[];
+  cloudReflection?: CloudReflection;
   nonverbalMetrics?: NonverbalMetrics;
   signals: BodySignals;
   analysis: SessionAnalysis;
@@ -481,6 +497,32 @@ export interface CoupleLabDesktopBridge {
   onTranscriptionModelProgress?: (
     listener: (progress: TranscriptionModelInstallProgress) => void
   ) => () => void;
+  /**
+   * Optional cloud (bring-your-own-key) text analysis, routed through the
+   * Electron main process. Desktop only, opt-in, text-only — never recordings.
+   */
+  saveCloudKey?: (provider: "anthropic", key: string) => Promise<CloudKeyStatus>;
+  getCloudKeyStatus?: () => Promise<CloudKeyStatus>;
+  clearCloudKey?: () => Promise<CloudKeyStatus>;
+  cloudComplete?: (request: CloudCompletionRequest) => Promise<CloudCompletionResult>;
+}
+
+export interface CloudKeyStatus {
+  hasKey: boolean;
+  provider?: string;
+  error?: string;
+}
+
+export interface CloudCompletionRequest {
+  system?: string;
+  user: string;
+  model?: string;
+  maxTokens?: number;
+}
+
+export interface CloudCompletionResult {
+  text: string;
+  model: string;
 }
 
 export interface TranscriptionModelInstallProgress {

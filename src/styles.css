@@ -2195,6 +2195,72 @@ blockquote {
   font-size: 0.82rem;
 }
 
+/* Optional cloud (Claude) correction + reflection. */
+.cloud-correction {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line);
+}
+
+.cloud-correction > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.cloud-correction small {
+  color: var(--muted);
+}
+
+.cloud-correction-actions,
+.cloud-key-setup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.cloud-key-setup {
+  align-items: flex-end;
+}
+
+.cloud-key-setup label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  flex: 1 1 240px;
+}
+
+.cloud-key-setup input {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--surface);
+}
+
+.cloud-reflection {
+  border-inline-start: 3px solid var(--teal);
+  background: var(--teal-soft);
+}
+
+.cloud-reflection-group {
+  margin-top: 8px;
+}
+
+.cloud-reflection-group strong {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.cloud-reflection-group ul {
+  margin: 0;
+  padding-inline-start: 20px;
+  display: grid;
+  gap: 3px;
+}
+
 .speaker-a {
   background: var(--teal-soft);
 }
