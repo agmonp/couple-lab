@@ -2234,10 +2234,24 @@ blockquote {
 }
 
 .cloud-key-setup input {
+  width: 100%;
+  min-height: 48px;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px 10px;
+  border-radius: 10px;
+  padding: 12px 14px;
   background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+.cloud-key-setup input:hover {
+  border-color: var(--muted);
+}
+
+.cloud-key-setup input:focus-visible {
+  outline: 3px solid var(--teal);
+  outline-offset: 2px;
+  border-color: var(--teal);
 }
 
 .cloud-reflection {
