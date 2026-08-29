@@ -10,7 +10,8 @@ import {
   SessionMetrics,
   SessionType,
   TranscriptSegment,
-  VisualObservation
+  VisualObservation,
+  VocalObservation
 } from "./types";
 import { sessionEvidenceSummary } from "./sessionFlow";
 
@@ -413,6 +414,78 @@ function visualTags(observations: VisualObservation[], segments: TranscriptSegme
   });
 }
 
+// Vocal (prosody) cues are probabilistic and descriptive, exactly like the
+// camera cues: they enrich the timeline and the nonverbal-stress count, but —
+// per the product boundary — they never raise flooding, never create
+// emotional-state verdicts, and are never sufficient evidence on their own.
+const vocalStressLabels = new Set<VocalObservation["label"]>([
+  "raised-voice",
+  "tense-voice",
+  "flat-withdrawn",
+  "long-pause"
+]);
+
+function vocalLabel(observation: VocalObservation) {
+  const labelMap: Record<VocalObservation["label"], string> = {
+    "raised-voice": "הרמת קול אפשרית",
+    "tense-voice": "מתח אפשרי בקול",
+    "flat-withdrawn": "קול שטוח או מרוחק אפשרי",
+    "warm-engaged": "טון חם ומעורב אפשרי",
+    "long-pause": "שתיקה ארוכה"
+  };
+  return labelMap[observation.label];
+}
+
+function vocalHits(observations: VocalObservation[], segments: TranscriptSegment[]): PatternHit[] {
+  return observations.slice(-40).map((observation) => {
+    const linkedSegment = findLinkedSegment(segments, observation.seconds);
+    const positive = observation.label === "warm-engaged";
+    return {
+      id: `vocal-${observation.id}`,
+      label: vocalLabel(observation),
+      family: positive ? "strength" : "body",
+      speaker: observation.subject ?? linkedSegment?.speaker,
+      target: observation.subject ? otherPartner(observation.subject) : linkedSegment?.target,
+      seconds: observation.seconds,
+      source: "vocal",
+      segmentId: linkedSegment?.id,
+      observationId: observation.id,
+      evidence: `${vocalLabel(observation)} בשנייה ${Math.round(observation.seconds)}`,
+      suggestion: positive
+        ? "אפשר להשתמש בזה כרמז תומך ולבדוק מול מה שכל אחד הרגיש."
+        : "התייחסו לזה כשאלה לבדיקה עדינה על צליל הקול, לא כהוכחה לרגש או לכוונה.",
+      confidence: clamp(observation.score, 0.35, 0.86)
+    };
+  });
+}
+
+function vocalTags(observations: VocalObservation[], segments: TranscriptSegment[]): InteractionTag[] {
+  return observations.map((observation) => {
+    const linkedSegment = findLinkedSegment(segments, observation.seconds);
+    const stressCue = vocalStressLabels.has(observation.label);
+    return {
+      id: `tag-vocal-${observation.id}`,
+      label: vocalLabel(observation),
+      family: "nonverbal",
+      source: "vocal",
+      seconds: observation.seconds,
+      speaker: observation.subject ?? linkedSegment?.speaker,
+      target: observation.subject ? otherPartner(observation.subject) : linkedSegment?.target,
+      segmentId: linkedSegment?.id,
+      observationId: observation.id,
+      evidence: vocalLabel(observation),
+      suggestion: stressCue
+        ? "בדקו אם זה שיקף לחץ, עייפות, התלהבות או התרחקות לפני שמסיקים מסקנה."
+        : "השתמשו בזה כהקשר לרגע המדובר, לא כהוכחה לרגש.",
+      confidence: clamp(observation.score, 0.35, 0.86),
+      metadata: {
+        vocalLabel: observation.label,
+        linkedTranscript: Boolean(linkedSegment)
+      }
+    };
+  });
+}
+
 function detectRepairAcceptance(segments: TranscriptSegment[], tags: InteractionTag[]) {
   const repairSegmentIds = new Set(tags.filter((tag) => tag.family === "repair" && tag.segmentId).map((tag) => tag.segmentId));
   const hits: PatternHit[] = [];
@@ -615,6 +688,7 @@ function buildMetrics(
   signals: BodySignals,
   cues: LiveCue[],
   observations: VisualObservation[],
+  vocalObservations: VocalObservation[],
   tags: InteractionTag[]
 ): SessionMetrics {
   const attributedSegments = segments.filter((segment) => segment.speakerAttribution !== "unknown");
@@ -630,7 +704,9 @@ function buildMetrics(
   const maxWords = Math.max(wordsA, wordsB, 1);
   const minWords = Math.min(wordsA, wordsB);
   const turnBalance = Math.round((minWords / maxWords) * 100);
-  const positiveSignals = hits.filter((hit) => hit.family === "strength" && hit.source !== "visual").length;
+  const positiveSignals = hits.filter(
+    (hit) => hit.family === "strength" && hit.source !== "visual" && hit.source !== "vocal"
+  ).length;
   const riskSignals = hits.filter((hit) => hit.family === "risk").length;
   const repairSignals = hits.filter((hit) => hit.family === "repair").length;
   const fourHorsemenSignals = tags.filter((tag) => tag.family === "four-horsemen").length;
@@ -640,7 +716,9 @@ function buildMetrics(
   const emotionalBankDeposits = tags.filter((tag) => tag.label === "הפקדה בחשבון הרגשי").length;
   const bidsOrTurningToward = tags.filter((tag) => tag.label === "היענות לפנייה לקרבה").length;
   const interruptionRisks = tags.filter((tag) => tag.label === "חפיפה או קטיעה אפשרית").length;
-  const nonverbalStressSignals = observations.filter((observation) => visualStressLabels.has(observation.label)).length;
+  const nonverbalStressSignals =
+    observations.filter((observation) => visualStressLabels.has(observation.label)).length +
+    vocalObservations.filter((observation) => vocalStressLabels.has(observation.label)).length;
   const risk = floodingRisk(signals, cues);
   const emotionalState = scoreEmotionalState(hits, cues, tags, risk);
   const balanceBonus = speakerAttributionReliable ? (turnBalance > 60 ? 8 : turnBalance > 40 ? 3 : -7) : 0;
@@ -747,7 +825,8 @@ export function analyzeSession(
   signals: BodySignals,
   cues: LiveCue[],
   sessionType: SessionType,
-  observations: VisualObservation[] = []
+  observations: VisualObservation[] = [],
+  vocalObservations: VocalObservation[] = []
 ): SessionAnalysis {
   const evidence = sessionEvidenceSummary({ segments, cues, observations });
   if (!evidence.sufficient) {
@@ -800,6 +879,7 @@ export function analyzeSession(
     ...scanned.tags,
     ...cueTags(cues),
     ...visualTags(observations, segments),
+    ...vocalTags(vocalObservations, segments),
     ...repairAcceptance.tags
   ];
   const timelineTags = [...baseTags, ...deriveConversationTags(segments, baseTags)].sort((a, b) => a.seconds - b.seconds);
@@ -807,9 +887,10 @@ export function analyzeSession(
     ...scanned.hits,
     ...cueHits(cues),
     ...visualHits(observations, segments),
+    ...vocalHits(vocalObservations, segments),
     ...repairAcceptance.hits
   ].sort((a, b) => (a.seconds ?? 0) - (b.seconds ?? 0));
-  const metrics = buildMetrics(segments, allHits, signals, cues, observations, timelineTags);
+  const metrics = buildMetrics(segments, allHits, signals, cues, observations, vocalObservations, timelineTags);
   const allTags = timelineTags;
 
   const summary =

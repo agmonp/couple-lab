@@ -289,7 +289,7 @@ export interface PatternHit {
   target?: PartnerId;
   seconds?: number;
   endSeconds?: number;
-  source?: "transcript" | "manual-cue" | "visual" | "derived";
+  source?: "transcript" | "manual-cue" | "visual" | "vocal" | "derived";
   segmentId?: string;
   cueId?: string;
   observationId?: string;
@@ -312,7 +312,7 @@ export interface InteractionTag {
   id: string;
   label: string;
   family: InteractionTagFamily;
-  source: "transcript" | "manual-cue" | "visual" | "derived";
+  source: "transcript" | "manual-cue" | "visual" | "vocal" | "derived";
   seconds: number;
   endSeconds?: number;
   speaker?: PartnerId;
