@@ -2245,12 +2245,11 @@ blockquote {
 }
 
 .cloud-key-setup input:hover {
-  border-color: var(--muted);
+  border-color: #9ba7a2;
 }
 
 .cloud-key-setup input:focus-visible {
-  outline: 3px solid var(--teal);
-  outline-offset: 2px;
+  outline: 3px solid rgba(31, 98, 89, 0.25);
   border-color: var(--teal);
 }
 
