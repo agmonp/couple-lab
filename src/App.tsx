@@ -2784,6 +2784,7 @@ function PracticeStudio({
   const structuredSteps = structuredKind ? structuredStepsForKind(structuredKind) : [];
   const structuredFlowRef = useRef<StructuredFlowRecord | null>(null);
   const stressBeforeRef = useRef<Partial<Record<PartnerId, number>>>({});
+  const structuredStepIndexRef = useRef(0);
   const [structuredStepIndex, setStructuredStepIndex] = useState(0);
   const [structuredGateAck, setStructuredGateAck] = useState(false);
   const [selectedFeelings, setSelectedFeelings] = useState<string[]>([]);
@@ -2835,6 +2836,7 @@ function PracticeStudio({
         ],
         stressBefore: Object.keys(firstStress).length ? { ...firstStress } : undefined
       };
+      structuredStepIndexRef.current = 0;
       setStructuredStepIndex(0);
     } else {
       structuredFlowRef.current = null;
@@ -2843,25 +2845,28 @@ function PracticeStudio({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recording]);
 
+  // Advance imperatively (not inside a setState updater) so the boundary push is
+  // a one-time side effect — StrictMode double-invokes updaters, which would
+  // otherwise record each step twice. The index ref is the source of truth.
   const advanceStructuredStep = () => {
     if (!structuredKind || structuredSteps.length === 0) return;
-    setStructuredStepIndex((index) => {
-      const next = Math.min(index + 1, structuredSteps.length - 1);
-      if (next === index) return index;
-      const flow = structuredFlowRef.current;
-      if (flow && recordingRef.current) {
-        const now = elapsedRef.current;
-        const current = flow.steps[flow.steps.length - 1];
-        if (current && current.endSeconds === undefined) current.endSeconds = now;
-        flow.steps.push({
-          key: structuredSteps[next].key,
-          title: structuredSteps[next].title,
-          startSeconds: now,
-          speaker: activeSpeakerRef.current
-        });
-      }
-      return next;
-    });
+    const index = structuredStepIndexRef.current;
+    const next = Math.min(index + 1, structuredSteps.length - 1);
+    if (next === index) return;
+    const flow = structuredFlowRef.current;
+    if (flow && recordingRef.current) {
+      const now = elapsedRef.current;
+      const current = flow.steps[flow.steps.length - 1];
+      if (current && current.endSeconds === undefined) current.endSeconds = now;
+      flow.steps.push({
+        key: structuredSteps[next].key,
+        title: structuredSteps[next].title,
+        startSeconds: now,
+        speaker: activeSpeakerRef.current
+      });
+    }
+    structuredStepIndexRef.current = next;
+    setStructuredStepIndex(next);
   };
 
   const toggleFeeling = (feeling: string) => {
@@ -2881,6 +2886,7 @@ function PracticeStudio({
   const resetStructuredState = () => {
     structuredFlowRef.current = null;
     stressBeforeRef.current = {};
+    structuredStepIndexRef.current = 0;
     setStructuredStepIndex(0);
     setStructuredGateAck(false);
     setSelectedFeelings([]);
