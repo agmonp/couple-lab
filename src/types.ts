@@ -5,7 +5,9 @@ export type SessionType =
   | "conflict"
   | "repair"
   | "intimacy"
-  | "shared-meaning";
+  | "shared-meaning"
+  | "aftermath"
+  | "stress-reducing";
 
 export type CueTone =
   | "warmth"
@@ -386,6 +388,31 @@ export interface SessionMediaRef {
   savedAt: string;
 }
 
+export type StructuredSessionKind = "aftermath" | "stress-reducing";
+
+/**
+ * A single step (or turn) of a structured session, with the moment it opened
+ * and closed relative to the recording. Used to show per-step coverage in the
+ * report without a schema migration — every field is optional-friendly and the
+ * whole record is optional on SessionRecord.
+ */
+export interface StructuredStepBoundary {
+  key: string;
+  title: string;
+  startSeconds: number;
+  endSeconds?: number;
+  speaker?: PartnerId;
+}
+
+export interface StructuredFlowRecord {
+  kind: StructuredSessionKind;
+  steps: StructuredStepBoundary[];
+  /** Self-reported stress (0–10) per partner before the conversation. */
+  stressBefore?: Partial<Record<PartnerId, number>>;
+  /** Self-reported stress (0–10) per partner after the conversation. */
+  stressAfter?: Partial<Record<PartnerId, number>>;
+}
+
 export interface SessionRecord {
   schemaVersion?: 2;
   id: string;
@@ -399,6 +426,7 @@ export interface SessionRecord {
   cues: LiveCue[];
   visualObservations: VisualObservation[];
   vocalObservations?: VocalObservation[];
+  structuredFlow?: StructuredFlowRecord;
   cloudReflection?: CloudReflection;
   nonverbalMetrics?: NonverbalMetrics;
   signals: BodySignals;

@@ -237,3 +237,39 @@ describe("noise-tolerant transcript matching", () => {
     expect(result.metrics.fourHorsemenSignals).toBe(0);
   });
 });
+
+describe("structured session types", () => {
+  const criticism = () => ({
+    ...segment("אתה תמיד עסוק בעבודה ולא מקשיב לי כשאני מנסה לספר לך על היום הקשה שהיה לי"),
+    source: "speech" as const,
+    speakerAttribution: "automatic" as const
+  });
+  const calmDebrief = () =>
+    segment("היה לי יום עמוס בעבודה עם המון פגישות ואני פשוט צריך לפרוק קצת ולשתף אותך במה שעבר עליי");
+
+  it("reframes partner-directed criticism as topic drift in a stress-reducing conversation", () => {
+    const stress = analyzeSession([criticism()], defaultSignals, [], "stress-reducing", []);
+    expect(stress.metrics.fourHorsemenSignals).toBeGreaterThan(0);
+    expect(stress.risks.some((risk) => risk.includes("מבחוץ"))).toBe(true);
+    // The generic "painful patterns" wording is replaced by the drift note, not added on top.
+    expect(stress.risks.some((risk) => risk.includes("דפוסים מכאיבים"))).toBe(false);
+  });
+
+  it("keeps the generic painful-pattern risk for a conflict session (no reframing)", () => {
+    const conflict = analyzeSession([criticism()], defaultSignals, [], "conflict", []);
+    expect(conflict.risks.some((risk) => risk.includes("דפוסים מכאיבים"))).toBe(true);
+    expect(conflict.risks.some((risk) => risk.includes("מבחוץ"))).toBe(false);
+  });
+
+  it("does not flag a missing repair attempt in a stress-reducing conversation, and adds the reflect step", () => {
+    const stress = analyzeSession([calmDebrief()], defaultSignals, [], "stress-reducing", []);
+    expect(stress.risks.some((risk) => risk.includes("ניסיון תיקון"))).toBe(false);
+    expect(stress.nextSteps.some((step) => step.includes("משפט תיקון"))).toBe(false);
+    expect(stress.nextSteps.some((step) => step.includes("מה ששמעתי"))).toBe(true);
+  });
+
+  it("adds the aftermath repair-phrase next step for an aftermath session", () => {
+    const after = analyzeSession([calmDebrief()], defaultSignals, [], "aftermath", []);
+    expect(after.nextSteps.some((step) => step.includes("השלב החמישי"))).toBe(true);
+  });
+});

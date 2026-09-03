@@ -800,15 +800,34 @@ function selectStrengths(metrics: SessionMetrics, tags: InteractionTag[]) {
   return Array.from(strengths).slice(0, 4);
 }
 
-function selectRisks(metrics: SessionMetrics, hits: PatternHit[]) {
+function selectRisks(metrics: SessionMetrics, hits: PatternHit[], sessionType: SessionType) {
   const risks = new Set<string>();
-  if (metrics.riskSignals > 0) risks.add("ייתכן שחלק מהניסוח נחווה כהאשמה, ביטול, זלזול או התגוננות.");
-  if (metrics.fourHorsemenSignals > 0) risks.add("הופיעו דפוסים מכאיבים שכדאי לרכך בעזרת התגובה המתקנת המתאימה.");
-  if (metrics.contemptSignals > 0) risks.add("ניסוח שעשוי להישמע מזלזל מצריך האטה וחזרה לכבוד הדדי.");
-  if (metrics.interruptionRisks > 0) risks.add("ייתכן שכדאי להבהיר טוב יותר את המעבר בין הדוברים.");
+  const stressReducing = sessionType === "stress-reducing";
+  // In a stress-reducing conversation the topic is meant to be stress from
+  // *outside* the relationship. The same partner-directed patterns the engine
+  // already tags are reframed here not as a "risk" but as the conversation
+  // drifting to an internal grievance — which belongs in Aftermath or Conflict.
+  if (stressReducing && (metrics.fourHorsemenSignals > 0 || metrics.contemptSignals > 0)) {
+    risks.add(
+      "חלק מהניסוח נשמע מכוון פנימה, זה אל זו. בשיחה מפחיתת-לחץ מתמקדים בלחץ שמגיע מבחוץ; נושא שבינֵיכם מתאים יותר ל'אחרי ריב' או ל'מחלוקת'."
+    );
+  } else {
+    if (metrics.riskSignals > 0) risks.add("ייתכן שחלק מהניסוח נחווה כהאשמה, ביטול, זלזול או התגוננות.");
+    if (metrics.fourHorsemenSignals > 0) risks.add("הופיעו דפוסים מכאיבים שכדאי לרכך בעזרת התגובה המתקנת המתאימה.");
+    if (metrics.contemptSignals > 0) risks.add("ניסוח שעשוי להישמע מזלזל מצריך האטה וחזרה לכבוד הדדי.");
+  }
+  if (metrics.interruptionRisks > 0) {
+    risks.add(
+      stressReducing
+        ? "היו רגעים של קטיעה; בתור של המקשיב/ה מספיק להקשיב ולשקף, בלי למהר לפתור."
+        : "ייתכן שכדאי להבהיר טוב יותר את המעבר בין הדוברים."
+    );
+  }
   if (metrics.speakerAttributionReliable !== false && metrics.turnBalance < 45) risks.add("זמן הדיבור לא היה מאוזן; כדאי לבדוק אם שניכם הרגשתם שנשמעתם.");
   if (metrics.floodingRisk > 58) risks.add("רמזי העומס מצדיקים בדיקה משותפת אם נחוצה הפסקה מתוזמנת.");
-  if (metrics.repairSignals === 0) risks.add("לא זוהה ניסיון תיקון; בפעם הבאה אפשר להוסיף אחד מוקדם.");
+  // "No repair attempt" is only a gap where repair is the point. A stress-
+  // reducing conversation is about support, not repair, so it is not flagged.
+  if (metrics.repairSignals === 0 && !stressReducing) risks.add("לא זוהה ניסיון תיקון; בפעם הבאה אפשר להוסיף אחד מוקדם.");
   if (hits.some((hit) => hit.label === "חשש להיסגרות או ניתוק")) risks.add("ניסוח שעלול להעיד על סגירות מציע לעצור את פתרון הבעיה ולבדוק מה נחוץ.");
   if (risks.size === 0) risks.add("הכללים הנוכחיים לא סימנו דפוס סיכון מרכזי.");
   return Array.from(risks).slice(0, 4);
@@ -831,7 +850,7 @@ function nextSteps(metrics: SessionMetrics, sessionType: SessionType) {
   if (metrics.riskSignals > metrics.positiveSignals) {
     steps.push("התחילו את הנושא מחדש, כשכל אחד מנסח פתיחה עדינה אחת.");
   }
-  if (metrics.repairSignals === 0) {
+  if (metrics.repairSignals === 0 && sessionType !== "stress-reducing") {
     steps.push("הסכימו על משפט תיקון אחד ששניכם תזהו.");
   }
   if (sessionType === "intimacy") {
@@ -839,6 +858,12 @@ function nextSteps(metrics: SessionMetrics, sessionType: SessionType) {
   }
   if (sessionType === "shared-meaning") {
     steps.push("הפכו ערך משותף אחד לטקס שבועי קטן.");
+  }
+  if (sessionType === "aftermath") {
+    steps.push("הפכו את הצעד מהשלב החמישי למשפט תיקון קצר שתזהו בפעם הבאה.");
+  }
+  if (sessionType === "stress-reducing") {
+    steps.push("המקשיב/ה: לפני כל עצה, שקפו משפט אחד ששמעתם — 'מה ששמעתי הוא…'.");
   }
   steps.push("עברו יחד על רגע מסומן אחד ותקנו אותו אם האפליקציה לא הבינה נכון.");
   return steps.slice(0, 5);
@@ -942,7 +967,7 @@ export function analyzeSession(
     summary,
     metrics,
     strengths: selectStrengths(metrics, allTags),
-    risks: selectRisks(metrics, allHits),
+    risks: selectRisks(metrics, allHits, sessionType),
     nextSteps: nextSteps(metrics, sessionType),
     suggestedScript: suggestedScript(metrics),
     hits: allHits.slice(0, 28),
