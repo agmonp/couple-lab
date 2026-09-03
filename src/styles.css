@@ -1556,6 +1556,232 @@ input[type="range"] {
   color: var(--ink);
 }
 
+/* Structured sessions — "אחרי ריב" / "שיחה מפחיתת-לחץ" */
+.structured-guide {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--teal) 34%, var(--line));
+  border-radius: 12px;
+  background: var(--teal-soft);
+}
+
+.structured-guide-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.structured-kind {
+  font-weight: 800;
+  color: var(--teal);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.85rem;
+}
+
+.structured-progress {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.structured-step-title {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.35rem;
+}
+
+.structured-step-intent {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.structured-step-prompt {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.05rem;
+  line-height: 1.5;
+}
+
+.feelings-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.feeling-chip {
+  border: 1px solid color-mix(in srgb, var(--teal) 40%, var(--line));
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.feeling-chip.selected {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: #fff;
+}
+
+.listener-rules {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border-radius: 10px;
+}
+
+.listener-rules strong {
+  color: var(--teal);
+}
+
+.listener-rules ul {
+  margin: 0;
+  padding-inline-start: 20px;
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.structured-turn {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.structured-turn > span {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.structured-turn button {
+  border: 1px solid color-mix(in srgb, var(--teal) 40%, var(--line));
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 6px 16px;
+  cursor: pointer;
+}
+
+.structured-turn button.active {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: #fff;
+}
+
+.structured-next {
+  justify-self: start;
+}
+
+.structured-setup {
+  display: grid;
+  gap: 14px;
+}
+
+.structured-gate {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--gold) 45%, var(--line));
+  border-radius: 12px;
+  background: var(--gold-soft);
+}
+
+.structured-gate-lead {
+  margin: 0;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  color: var(--ink);
+  line-height: 1.45;
+}
+
+.structured-gate-caution {
+  margin: 0;
+  color: var(--gold);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.structured-gate.blocked {
+  border-color: color-mix(in srgb, var(--coral) 55%, var(--line));
+  background: var(--coral-soft);
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.structured-gate.blocked p {
+  margin: 0;
+  color: var(--ink);
+  line-height: 1.45;
+}
+
+.stress-checkin {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.stress-checkin > strong {
+  color: var(--ink);
+}
+
+.stress-checkin > small {
+  color: var(--muted);
+}
+
+.stress-checkin-row {
+  display: grid;
+  grid-template-columns: minmax(64px, auto) 1fr minmax(28px, auto);
+  align-items: center;
+  gap: 12px;
+}
+
+.stress-checkin-name {
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.stress-checkin-row input[type="range"] {
+  width: 100%;
+  accent-color: var(--teal);
+}
+
+.stress-checkin-value {
+  color: var(--teal);
+  font-weight: 800;
+  text-align: center;
+}
+
+.stress-after-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.stress-delta {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--teal-soft);
+  color: var(--ink);
+  font-weight: 700;
+  line-height: 1.45;
+}
+
 .prompt-meta span {
   color: var(--plum);
   font-weight: 900;

@@ -33,6 +33,17 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { analyzeSession, CONTEMPT_RISK_LABEL } from "./relationshipEngine";
+import {
+  buildStructuredTags,
+  evaluateAftermathGate,
+  FEELINGS_PALETTE,
+  LISTENER_RULES,
+  structuredKindForDeck,
+  structuredKindLabel,
+  structuredStepsForKind,
+  summarizeStressChange,
+  type StructuredStep
+} from "./structuredSessions";
 import { resolveAdviserRecommendation } from "./adviserRecommendation";
 import { CALIBRATION_STORAGE_KEY, readCalibrationState, summarizeCalibration } from "./transcriptionCalibration";
 import { type GoldenMoment, goldenMomentsForSession } from "./goldenMoments";
@@ -102,6 +113,8 @@ import {
   SessionType,
   SpeechRecognitionLike,
   StoredTranscriptionMetadata,
+  StructuredFlowRecord,
+  StructuredSessionKind,
   TranscriptSegment,
   VisualObservation,
   VocalObservation
@@ -570,6 +583,8 @@ function sessionTypeForDeck(deckId: string): SessionType {
   if (deckId === "gridlock") return "conflict";
   if (deckId === "desire") return "intimacy";
   if (deckId === "shared-meaning") return "shared-meaning";
+  if (deckId === "aftermath") return "aftermath";
+  if (deckId === "stress-reducing") return "stress-reducing";
   return "daily-check-in";
 }
 
@@ -582,6 +597,28 @@ function conversationGuide(sessionType: SessionType, deckId?: string) {
         "אחד עונה על שאלת הכרטיס ומסביר למה הדבר חשוב לו.",
         "השני שואל שאלה סקרנית אחת, בלי לשכנע ובלי להציע פשרה.",
         "מחליפים, ובסוף נותנים שם לדבר החשוב שכל אחד רוצה לשמור עליו."
+      ]
+    };
+  }
+  if (deckId === "aftermath") {
+    return {
+      title: "איך עוברים על ריב שכבר נגמר",
+      intro: "חמישה שלבים לעיבוד אירוע — כדי להבין, לא להכריע מי צדק. רק כשרגועים ובטוחים.",
+      steps: [
+        "רגשות: כל אחד אומר מה הרגיש, בלי 'כי' ובלי 'אתה'.",
+        "מציאות וטריגרים: כל אחד מתאר איך זה נראה מבפנים, והשני משקף לפני שמגיב.",
+        "אחריות ותוכנית: כל אחד לוקח את חלקו, ומסכמים על משפט תיקון קטן להבא."
+      ]
+    };
+  }
+  if (deckId === "stress-reducing") {
+    return {
+      title: "איך נותנים תמיכה בלחץ מבחוץ",
+      intro: "מדברים על לחץ שמגיע מחוץ לקשר. המקשיב/ה תומך/ת — לא פותר/ת.",
+      steps: [
+        "תורות: אחד מדבר על לחץ מבחוץ, השני מקשיב; אחר כך מתחלפים.",
+        "לא לפתור: הבנה לפני עצה, בלי לתת פתרונות שלא ביקשו.",
+        "להיות בצד: 'זה הגיוני', 'אני איתך' — ברית מול הלחץ."
       ]
     };
   }
@@ -1040,6 +1077,7 @@ export default function App() {
             sessions={sessions}
             setSessions={setSessions}
             safetyFlag={safetyFlag}
+            safety={safety}
             deckStats={deckStats}
             setDeckStats={setDeckStats}
             questionHistory={questionHistory}
@@ -2481,6 +2519,128 @@ function DecksView({
   );
 }
 
+/**
+ * Interactive guide for a structured session ("אחרי ריב" / "שיחה מפחיתת-לחץ").
+ * Presentational only: it renders the current step, the self-report feelings
+ * palette (Aftermath step 1) or the listener rules (stress-reducing), and a
+ * "who is speaking" control, and calls back to advance. It never judges — the
+ * feelings are the couple's own, and the turn control is guidance.
+ */
+function StructuredGuidePanel({
+  kind,
+  steps,
+  stepIndex,
+  profile,
+  activeSpeaker,
+  onSelectSpeaker,
+  onAdvance,
+  selectedFeelings,
+  onToggleFeeling
+}: {
+  kind: StructuredSessionKind;
+  steps: StructuredStep[];
+  stepIndex: number;
+  profile: CoupleProfile;
+  activeSpeaker: PartnerId;
+  onSelectSpeaker: (partner: PartnerId) => void;
+  onAdvance: () => void;
+  selectedFeelings: string[];
+  onToggleFeeling: (feeling: string) => void;
+}) {
+  const step = steps[stepIndex] ?? steps[0];
+  const isLast = stepIndex >= steps.length - 1;
+  const listener = otherPartner(activeSpeaker);
+  const showFeelings = kind === "aftermath" && step.key === "feelings";
+  const showListenerRules = kind === "stress-reducing";
+  return (
+    <div className="structured-guide" aria-label={`מדריך ${structuredKindLabel(kind)}`}>
+      <div className="structured-guide-head">
+        <span className="structured-kind">{structuredKindLabel(kind)}</span>
+        <span className="structured-progress">שלב {stepIndex + 1} מתוך {steps.length}</span>
+      </div>
+      <h3 className="structured-step-title">{step.title}</h3>
+      <p className="structured-step-intent">{step.intent}</p>
+      <p className="structured-step-prompt" dir="auto">{step.prompt}</p>
+
+      {showFeelings && (
+        <div className="feelings-palette" role="group" aria-label="פָּלֶטת רגשות — כל אחד בוחר בתורו">
+          {FEELINGS_PALETTE.map((feeling) => (
+            <button
+              type="button"
+              key={feeling}
+              className={`feeling-chip ${selectedFeelings.includes(feeling) ? "selected" : ""}`}
+              aria-pressed={selectedFeelings.includes(feeling)}
+              onClick={() => onToggleFeeling(feeling)}
+            >
+              {feeling}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {showListenerRules && (
+        <div className="listener-rules">
+          <strong>{partnerName(profile, listener)} מקשיב/ה עכשיו — חמשת הכללים:</strong>
+          <ul>
+            {LISTENER_RULES.map((rule) => <li key={rule}>{rule}</li>)}
+          </ul>
+        </div>
+      )}
+
+      <div className="structured-turn" role="group" aria-label="מי מדבר עכשיו">
+        <span>מי מדבר/ת עכשיו:</span>
+        <button type="button" className={activeSpeaker === "A" ? "active" : ""} onClick={() => onSelectSpeaker("A")}>
+          {partnerName(profile, "A")}
+        </button>
+        <button type="button" className={activeSpeaker === "B" ? "active" : ""} onClick={() => onSelectSpeaker("B")}>
+          {partnerName(profile, "B")}
+        </button>
+      </div>
+
+      <button type="button" className="secondary structured-next" onClick={onAdvance} disabled={isLast}>
+        {isLast ? "זה השלב האחרון" : "השלב הבא"}
+      </button>
+    </div>
+  );
+}
+
+/** Two self-report stress sliders (0–10), used before and after a session. */
+function StressCheckIn({
+  profile,
+  values,
+  onChange,
+  title,
+  hint
+}: {
+  profile: CoupleProfile;
+  values: Partial<Record<PartnerId, number>>;
+  onChange: (partner: PartnerId, value: number) => void;
+  title: string;
+  hint?: string;
+}) {
+  return (
+    <div className="stress-checkin">
+      <strong>{title}</strong>
+      {hint && <small>{hint}</small>}
+      {(["A", "B"] as PartnerId[]).map((partner) => (
+        <label key={partner} className="stress-checkin-row">
+          <span className="stress-checkin-name">{partnerName(profile, partner)}</span>
+          <input
+            type="range"
+            min={0}
+            max={10}
+            step={1}
+            value={values[partner] ?? 5}
+            aria-label={`מפלס הלחץ של ${partnerName(profile, partner)} מ-0 עד 10`}
+            onChange={(event) => onChange(partner, Number(event.target.value))}
+          />
+          <span className="stress-checkin-value" dir="ltr">{values[partner] ?? 5}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
 function PracticeStudio({
   profile,
   setProfile,
@@ -2489,6 +2649,7 @@ function PracticeStudio({
   sessions,
   setSessions,
   safetyFlag,
+  safety,
   deckStats,
   setDeckStats,
   questionHistory,
@@ -2505,6 +2666,7 @@ function PracticeStudio({
   sessions: SessionRecord[];
   setSessions: React.Dispatch<React.SetStateAction<SessionRecord[]>>;
   safetyFlag: boolean;
+  safety: SafetyState;
   deckStats: Record<string, number>;
   setDeckStats: (stats: Record<string, number>) => void;
   questionHistory: QuestionHistory;
@@ -2615,6 +2777,19 @@ function PracticeStudio({
   const [closingRemember, setClosingRemember] = useState("");
   const [closingNextStep, setClosingNextStep] = useState("");
   const [closingSaved, setClosingSaved] = useState(false);
+  // Structured sessions ("אחרי ריב" / "שיחה מפחיתת-לחץ"). The step machine runs
+  // on top of the normal recording flow; boundaries accumulate in a ref so the
+  // sampling closures never have to re-render, mirroring the rest of this file.
+  const structuredKind = structuredKindForDeck(activeDeck.id);
+  const structuredSteps = structuredKind ? structuredStepsForKind(structuredKind) : [];
+  const structuredFlowRef = useRef<StructuredFlowRecord | null>(null);
+  const stressBeforeRef = useRef<Partial<Record<PartnerId, number>>>({});
+  const [structuredStepIndex, setStructuredStepIndex] = useState(0);
+  const [structuredGateAck, setStructuredGateAck] = useState(false);
+  const [selectedFeelings, setSelectedFeelings] = useState<string[]>([]);
+  const [stressBefore, setStressBefore] = useState<Partial<Record<PartnerId, number>>>({});
+  const [stressAfter, setStressAfter] = useState<Partial<Record<PartnerId, number>>>({});
+  const [stressAfterSaved, setStressAfterSaved] = useState(false);
   const mobileRealtime = useMemo(
     () => typeof window !== "undefined" && window.matchMedia("(max-width: 680px), (pointer: coarse)").matches,
     []
@@ -2640,6 +2815,79 @@ function PracticeStudio({
   useEffect(() => {
     recordingRef.current = recording;
   }, [recording]);
+
+  // Open the structured flow when recording starts on a structured deck: seed
+  // the first step boundary at t=0 and snapshot the "before" stress. Reset it
+  // when a non-structured recording starts so a stale flow never attaches.
+  useEffect(() => {
+    if (!recording) return;
+    if (structuredKind && structuredSteps.length > 0) {
+      const firstStress = stressBeforeRef.current;
+      structuredFlowRef.current = {
+        kind: structuredKind,
+        steps: [
+          {
+            key: structuredSteps[0].key,
+            title: structuredSteps[0].title,
+            startSeconds: 0,
+            speaker: activeSpeakerRef.current
+          }
+        ],
+        stressBefore: Object.keys(firstStress).length ? { ...firstStress } : undefined
+      };
+      setStructuredStepIndex(0);
+    } else {
+      structuredFlowRef.current = null;
+    }
+    // Only re-run when recording flips; structuredKind is stable within a take.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recording]);
+
+  const advanceStructuredStep = () => {
+    if (!structuredKind || structuredSteps.length === 0) return;
+    setStructuredStepIndex((index) => {
+      const next = Math.min(index + 1, structuredSteps.length - 1);
+      if (next === index) return index;
+      const flow = structuredFlowRef.current;
+      if (flow && recordingRef.current) {
+        const now = elapsedRef.current;
+        const current = flow.steps[flow.steps.length - 1];
+        if (current && current.endSeconds === undefined) current.endSeconds = now;
+        flow.steps.push({
+          key: structuredSteps[next].key,
+          title: structuredSteps[next].title,
+          startSeconds: now,
+          speaker: activeSpeakerRef.current
+        });
+      }
+      return next;
+    });
+  };
+
+  const toggleFeeling = (feeling: string) => {
+    setSelectedFeelings((current) =>
+      current.includes(feeling) ? current.filter((item) => item !== feeling) : [...current, feeling]
+    );
+  };
+
+  const setStressBeforeValue = (partner: PartnerId, value: number) => {
+    setStressBefore((current) => {
+      const nextValues = { ...current, [partner]: value };
+      stressBeforeRef.current = nextValues;
+      return nextValues;
+    });
+  };
+
+  const resetStructuredState = () => {
+    structuredFlowRef.current = null;
+    stressBeforeRef.current = {};
+    setStructuredStepIndex(0);
+    setStructuredGateAck(false);
+    setSelectedFeelings([]);
+    setStressBefore({});
+    setStressAfter({});
+    setStressAfterSaved(false);
+  };
 
   useEffect(() => {
     setRecordingConsent(Boolean(profile.recordingConsent));
@@ -3820,6 +4068,22 @@ function PracticeStudio({
       const analysisStartedAt = performance.now();
       const analysis = analyzeSession(segmentsToSave, signals, currentCues, sessionType, currentObservations, vocalObservationsRef.current);
       const nonverbalMetrics = computeNonverbalMetrics(visualMetricObservationsRef.current);
+      // Close the open structured-step boundary and fold the step markers into
+      // the timeline as conversation-structure tags, so the report can show
+      // per-step coverage without a schema migration.
+      let structuredFlow: StructuredFlowRecord | undefined;
+      let finalAnalysis = analysis;
+      const pendingFlow = structuredFlowRef.current;
+      if (pendingFlow && pendingFlow.steps.length > 0) {
+        const lastStep = pendingFlow.steps[pendingFlow.steps.length - 1];
+        if (lastStep && lastStep.endSeconds === undefined) lastStep.endSeconds = elapsedRef.current;
+        structuredFlow = pendingFlow;
+        const structuredTags = buildStructuredTags(structuredFlow);
+        finalAnalysis = {
+          ...analysis,
+          tags: [...analysis.tags, ...structuredTags].sort((a, b) => a.seconds - b.seconds)
+        };
+      }
       const record: SessionRecord = {
         schemaVersion: 2,
         id: sessionId,
@@ -3833,11 +4097,12 @@ function PracticeStudio({
         cues: currentCues,
         visualObservations: currentObservations,
         vocalObservations: vocalObservationsRef.current,
+        structuredFlow,
         nonverbalMetrics,
         signals,
-        analysis,
+        analysis: finalAnalysis,
         media,
-        processingStatus: analysis.dataQuality?.status === "insufficient" ? "insufficient-data" : "ready"
+        processingStatus: finalAnalysis.dataQuality?.status === "insufficient" ? "insufficient-data" : "ready"
       };
       setSessions((current) => current.some((session) => session.id === sessionId) ? current : [record, ...current]);
       setLastCompletedSession(record);
@@ -4034,6 +4299,15 @@ function PracticeStudio({
 
   const currentNonverbalMetrics = useMemo(() => computeNonverbalMetrics(visualObservations), [visualObservations]);
   const guide = conversationGuide(sessionType, activeDeck.id);
+  // The Aftermath gate uses the self-reported "before" stress when set, falling
+  // back to the stored body signals. Safety flags hard-block; high stress only
+  // cautions. Recording cannot start on Aftermath until the couple acknowledges.
+  const gateSignals: BodySignals = {
+    A: { ...signals.A, stress: stressBefore.A ?? signals.A.stress },
+    B: { ...signals.B, stress: stressBefore.B ?? signals.B.stress }
+  };
+  const aftermathGate = structuredKind === "aftermath" ? evaluateAftermathGate({ signals: gateSignals, safety }) : null;
+  const structuredStartBlocked = structuredKind === "aftermath" && (!aftermathGate?.allowed || !structuredGateAck);
   const visibleSegments = phase === "ready" && lastCompletedSession ? lastCompletedSession.segments : segments;
   const visibleTranscriptTags = phase === "ready" && lastCompletedSession ? lastCompletedSession.analysis.tags : [];
   const visibleTranscriptWords = visibleSegments.reduce(
@@ -4108,6 +4382,15 @@ function PracticeStudio({
     void logDiagnostic({ name: "session.closing_completed", status: "success", sessionId: updated.id, itemCount: 3 });
   };
 
+  const saveStressAfter = () => {
+    if (!lastCompletedSession?.structuredFlow || Object.keys(stressAfter).length === 0) return;
+    const structuredFlow = { ...lastCompletedSession.structuredFlow, stressAfter };
+    const updated = { ...lastCompletedSession, structuredFlow };
+    setLastCompletedSession(updated);
+    setSessions((current) => current.map((session) => session.id === updated.id ? updated : session));
+    setStressAfterSaved(true);
+  };
+
   const recordFollowUp = (outcome: NonNullable<SessionRecord["followUp"]>["outcome"]) => {
     if (!pendingFollowUp) return;
     const followUp = { outcome, checkedAt: new Date().toISOString() };
@@ -4165,18 +4448,66 @@ function PracticeStudio({
           <p>{activeDeck.lens} · {activeDeck.purpose}</p>
         </div>
         <blockquote dir="auto">{activeDeck.cards[cardIndex]}</blockquote>
-        <details className="conversation-protocol contextual-guide">
-          <summary aria-label={`${guide.title} — פתיחה או סגירה של הנחיות קצרות`}>
-            <span className="guide-summary-copy">
-              <strong>{guide.title}</strong>
-              <span className="guide-hint-default">{guide.intro}</span>
-              <span className="guide-hint-action" aria-hidden="true">לחצו לפתיחת 3 הנחיות קצרות</span>
-              <span className="guide-hint-close" aria-hidden="true">לחצו לסגירת ההנחיות</span>
-            </span>
-            <ChevronDown className="guide-chevron" size={19} aria-hidden="true" />
-          </summary>
-          <ol>{guide.steps.map((step) => <li key={step}>{step}</li>)}</ol>
-        </details>
+        {structuredKind && phase !== "ready" ? (
+          <StructuredGuidePanel
+            kind={structuredKind}
+            steps={structuredSteps}
+            stepIndex={structuredStepIndex}
+            profile={profile}
+            activeSpeaker={activeSpeaker}
+            onSelectSpeaker={selectActiveSpeaker}
+            onAdvance={advanceStructuredStep}
+            selectedFeelings={selectedFeelings}
+            onToggleFeeling={toggleFeeling}
+          />
+        ) : (
+          <details className="conversation-protocol contextual-guide">
+            <summary aria-label={`${guide.title} — פתיחה או סגירה של הנחיות קצרות`}>
+              <span className="guide-summary-copy">
+                <strong>{guide.title}</strong>
+                <span className="guide-hint-default">{guide.intro}</span>
+                <span className="guide-hint-action" aria-hidden="true">לחצו לפתיחת {guide.steps.length} הנחיות קצרות</span>
+                <span className="guide-hint-close" aria-hidden="true">לחצו לסגירת ההנחיות</span>
+              </span>
+              <ChevronDown className="guide-chevron" size={19} aria-hidden="true" />
+            </summary>
+            <ol>{guide.steps.map((step) => <li key={step}>{step}</li>)}</ol>
+          </details>
+        )}
+        {structuredKind && phase === "setup" && (
+          <div className="structured-setup">
+            {structuredKind === "aftermath" && aftermathGate && (
+              aftermathGate.allowed ? (
+                <div className="structured-gate">
+                  <p className="structured-gate-lead">
+                    <ShieldCheck size={17} aria-hidden="true" /> תרגול לעיבוד ריב שכבר נגמר — כשאתם רגועים ובטוחים, לא באמצע סערה. הוא אינו לעיבוד פחד, כפייה או אלימות.
+                  </p>
+                  {aftermathGate.cautionReason && <p className="structured-gate-caution" role="status">{aftermathGate.cautionReason}</p>}
+                  <label className="check-row">
+                    <input
+                      type="checkbox"
+                      checked={structuredGateAck}
+                      onChange={(event) => setStructuredGateAck(event.target.checked)}
+                    />
+                    <span>שנינו רגועים ובטוחים, ורוצים לעבד יחד ריב שכבר נגמר.</span>
+                  </label>
+                </div>
+              ) : (
+                <div className="structured-gate blocked" role="alert">
+                  <ShieldCheck size={17} aria-hidden="true" />
+                  <p>{aftermathGate.blockingReason}</p>
+                </div>
+              )
+            )}
+            <StressCheckIn
+              profile={profile}
+              values={stressBefore}
+              onChange={setStressBeforeValue}
+              title={structuredKind === "aftermath" ? "איך אתם מרגישים עכשיו? (0 רגוע — 10 בלחץ)" : "מפלס הלחץ עכשיו, לפני השיחה (0 רגוע — 10 בלחץ)"}
+              hint={structuredKind === "stress-reducing" ? "נשווה לזה בסוף, כדי לראות אם השיחה עזרה." : undefined}
+            />
+          </div>
+        )}
         <div className="prompt-actions">
           <label className="visually-hidden" htmlFor="practice-topic">בחירת נושא לשיחה</label>
           <select
@@ -4191,6 +4522,7 @@ function PracticeStudio({
               setCardIndex(nextQuestionIndex(deck.cards.length, questionHistory[deck.id] ?? []));
               setCompletedAnswerers([]);
               setTurnMessage("");
+              resetStructuredState();
             }}
           >
             {decks.map((deck) => (
@@ -4266,7 +4598,7 @@ function PracticeStudio({
             <button
               className={`primary ${recording ? "recording-action" : ""}`}
               onClick={recording ? stopRecording : startRecording}
-              disabled={safetyFlag || (!recording && !profile.recordingConsent) || busyPhase}
+              disabled={safetyFlag || (!recording && !profile.recordingConsent) || busyPhase || (!recording && structuredStartBlocked)}
             >
               {recording || busyPhase ? <Square size={17} aria-hidden="true" /> : <Play size={17} aria-hidden="true" />}
               {primaryActionLabel}
@@ -4466,6 +4798,31 @@ function PracticeStudio({
               </div>
             </div>
             <GoldenMomentsReel session={lastCompletedSession} />
+            {lastCompletedSession.structuredFlow?.kind === "stress-reducing" && (
+              <div className="stress-after-panel">
+                {!stressAfterSaved && !lastCompletedSession.structuredFlow.stressAfter ? (
+                  <>
+                    <StressCheckIn
+                      profile={profile}
+                      values={stressAfter}
+                      onChange={(partner, value) => setStressAfter((current) => ({ ...current, [partner]: value }))}
+                      title="ואיך הלחץ עכשיו, אחרי השיחה? (0 רגוע — 10 בלחץ)"
+                    />
+                    <button className="secondary" disabled={Object.keys(stressAfter).length === 0} onClick={saveStressAfter}>
+                      שמירת מפלס הלחץ
+                    </button>
+                  </>
+                ) : (
+                  <p className="stress-delta" role="status">
+                    {summarizeStressChange(
+                      lastCompletedSession.structuredFlow.stressBefore,
+                      lastCompletedSession.structuredFlow.stressAfter,
+                      (partner) => partnerName(profile, partner)
+                    ) ?? "תודה — מפלס הלחץ נשמר במחשב הזה."}
+                  </p>
+                )}
+              </div>
+            )}
             {!closingSaved && !lastCompletedSession.closingReflection ? (
               <div className="closing-ritual">
                 <div className="closing-heading">
@@ -4510,6 +4867,7 @@ function PracticeStudio({
                 elapsedRef.current = 0;
                 setCompletedAnswerers([]);
                 setTurnMessage("");
+                resetStructuredState();
                 interimTranscriptRef.current = "";
                 setInterimTranscript("");
               }}>תרגול נוסף</button>
