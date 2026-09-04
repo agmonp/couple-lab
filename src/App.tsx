@@ -33,11 +33,24 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { analyzeSession, CONTEMPT_RISK_LABEL } from "./relationshipEngine";
+import {
+  buildStructuredTags,
+  describeStructuredFlowSteps,
+  evaluateAftermathGate,
+  FEELINGS_PALETTE,
+  LISTENER_RULES,
+  structuredKindForDeck,
+  structuredKindLabel,
+  structuredStepsForKind,
+  summarizeStressChange,
+  type StructuredStep
+} from "./structuredSessions";
 import { resolveAdviserRecommendation } from "./adviserRecommendation";
 import { CALIBRATION_STORAGE_KEY, readCalibrationState, summarizeCalibration } from "./transcriptionCalibration";
 import { type GoldenMoment, goldenMomentsForSession } from "./goldenMoments";
 import { highlightPieces, searchTranscripts } from "./transcriptSearch";
 import { addTranscriptRate, analyzeAcousticFeatures } from "./acousticFeatures";
+import { VocalAnalyser, type VocalObservationLite } from "./audioAnalysis";
 import { inspectAudioQuality, matchPartnerVector, resampleAudio } from "./biometricQuality";
 import { incompleteBiometricPartners } from "./biometricReadiness";
 import { BiometricEnrollmentWizard } from "./BiometricEnrollmentWizard";
@@ -59,6 +72,12 @@ import {
   parseTranscriptCorrectionResponse,
   TranscriptCorrectionError
 } from "./transcriptCorrection";
+import {
+  buildCloudReflectionPrompt,
+  CLOUD_REFLECTION_SYSTEM,
+  CloudReflectionError,
+  parseCloudReflection
+} from "./cloudReflection";
 import { DesktopFoundationPanel } from "./desktopFoundation";
 import { getVisionAssetUrls } from "./visionAssets";
 import {
@@ -95,8 +114,11 @@ import {
   SessionType,
   SpeechRecognitionLike,
   StoredTranscriptionMetadata,
+  StructuredFlowRecord,
+  StructuredSessionKind,
   TranscriptSegment,
-  VisualObservation
+  VisualObservation,
+  VocalObservation
 } from "./types";
 
 type View = "dashboard" | "setup" | "assess" | "practice" | "insights" | "adviser" | "report" | "settings" | "export" | "diagnostics" | "more";
@@ -562,6 +584,8 @@ function sessionTypeForDeck(deckId: string): SessionType {
   if (deckId === "gridlock") return "conflict";
   if (deckId === "desire") return "intimacy";
   if (deckId === "shared-meaning") return "shared-meaning";
+  if (deckId === "aftermath") return "aftermath";
+  if (deckId === "stress-reducing") return "stress-reducing";
   return "daily-check-in";
 }
 
@@ -574,6 +598,28 @@ function conversationGuide(sessionType: SessionType, deckId?: string) {
         "אחד עונה על שאלת הכרטיס ומסביר למה הדבר חשוב לו.",
         "השני שואל שאלה סקרנית אחת, בלי לשכנע ובלי להציע פשרה.",
         "מחליפים, ובסוף נותנים שם לדבר החשוב שכל אחד רוצה לשמור עליו."
+      ]
+    };
+  }
+  if (deckId === "aftermath") {
+    return {
+      title: "איך עוברים על ריב שכבר נגמר",
+      intro: "חמישה שלבים לעיבוד אירוע — כדי להבין, לא להכריע מי צדק. רק כשרגועים ובטוחים.",
+      steps: [
+        "רגשות: כל אחד אומר מה הרגיש, בלי 'כי' ובלי 'אתה'.",
+        "מציאות וטריגרים: כל אחד מתאר איך זה נראה מבפנים, והשני משקף לפני שמגיב.",
+        "אחריות ותוכנית: כל אחד לוקח את חלקו, ומסכמים על משפט תיקון קטן להבא."
+      ]
+    };
+  }
+  if (deckId === "stress-reducing") {
+    return {
+      title: "איך נותנים תמיכה בלחץ מבחוץ",
+      intro: "מדברים על לחץ שמגיע מחוץ לקשר. המקשיב/ה תומך/ת — לא פותר/ת.",
+      steps: [
+        "תורות: אחד מדבר על לחץ מבחוץ, השני מקשיב; אחר כך מתחלפים.",
+        "לא לפתור: הבנה לפני עצה, בלי לתת פתרונות שלא ביקשו.",
+        "להיות בצד: 'זה הגיוני', 'אני איתך' — ברית מול הלחץ."
       ]
     };
   }
@@ -678,6 +724,105 @@ function visualSignalLabel(label: VisualObservation["label"]) {
     "body-movement": "תנועת גוף בין רגעים"
   };
   return labels[label];
+}
+
+/**
+ * Hebrew label, family, and an accessible glyph for each live vocal state. The
+ * family drives the pill colour so the tone tags read the same as the
+ * transcript interaction tags.
+ */
+const VOCAL_STATE_META: Record<
+  VocalObservation["label"],
+  { label: string; family: "flooding" | "strength" | "four-horsemen" | "nonverbal"; glyph: string }
+> = {
+  "raised-voice": { label: "הרמת קול", family: "flooding", glyph: "🔊" },
+  "tense-voice": { label: "מתח בקול", family: "four-horsemen", glyph: "📈" },
+  "flat-withdrawn": { label: "קול שטוח/מרוחק", family: "nonverbal", glyph: "🌫️" },
+  "warm-engaged": { label: "טון חם ומעורב", family: "strength", glyph: "💛" },
+  "long-pause": { label: "שתיקה ארוכה", family: "nonverbal", glyph: "⏸️" }
+};
+
+function VocalToneTag({
+  observation,
+  profile,
+  live = false
+}: {
+  observation: VocalObservation;
+  profile: CoupleProfile;
+  live?: boolean;
+}) {
+  const meta = VOCAL_STATE_META[observation.label];
+  const who = observation.subject ? partnerName(profile, observation.subject) : null;
+  return (
+    <span className={`vocal-tone-tag tag-pill ${meta.family}${live ? " live" : ""}`} title={observation.evidence}>
+      <span aria-hidden="true">{meta.glyph}</span>
+      <span>{meta.label}{who ? ` · ${who}` : ""}</span>
+    </span>
+  );
+}
+
+const VOCAL_LABEL_ORDER: VocalObservation["label"][] = [
+  "warm-engaged",
+  "tense-voice",
+  "raised-voice",
+  "flat-withdrawn",
+  "long-pause"
+];
+
+function VocalTonePanel({
+  profile,
+  observations
+}: {
+  profile: CoupleProfile;
+  observations: VocalObservation[];
+}) {
+  const counts = observations.reduce<Partial<Record<VocalObservation["label"], number>>>((grouped, observation) => {
+    grouped[observation.label] = (grouped[observation.label] ?? 0) + 1;
+    return grouped;
+  }, {});
+  const recent = observations.slice(-6).reverse();
+
+  return (
+    <div className="panel vocal-panel">
+      <div className="panel-heading">
+        <h2>טון הקול שנשמע</h2>
+        <Mic size={18} aria-hidden="true" />
+      </div>
+      <p className="muted">
+        המדדים מתארים את צליל הקול — עוצמה, גובה ושתיקות — כפי שנקלט במיקרופון. הם אינם קובעים רגש או כוונה.
+      </p>
+      {observations.length === 0 ? (
+        <p className="muted">לא נקלט מספיק קול לניתוח טון בשיחה הזו.</p>
+      ) : (
+        <>
+          <div className="vocal-tone-summary">
+            {VOCAL_LABEL_ORDER.map((label) => {
+              const count = counts[label] ?? 0;
+              if (count === 0) return null;
+              const meta = VOCAL_STATE_META[label];
+              return (
+                <span key={label} className={`tag-pill ${meta.family}`}>
+                  <span aria-hidden="true">{meta.glyph}</span> {meta.label}: {count}
+                </span>
+              );
+            })}
+          </div>
+          {recent.length > 0 && (
+            <ul className="vocal-tone-list">
+              {recent.map((observation) => (
+                <li key={observation.id}>
+                  <VocalToneTag observation={observation} profile={profile} />
+                  <span className="vocal-tone-when">
+                    <bdi dir="ltr">{formatTime(observation.seconds)}</bdi> · {observation.evidence}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </div>
+  );
 }
 
 const navItems: { view: View; label: string; icon: typeof HeartHandshake; desktopOnly?: boolean }[] = [
@@ -933,6 +1078,7 @@ export default function App() {
             sessions={sessions}
             setSessions={setSessions}
             safetyFlag={safetyFlag}
+            safety={safety}
             deckStats={deckStats}
             setDeckStats={setDeckStats}
             questionHistory={questionHistory}
@@ -2374,6 +2520,165 @@ function DecksView({
   );
 }
 
+/**
+ * Interactive guide for a structured session ("אחרי ריב" / "שיחה מפחיתת-לחץ").
+ * Presentational only: it renders the current step, the self-report feelings
+ * palette (Aftermath step 1) or the listener rules (stress-reducing), and a
+ * "who is speaking" control, and calls back to advance. It never judges — the
+ * feelings are the couple's own, and the turn control is guidance.
+ */
+function StructuredGuidePanel({
+  kind,
+  steps,
+  stepIndex,
+  profile,
+  activeSpeaker,
+  onSelectSpeaker,
+  onAdvance,
+  selectedFeelings,
+  onToggleFeeling
+}: {
+  kind: StructuredSessionKind;
+  steps: StructuredStep[];
+  stepIndex: number;
+  profile: CoupleProfile;
+  activeSpeaker: PartnerId;
+  onSelectSpeaker: (partner: PartnerId) => void;
+  onAdvance: () => void;
+  selectedFeelings: string[];
+  onToggleFeeling: (feeling: string) => void;
+}) {
+  const step = steps[stepIndex] ?? steps[0];
+  const isLast = stepIndex >= steps.length - 1;
+  const listener = otherPartner(activeSpeaker);
+  const showFeelings = kind === "aftermath" && step.key === "feelings";
+  const showListenerRules = kind === "stress-reducing";
+  return (
+    <div className="structured-guide" aria-label={`מדריך ${structuredKindLabel(kind)}`}>
+      <div className="structured-guide-head">
+        <span className="structured-kind">{structuredKindLabel(kind)}</span>
+        <span className="structured-progress">שלב {stepIndex + 1} מתוך {steps.length}</span>
+      </div>
+      <h3 className="structured-step-title">{step.title}</h3>
+      <p className="structured-step-intent">{step.intent}</p>
+      <p className="structured-step-prompt" dir="auto">{step.prompt}</p>
+
+      {showFeelings && (
+        <div className="feelings-palette" role="group" aria-label="פָּלֶטת רגשות — כל אחד בוחר בתורו">
+          {FEELINGS_PALETTE.map((feeling) => (
+            <button
+              type="button"
+              key={feeling}
+              className={`feeling-chip ${selectedFeelings.includes(feeling) ? "selected" : ""}`}
+              aria-pressed={selectedFeelings.includes(feeling)}
+              onClick={() => onToggleFeeling(feeling)}
+            >
+              {feeling}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {showListenerRules && (
+        <div className="listener-rules">
+          <strong>{partnerName(profile, listener)} מקשיב/ה עכשיו — חמשת הכללים:</strong>
+          <ul>
+            {LISTENER_RULES.map((rule) => <li key={rule}>{rule}</li>)}
+          </ul>
+        </div>
+      )}
+
+      <div className="structured-turn" role="group" aria-label="מי מדבר עכשיו">
+        <span>מי מדבר/ת עכשיו:</span>
+        <button type="button" className={activeSpeaker === "A" ? "active" : ""} onClick={() => onSelectSpeaker("A")}>
+          {partnerName(profile, "A")}
+        </button>
+        <button type="button" className={activeSpeaker === "B" ? "active" : ""} onClick={() => onSelectSpeaker("B")}>
+          {partnerName(profile, "B")}
+        </button>
+      </div>
+
+      <button type="button" className="secondary structured-next" onClick={onAdvance} disabled={isLast}>
+        {isLast ? "זה השלב האחרון" : "השלב הבא"}
+      </button>
+    </div>
+  );
+}
+
+/** Two self-report stress sliders (0–10), used before and after a session. */
+function StressCheckIn({
+  profile,
+  values,
+  onChange,
+  title,
+  hint
+}: {
+  profile: CoupleProfile;
+  values: Partial<Record<PartnerId, number>>;
+  onChange: (partner: PartnerId, value: number) => void;
+  title: string;
+  hint?: string;
+}) {
+  return (
+    <div className="stress-checkin">
+      <strong>{title}</strong>
+      {hint && <small>{hint}</small>}
+      {(["A", "B"] as PartnerId[]).map((partner) => (
+        <label key={partner} className="stress-checkin-row">
+          <span className="stress-checkin-name">{partnerName(profile, partner)}</span>
+          <input
+            type="range"
+            min={0}
+            max={10}
+            step={1}
+            value={values[partner] ?? 5}
+            aria-label={`מפלס הלחץ של ${partnerName(profile, partner)} מ-0 עד 10`}
+            onChange={(event) => onChange(partner, Number(event.target.value))}
+          />
+          <span className="stress-checkin-value" dir="ltr">{values[partner] ?? 5}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Report-only view of a completed structured flow: a step/turn timeline with
+ * how long each part took, plus the stress-change line for "מפחיתת-לחץ".
+ * Purely descriptive — no pacing judgment, no coloring by duration.
+ */
+function StructuredFlowSummary({
+  flow,
+  profile
+}: {
+  flow: StructuredFlowRecord;
+  profile: CoupleProfile;
+}) {
+  const steps = describeStructuredFlowSteps(flow.steps);
+  const stressLine =
+    flow.kind === "stress-reducing"
+      ? summarizeStressChange(flow.stressBefore, flow.stressAfter, (partner) => partnerName(profile, partner))
+      : null;
+  if (steps.length === 0 && !stressLine) return null;
+  return (
+    <div className="structured-flow-summary" aria-label={`מבנה ${structuredKindLabel(flow.kind)}`}>
+      <h3>מבנה השיחה — {structuredKindLabel(flow.kind)}</h3>
+      <ol className="structured-flow-steps">
+        {steps.map((step) => (
+          <li key={step.key}>
+            <span className="structured-flow-step-title">{step.title}</span>
+            {step.speaker && (
+              <span className="structured-flow-step-speaker">{partnerName(profile, step.speaker)}</span>
+            )}
+            <span className="structured-flow-step-duration" dir="ltr">{step.durationLabel}</span>
+          </li>
+        ))}
+      </ol>
+      {stressLine && <p className="stress-delta" role="status">{stressLine}</p>}
+    </div>
+  );
+}
+
 function PracticeStudio({
   profile,
   setProfile,
@@ -2382,6 +2687,7 @@ function PracticeStudio({
   sessions,
   setSessions,
   safetyFlag,
+  safety,
   deckStats,
   setDeckStats,
   questionHistory,
@@ -2398,6 +2704,7 @@ function PracticeStudio({
   sessions: SessionRecord[];
   setSessions: React.Dispatch<React.SetStateAction<SessionRecord[]>>;
   safetyFlag: boolean;
+  safety: SafetyState;
   deckStats: Record<string, number>;
   setDeckStats: (stats: Record<string, number>) => void;
   questionHistory: QuestionHistory;
@@ -2454,6 +2761,8 @@ function PracticeStudio({
   const cuesRef = useRef<LiveCue[]>([]);
   const observationsRef = useRef<VisualObservation[]>([]);
   const visualMetricObservationsRef = useRef<VisualObservation[]>([]);
+  const vocalObservationsRef = useRef<VocalObservation[]>([]);
+  const vocalAnalyserRef = useRef<VocalAnalyser | null>(null);
   const manualTextRef = useRef("");
   const [cameraReady, setCameraReady] = useState(false);
   const [lightingHint, setLightingHint] = useState("");
@@ -2488,11 +2797,14 @@ function PracticeStudio({
   const [segments, setSegments] = useState<TranscriptSegment[]>([]);
   const [cues, setCues] = useState<LiveCue[]>([]);
   const [visualObservations, setVisualObservations] = useState<VisualObservation[]>([]);
+  const [vocalObservations, setVocalObservations] = useState<VocalObservation[]>([]);
+  const [liveVocalTone, setLiveVocalTone] = useState<VocalObservation | null>(null);
   const [manualText, setManualText] = useState("");
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [speechStatus, setSpeechStatus] = useState("מוכן לבדיקה");
   const [transcriptionStatusKind, setTranscriptionStatusKind] = useState<TranscriptionStatusKind>("idle");
   const [visualStatus, setVisualStatus] = useState("לא הופעל");
+  const [vocalStatus, setVocalStatus] = useState("יופעל עם ההקלטה");
   const [identityStatus, setIdentityStatus] = useState("ממתינים למצלמה");
   const [speakerStatus, setSpeakerStatus] = useState("הדובר יזוהה אוטומטית");
   const [incompleteIdentity, setIncompleteIdentity] = useState<PartnerId[]>(["A", "B"]);
@@ -2503,6 +2815,20 @@ function PracticeStudio({
   const [closingRemember, setClosingRemember] = useState("");
   const [closingNextStep, setClosingNextStep] = useState("");
   const [closingSaved, setClosingSaved] = useState(false);
+  // Structured sessions ("אחרי ריב" / "שיחה מפחיתת-לחץ"). The step machine runs
+  // on top of the normal recording flow; boundaries accumulate in a ref so the
+  // sampling closures never have to re-render, mirroring the rest of this file.
+  const structuredKind = structuredKindForDeck(activeDeck.id);
+  const structuredSteps = structuredKind ? structuredStepsForKind(structuredKind) : [];
+  const structuredFlowRef = useRef<StructuredFlowRecord | null>(null);
+  const stressBeforeRef = useRef<Partial<Record<PartnerId, number>>>({});
+  const structuredStepIndexRef = useRef(0);
+  const [structuredStepIndex, setStructuredStepIndex] = useState(0);
+  const [structuredGateAck, setStructuredGateAck] = useState(false);
+  const [selectedFeelings, setSelectedFeelings] = useState<string[]>([]);
+  const [stressBefore, setStressBefore] = useState<Partial<Record<PartnerId, number>>>({});
+  const [stressAfter, setStressAfter] = useState<Partial<Record<PartnerId, number>>>({});
+  const [stressAfterSaved, setStressAfterSaved] = useState(false);
   const mobileRealtime = useMemo(
     () => typeof window !== "undefined" && window.matchMedia("(max-width: 680px), (pointer: coarse)").matches,
     []
@@ -2528,6 +2854,84 @@ function PracticeStudio({
   useEffect(() => {
     recordingRef.current = recording;
   }, [recording]);
+
+  // Open the structured flow when recording starts on a structured deck: seed
+  // the first step boundary at t=0 and snapshot the "before" stress. Reset it
+  // when a non-structured recording starts so a stale flow never attaches.
+  useEffect(() => {
+    if (!recording) return;
+    if (structuredKind && structuredSteps.length > 0) {
+      const firstStress = stressBeforeRef.current;
+      structuredFlowRef.current = {
+        kind: structuredKind,
+        steps: [
+          {
+            key: structuredSteps[0].key,
+            title: structuredSteps[0].title,
+            startSeconds: 0,
+            speaker: activeSpeakerRef.current
+          }
+        ],
+        stressBefore: Object.keys(firstStress).length ? { ...firstStress } : undefined
+      };
+      structuredStepIndexRef.current = 0;
+      setStructuredStepIndex(0);
+    } else {
+      structuredFlowRef.current = null;
+    }
+    // Only re-run when recording flips; structuredKind is stable within a take.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recording]);
+
+  // Advance imperatively (not inside a setState updater) so the boundary push is
+  // a one-time side effect — StrictMode double-invokes updaters, which would
+  // otherwise record each step twice. The index ref is the source of truth.
+  const advanceStructuredStep = () => {
+    if (!structuredKind || structuredSteps.length === 0) return;
+    const index = structuredStepIndexRef.current;
+    const next = Math.min(index + 1, structuredSteps.length - 1);
+    if (next === index) return;
+    const flow = structuredFlowRef.current;
+    if (flow && recordingRef.current) {
+      const now = elapsedRef.current;
+      const current = flow.steps[flow.steps.length - 1];
+      if (current && current.endSeconds === undefined) current.endSeconds = now;
+      flow.steps.push({
+        key: structuredSteps[next].key,
+        title: structuredSteps[next].title,
+        startSeconds: now,
+        speaker: activeSpeakerRef.current
+      });
+    }
+    structuredStepIndexRef.current = next;
+    setStructuredStepIndex(next);
+  };
+
+  const toggleFeeling = (feeling: string) => {
+    setSelectedFeelings((current) =>
+      current.includes(feeling) ? current.filter((item) => item !== feeling) : [...current, feeling]
+    );
+  };
+
+  const setStressBeforeValue = (partner: PartnerId, value: number) => {
+    setStressBefore((current) => {
+      const nextValues = { ...current, [partner]: value };
+      stressBeforeRef.current = nextValues;
+      return nextValues;
+    });
+  };
+
+  const resetStructuredState = () => {
+    structuredFlowRef.current = null;
+    stressBeforeRef.current = {};
+    structuredStepIndexRef.current = 0;
+    setStructuredStepIndex(0);
+    setStructuredGateAck(false);
+    setSelectedFeelings([]);
+    setStressBefore({});
+    setStressAfter({});
+    setStressAfterSaved(false);
+  };
 
   useEffect(() => {
     setRecordingConsent(Boolean(profile.recordingConsent));
@@ -2672,6 +3076,7 @@ function PracticeStudio({
       speakerSourceRef.current?.disconnect();
       speakerSilentGainRef.current?.disconnect();
       void speakerAudioContextRef.current?.close();
+      vocalAnalyserRef.current?.stop();
       if (videoUrlRef.current) URL.revokeObjectURL(videoUrlRef.current);
     };
   }, []);
@@ -3097,6 +3502,7 @@ function PracticeStudio({
   }, [safetyFlag]);
 
   const stopCamera = () => {
+    stopVocalAnalysis();
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     if (videoRef.current) {
@@ -3349,6 +3755,62 @@ function PracticeStudio({
     speakerChunksRef.current = [];
     speakerSamplesRef.current = 0;
     speakerMatchBusyRef.current = false;
+  };
+
+  // Live vocal (prosody) analysis: reads loudness, pitch and pauses straight
+  // from the microphone signal and streams observations into the session, the
+  // same way the camera streams visual observations. Self-contained Web Audio,
+  // so it runs in the browser and the desktop build alike — unlike the speaker
+  // matcher above, which needs the desktop bridge.
+  const startVocalAnalysis = () => {
+    const stream = streamRef.current;
+    if (!stream || stream.getAudioTracks().length === 0) {
+      setVocalStatus("אין מיקרופון זמין לניתוח הקול");
+      return;
+    }
+    stopVocalAnalysis();
+    const analyser = new VocalAnalyser({
+      activeSpeaker: () => activeSpeakerRef.current,
+      onObservations: (observations: VocalObservationLite[]) => {
+        if (!recordingRef.current) return;
+        // A quiet, unremarkable window clears the live tone so the tag next to
+        // the active turn always reflects the here-and-now, never a stale cue.
+        if (observations.length === 0) {
+          setLiveVocalTone(null);
+          return;
+        }
+        const seconds = Math.round(elapsedRef.current);
+        const stamped: VocalObservation[] = observations.map((observation, index) => ({
+          id: `vocal-${observation.label}-${observation.subject ?? "x"}-${seconds}-${index}`,
+          seconds,
+          label: observation.label,
+          subject: observation.subject,
+          score: observation.score,
+          evidence: observation.evidence,
+          provider: "local-prosody-v1",
+          metadata: observation.metadata
+        }));
+        vocalObservationsRef.current = [...vocalObservationsRef.current, ...stamped];
+        setVocalObservations((current) => [...current.slice(-200), ...stamped]);
+        // Surface the strongest cue as the live tone next to the active turn.
+        const strongest = [...stamped].sort((first, second) => second.score - first.score)[0];
+        setLiveVocalTone(strongest);
+      }
+    });
+    try {
+      analyser.start(stream);
+      vocalAnalyserRef.current = analyser;
+      setVocalStatus("מקשיב לטון הקול בזמן אמת");
+    } catch {
+      vocalAnalyserRef.current = null;
+      setVocalStatus("ניתוח הקול לא זמין בדפדפן הזה");
+    }
+  };
+
+  const stopVocalAnalysis = () => {
+    vocalAnalyserRef.current?.stop();
+    vocalAnalyserRef.current = null;
+    setLiveVocalTone(null);
   };
 
   const startLiveSpeakerMatching = () => {
@@ -3648,8 +4110,24 @@ function PracticeStudio({
       setPhase("analyzing");
       void logDiagnostic({ name: "analysis.started", status: "info", sessionId, phase: "analyzing" });
       const analysisStartedAt = performance.now();
-      const analysis = analyzeSession(segmentsToSave, signals, currentCues, sessionType, currentObservations);
+      const analysis = analyzeSession(segmentsToSave, signals, currentCues, sessionType, currentObservations, vocalObservationsRef.current);
       const nonverbalMetrics = computeNonverbalMetrics(visualMetricObservationsRef.current);
+      // Close the open structured-step boundary and fold the step markers into
+      // the timeline as conversation-structure tags, so the report can show
+      // per-step coverage without a schema migration.
+      let structuredFlow: StructuredFlowRecord | undefined;
+      let finalAnalysis = analysis;
+      const pendingFlow = structuredFlowRef.current;
+      if (pendingFlow && pendingFlow.steps.length > 0) {
+        const lastStep = pendingFlow.steps[pendingFlow.steps.length - 1];
+        if (lastStep && lastStep.endSeconds === undefined) lastStep.endSeconds = elapsedRef.current;
+        structuredFlow = pendingFlow;
+        const structuredTags = buildStructuredTags(structuredFlow);
+        finalAnalysis = {
+          ...analysis,
+          tags: [...analysis.tags, ...structuredTags].sort((a, b) => a.seconds - b.seconds)
+        };
+      }
       const record: SessionRecord = {
         schemaVersion: 2,
         id: sessionId,
@@ -3662,11 +4140,13 @@ function PracticeStudio({
         acousticMetrics: acousticMetricsRef.current,
         cues: currentCues,
         visualObservations: currentObservations,
+        vocalObservations: vocalObservationsRef.current,
+        structuredFlow,
         nonverbalMetrics,
         signals,
-        analysis,
+        analysis: finalAnalysis,
         media,
-        processingStatus: analysis.dataQuality?.status === "insufficient" ? "insufficient-data" : "ready"
+        processingStatus: finalAnalysis.dataQuality?.status === "insufficient" ? "insufficient-data" : "ready"
       };
       setSessions((current) => current.some((session) => session.id === sessionId) ? current : [record, ...current]);
       setLastCompletedSession(record);
@@ -3754,6 +4234,9 @@ function PracticeStudio({
       acousticMetricsRef.current = undefined;
       visualSampleIndexRef.current = 0;
       visualMetricObservationsRef.current = [];
+      vocalObservationsRef.current = [];
+      setVocalObservations([]);
+      setLiveVocalTone(null);
       // Prefer VP9: noticeably better quality at the same bitrate on modern
       // Chromium; VP8 remains the compatibility fallback.
       const mimeType = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus"]
@@ -3798,6 +4281,7 @@ function PracticeStudio({
         startSpeech();
       }
       startLiveSpeakerMatching();
+      startVocalAnalysis();
       void logDiagnostic({ name: "recording.started", status: "success", phase: "recording" });
     } catch {
       setPhase("error");
@@ -3812,6 +4296,8 @@ function PracticeStudio({
     recordingRef.current = false;
     setRecording(false);
     stopLiveSpeakerMatching();
+    stopVocalAnalysis();
+    setVocalStatus("ניתוח הקול הסתיים");
     setPhase("finalizing");
     const speechFinalized = new Promise<void>((resolve) => {
       let settled = false;
@@ -3857,6 +4343,15 @@ function PracticeStudio({
 
   const currentNonverbalMetrics = useMemo(() => computeNonverbalMetrics(visualObservations), [visualObservations]);
   const guide = conversationGuide(sessionType, activeDeck.id);
+  // The Aftermath gate uses the self-reported "before" stress when set, falling
+  // back to the stored body signals. Safety flags hard-block; high stress only
+  // cautions. Recording cannot start on Aftermath until the couple acknowledges.
+  const gateSignals: BodySignals = {
+    A: { ...signals.A, stress: stressBefore.A ?? signals.A.stress },
+    B: { ...signals.B, stress: stressBefore.B ?? signals.B.stress }
+  };
+  const aftermathGate = structuredKind === "aftermath" ? evaluateAftermathGate({ signals: gateSignals, safety }) : null;
+  const structuredStartBlocked = structuredKind === "aftermath" && (!aftermathGate?.allowed || !structuredGateAck);
   const visibleSegments = phase === "ready" && lastCompletedSession ? lastCompletedSession.segments : segments;
   const visibleTranscriptTags = phase === "ready" && lastCompletedSession ? lastCompletedSession.analysis.tags : [];
   const visibleTranscriptWords = visibleSegments.reduce(
@@ -3931,6 +4426,15 @@ function PracticeStudio({
     void logDiagnostic({ name: "session.closing_completed", status: "success", sessionId: updated.id, itemCount: 3 });
   };
 
+  const saveStressAfter = () => {
+    if (!lastCompletedSession?.structuredFlow || Object.keys(stressAfter).length === 0) return;
+    const structuredFlow = { ...lastCompletedSession.structuredFlow, stressAfter };
+    const updated = { ...lastCompletedSession, structuredFlow };
+    setLastCompletedSession(updated);
+    setSessions((current) => current.map((session) => session.id === updated.id ? updated : session));
+    setStressAfterSaved(true);
+  };
+
   const recordFollowUp = (outcome: NonNullable<SessionRecord["followUp"]>["outcome"]) => {
     if (!pendingFollowUp) return;
     const followUp = { outcome, checkedAt: new Date().toISOString() };
@@ -3988,18 +4492,66 @@ function PracticeStudio({
           <p>{activeDeck.lens} · {activeDeck.purpose}</p>
         </div>
         <blockquote dir="auto">{activeDeck.cards[cardIndex]}</blockquote>
-        <details className="conversation-protocol contextual-guide">
-          <summary aria-label={`${guide.title} — פתיחה או סגירה של הנחיות קצרות`}>
-            <span className="guide-summary-copy">
-              <strong>{guide.title}</strong>
-              <span className="guide-hint-default">{guide.intro}</span>
-              <span className="guide-hint-action" aria-hidden="true">לחצו לפתיחת 3 הנחיות קצרות</span>
-              <span className="guide-hint-close" aria-hidden="true">לחצו לסגירת ההנחיות</span>
-            </span>
-            <ChevronDown className="guide-chevron" size={19} aria-hidden="true" />
-          </summary>
-          <ol>{guide.steps.map((step) => <li key={step}>{step}</li>)}</ol>
-        </details>
+        {structuredKind && phase !== "ready" ? (
+          <StructuredGuidePanel
+            kind={structuredKind}
+            steps={structuredSteps}
+            stepIndex={structuredStepIndex}
+            profile={profile}
+            activeSpeaker={activeSpeaker}
+            onSelectSpeaker={selectActiveSpeaker}
+            onAdvance={advanceStructuredStep}
+            selectedFeelings={selectedFeelings}
+            onToggleFeeling={toggleFeeling}
+          />
+        ) : (
+          <details className="conversation-protocol contextual-guide">
+            <summary aria-label={`${guide.title} — פתיחה או סגירה של הנחיות קצרות`}>
+              <span className="guide-summary-copy">
+                <strong>{guide.title}</strong>
+                <span className="guide-hint-default">{guide.intro}</span>
+                <span className="guide-hint-action" aria-hidden="true">לחצו לפתיחת {guide.steps.length} הנחיות קצרות</span>
+                <span className="guide-hint-close" aria-hidden="true">לחצו לסגירת ההנחיות</span>
+              </span>
+              <ChevronDown className="guide-chevron" size={19} aria-hidden="true" />
+            </summary>
+            <ol>{guide.steps.map((step) => <li key={step}>{step}</li>)}</ol>
+          </details>
+        )}
+        {structuredKind && phase === "setup" && (
+          <div className="structured-setup">
+            {structuredKind === "aftermath" && aftermathGate && (
+              aftermathGate.allowed ? (
+                <div className="structured-gate">
+                  <p className="structured-gate-lead">
+                    <ShieldCheck size={17} aria-hidden="true" /> תרגול לעיבוד ריב שכבר נגמר — כשאתם רגועים ובטוחים, לא באמצע סערה. הוא אינו לעיבוד פחד, כפייה או אלימות.
+                  </p>
+                  {aftermathGate.cautionReason && <p className="structured-gate-caution" role="status">{aftermathGate.cautionReason}</p>}
+                  <label className="check-row">
+                    <input
+                      type="checkbox"
+                      checked={structuredGateAck}
+                      onChange={(event) => setStructuredGateAck(event.target.checked)}
+                    />
+                    <span>שנינו רגועים ובטוחים, ורוצים לעבד יחד ריב שכבר נגמר.</span>
+                  </label>
+                </div>
+              ) : (
+                <div className="structured-gate blocked" role="alert">
+                  <ShieldCheck size={17} aria-hidden="true" />
+                  <p>{aftermathGate.blockingReason}</p>
+                </div>
+              )
+            )}
+            <StressCheckIn
+              profile={profile}
+              values={stressBefore}
+              onChange={setStressBeforeValue}
+              title={structuredKind === "aftermath" ? "איך אתם מרגישים עכשיו? (0 רגוע — 10 בלחץ)" : "מפלס הלחץ עכשיו, לפני השיחה (0 רגוע — 10 בלחץ)"}
+              hint={structuredKind === "stress-reducing" ? "נשווה לזה בסוף, כדי לראות אם השיחה עזרה." : undefined}
+            />
+          </div>
+        )}
         <div className="prompt-actions">
           <label className="visually-hidden" htmlFor="practice-topic">בחירת נושא לשיחה</label>
           <select
@@ -4014,6 +4566,7 @@ function PracticeStudio({
               setCardIndex(nextQuestionIndex(deck.cards.length, questionHistory[deck.id] ?? []));
               setCompletedAnswerers([]);
               setTurnMessage("");
+              resetStructuredState();
             }}
           >
             {decks.map((deck) => (
@@ -4089,7 +4642,7 @@ function PracticeStudio({
             <button
               className={`primary ${recording ? "recording-action" : ""}`}
               onClick={recording ? stopRecording : startRecording}
-              disabled={safetyFlag || (!recording && !profile.recordingConsent) || busyPhase}
+              disabled={safetyFlag || (!recording && !profile.recordingConsent) || busyPhase || (!recording && structuredStartBlocked)}
             >
               {recording || busyPhase ? <Square size={17} aria-hidden="true" /> : <Play size={17} aria-hidden="true" />}
               {primaryActionLabel}
@@ -4108,6 +4661,12 @@ function PracticeStudio({
             <div className="identity-status-copy">
               <strong>{recording ? `נראה ש${partnerName(profile, activeSpeaker)} מדבר/ת עכשיו` : "הזיהוי יתחיל עם השיחה"}</strong>
               <small>{identityStatus}</small>
+              {recording && liveVocalTone && (
+                <div className="live-tone-row" aria-live="polite">
+                  <span className="live-tone-label">טון הקול עכשיו:</span>
+                  <VocalToneTag observation={liveVocalTone} profile={profile} live />
+                </div>
+              )}
             </div>
             {incompleteIdentity.length > 0 ? (
               <div className="identity-setup-actions">
@@ -4157,7 +4716,15 @@ function PracticeStudio({
             observations={lastCompletedSession.visualObservations}
             calibrationText={calibrationText}
             visualStatus={visualStatus}
+            vocalStatus={vocalStatus}
           />
+        </details>
+      )}
+
+      {phase === "ready" && lastCompletedSession && (lastCompletedSession.vocalObservations?.length ?? 0) > 0 && (
+        <details className="advanced-panel">
+          <summary>טון הקול שנשמע</summary>
+          <VocalTonePanel profile={profile} observations={lastCompletedSession.vocalObservations ?? []} />
         </details>
       )}
 
@@ -4229,6 +4796,11 @@ function PracticeStudio({
             <article className={`segment interim speaker-${activeSpeaker.toLowerCase()}`}>
               <span>{partnerName(profile, activeSpeaker)} · נקלט עכשיו…</span>
               <p dir="auto">{interimTranscript}</p>
+              {liveVocalTone && (
+                <div className="segment-tags" aria-label="טון הקול בתור הזה">
+                  <VocalToneTag observation={liveVocalTone} profile={profile} live />
+                </div>
+              )}
             </article>
           )}
           <TranscriptSegments profile={profile} segments={visibleSegments} tags={visibleTranscriptTags} />
@@ -4270,6 +4842,27 @@ function PracticeStudio({
               </div>
             </div>
             <GoldenMomentsReel session={lastCompletedSession} />
+            {lastCompletedSession.structuredFlow && (
+              <div className="structured-flow-panel">
+                {lastCompletedSession.structuredFlow.kind === "stress-reducing" &&
+                !stressAfterSaved &&
+                !lastCompletedSession.structuredFlow.stressAfter ? (
+                  <>
+                    <StressCheckIn
+                      profile={profile}
+                      values={stressAfter}
+                      onChange={(partner, value) => setStressAfter((current) => ({ ...current, [partner]: value }))}
+                      title="ואיך הלחץ עכשיו, אחרי השיחה? (0 רגוע — 10 בלחץ)"
+                    />
+                    <button className="secondary" disabled={Object.keys(stressAfter).length === 0} onClick={saveStressAfter}>
+                      שמירת מפלס הלחץ
+                    </button>
+                  </>
+                ) : (
+                  <StructuredFlowSummary flow={lastCompletedSession.structuredFlow} profile={profile} />
+                )}
+              </div>
+            )}
             {!closingSaved && !lastCompletedSession.closingReflection ? (
               <div className="closing-ritual">
                 <div className="closing-heading">
@@ -4314,6 +4907,7 @@ function PracticeStudio({
                 elapsedRef.current = 0;
                 setCompletedAnswerers([]);
                 setTurnMessage("");
+                resetStructuredState();
                 interimTranscriptRef.current = "";
                 setInterimTranscript("");
               }}>תרגול נוסף</button>
@@ -4403,7 +4997,7 @@ function TaggedTimeline({ profile, tags, title }: { profile: CoupleProfile; tags
   );
 }
 
-function AdvancedEnginesPanel({ visualStatus }: { visualStatus: string }) {
+function AdvancedEnginesPanel({ visualStatus, vocalStatus }: { visualStatus: string; vocalStatus: string }) {
   return (
     <div className="advanced-engines">
       <div className="mini-heading">
@@ -4417,8 +5011,8 @@ function AdvancedEnginesPanel({ visualStatus }: { visualStatus: string }) {
         </div>
         <div className="engine-card active">
           <span>קול</span>
-          <small>לאחר סיום השיחה</small>
-          <b>דיבור, שקט ועוצמה יחסית</b>
+          <small>{vocalStatus}</small>
+          <b>טון, גובה צליל, עוצמה ושתיקות</b>
         </div>
       </div>
       <small className="muted">כאן מוצג רק עיבוד שפועל בפועל במחשב. כל מדד מתאר את מה שנקלט ואינו קובע רגש או כוונה.</small>
@@ -4431,13 +5025,15 @@ function NonverbalPanel({
   metrics,
   observations,
   calibrationText,
-  visualStatus
+  visualStatus,
+  vocalStatus = "טון הקול נותח מההקלטה"
 }: {
   profile: CoupleProfile;
   metrics: NonverbalMetrics;
   observations: VisualObservation[];
   calibrationText: string;
   visualStatus: string;
+  vocalStatus?: string;
 }) {
   const recent = observations.filter((observation) => observation.label !== "capture-quality").slice(-8).reverse();
 
@@ -4471,7 +5067,7 @@ function NonverbalPanel({
           זמן שבו הכיסוי לא הספיק למדידה מלאה: <b>{formatDuration(metrics.lowQualitySeconds ?? 0)}</b>
         </span>
       </div>
-      <AdvancedEnginesPanel visualStatus={visualStatus} />
+      <AdvancedEnginesPanel visualStatus={visualStatus} vocalStatus={vocalStatus} />
       <div className="visual-feed">
         {recent.length === 0 && <span>עדיין לא נדגמו רמזים לא־מילוליים.</span>}
         {recent.map((observation) => (
@@ -4742,7 +5338,20 @@ function InsightsView({
   const [correctionModel, setCorrectionModel] = useLocalState(storageKeys.ollamaModel, "gemma3:4b");
   const [correctionStatus, setCorrectionStatus] = useState("");
   const [correctionProposal, setCorrectionProposal] = useState<ReadonlyMap<string, string> | null>(null);
+  const [correctionProposalProvider, setCorrectionProposalProvider] = useState<"ollama-local" | "cloud">("ollama-local");
   const [correctionPending, setCorrectionPending] = useState(false);
+  // Optional, opt-in cloud (bring-your-own-key) correction + reflection. Desktop
+  // only, routed through the Electron main process; text-only, never recordings.
+  const cloudAvailable = Boolean(window.coupleLabDesktop?.cloudComplete);
+  const [cloudModel, setCloudModel] = useLocalState("couple-lab-cloud-model", "claude-opus-5");
+  const [cloudKeyPresent, setCloudKeyPresent] = useState(false);
+  const [cloudKeyInput, setCloudKeyInput] = useState("");
+  const [cloudBusy, setCloudBusy] = useState(false);
+  const [cloudStatus, setCloudStatus] = useState("");
+  useEffect(() => {
+    if (!cloudAvailable) return;
+    void window.coupleLabDesktop?.getCloudKeyStatus?.().then((status) => setCloudKeyPresent(Boolean(status?.hasKey))).catch(() => undefined);
+  }, [cloudAvailable]);
   const selected = sessions.find((session) => session.id === selectedId) ?? sessions[0];
   const scoredSessions = sessions.filter((session) => session.analysis.dataQuality?.status !== "insufficient" && session.processingStatus !== "insufficient-data");
   const trend = scoredSessions.length
@@ -4802,6 +5411,7 @@ function InsightsView({
         setCorrectionStatus("המודל המקומי לא הציע שינוי בטוח.");
         return;
       }
+      setCorrectionProposalProvider("ollama-local");
       setCorrectionProposal(changed);
       setCorrectionStatus(`${changed.size} תיקונים מוצעים לבדיקה. דבר לא ישתנה לפני אישור שלכם.`);
       void logDiagnostic({ name: "transcription.correction_proposed", status: "success", sessionId: selected.id, itemCount: changed.size });
@@ -4827,6 +5437,7 @@ function InsightsView({
 
   const acceptTranscriptCorrection = () => {
     if (!selected || !correctionProposal) return;
+    const fromCloud = correctionProposalProvider === "cloud";
     const correctedSegments = selected.segments.map((segment) => {
       const correctedText = correctionProposal.get(segment.id);
       if (!correctedText || correctedText === segment.text) return segment;
@@ -4836,8 +5447,8 @@ function InsightsView({
         text: correctedText,
         wordCount: spokenWordCount(correctedText),
         correction: {
-          provider: "ollama-local" as const,
-          modelId: correctionModel,
+          provider: fromCloud ? ("cloud-anthropic" as const) : ("ollama-local" as const),
+          modelId: fromCloud ? cloudModel : correctionModel,
           correctedAt: new Date().toISOString(),
           reviewedByPartners: true as const
         }
@@ -4848,7 +5459,8 @@ function InsightsView({
       selected.signals,
       selected.cues,
       selected.type,
-      selected.visualObservations ?? []
+      selected.visualObservations ?? [],
+      selected.vocalObservations ?? []
     );
     setSessions((current) => current.map((session) => session.id === selected.id
       ? {
@@ -4861,6 +5473,125 @@ function InsightsView({
     setCorrectionProposal(null);
     setCorrectionStatus("התיקונים שאישרתם נשמרו, והסיכום חושב מחדש. התמלול המקורי נשמר לצפייה.");
     void logDiagnostic({ name: "transcription.correction_accepted", status: "success", sessionId: selected.id, itemCount: correctionProposal.size });
+    // When the correction came from the cloud, refresh the cloud reflection on
+    // the now-corrected text so the written analysis matches what was approved.
+    if (fromCloud) void runCloudReflection(selected.id, correctedSegments);
+  };
+
+  const cloudErrorMessage = (error: unknown) => {
+    const code = error instanceof Error ? error.message : "";
+    if (code.includes("cloud-auth")) return "מפתח ה-API נדחה. בדקו אותו בהגדרות מנוע הענן.";
+    if (code.includes("rate-limited")) return "הענן עמוס כרגע (מגבלת קצב). נסו שוב בעוד רגע.";
+    if (code.includes("cloud-refused")) return "המודל בענן סירב לבקשה הזו.";
+    if (code.includes("network")) return "אין חיבור לענן. בדקו את האינטרנט ונסו שוב.";
+    return "התיקון בענן לא זמין כרגע. אפשר לנסות שוב או להשתמש במודל המקומי.";
+  };
+
+  const runCloudReflection = async (sessionId: string, segments: TranscriptSegment[]) => {
+    const bridge = window.coupleLabDesktop;
+    if (!bridge?.cloudComplete) return;
+    const transcript = segments
+      .filter((segment) => segment.text.trim())
+      .map((segment) => {
+        const who = segment.speakerAttribution === "unknown" ? "דובר/ת" : partnerName(profile, segment.speaker);
+        return `${who}: ${segment.text}`;
+      })
+      .join("\n");
+    if (!transcript.trim()) return;
+    setCloudStatus("מבקשים ניתוח מורחב מ-Claude…");
+    try {
+      const result = await bridge.cloudComplete({
+        system: CLOUD_REFLECTION_SYSTEM,
+        user: buildCloudReflectionPrompt({
+          transcript,
+          partnerAName: partnerName(profile, "A"),
+          partnerBName: partnerName(profile, "B")
+        }),
+        model: cloudModel,
+        maxTokens: 1500
+      });
+      const parsed = parseCloudReflection(result.text);
+      const reflection = {
+        ...parsed,
+        provider: "anthropic",
+        model: result.model,
+        createdAt: new Date().toISOString()
+      };
+      setSessions((current) => current.map((session) => session.id === sessionId ? { ...session, cloudReflection: reflection } : session));
+      setCloudStatus("הניתוח המורחב מ-Claude מוכן ונשמר עם השיחה.");
+      void logDiagnostic({ name: "cloud.reflection_completed", status: "success", sessionId });
+    } catch (error) {
+      setCloudStatus(error instanceof CloudReflectionError ? "התשובה מהענן לא הייתה בפורמט צפוי; לא נשמר ניתוח." : cloudErrorMessage(error));
+      void logDiagnostic({ name: "cloud.reflection_failed", status: "error", sessionId, errorCode: error instanceof Error ? error.message.slice(0, 40) : "unknown" });
+    }
+  };
+
+  const requestCloudCorrection = async () => {
+    const bridge = window.coupleLabDesktop;
+    if (!selected?.segments.length || cloudBusy || !bridge?.cloudComplete) return;
+    if (!cloudKeyPresent) {
+      setCloudStatus("קודם הזינו מפתח API של Claude בהגדרות מנוע הענן למטה.");
+      return;
+    }
+    const sourceSegments = selected.segments.map((segment) => ({ id: segment.id, text: segment.originalText ?? segment.text }));
+    setCloudBusy(true);
+    setCorrectionProposal(null);
+    setCloudStatus("שולחים את הטקסט ל-Claude לתיקון וניתוח… (טקסט בלבד; ההקלטה לא נשלחת)");
+    try {
+      const result = await bridge.cloudComplete({
+        system: "אתה מתקן תמלול בעברית. החזר אך ורק JSON תקין לפי ההוראות, בלי טקסט נוסף.",
+        user: buildTranscriptCorrectionPrompt(sourceSegments),
+        model: cloudModel,
+        maxTokens: 2000
+      });
+      const proposed = parseTranscriptCorrectionResponse(result.text, sourceSegments);
+      const changed = new Map(
+        [...proposed].filter(([id, text]) => text !== sourceSegments.find((segment) => segment.id === id)?.text)
+      );
+      if (changed.size > 0) {
+        setCorrectionProposalProvider("cloud");
+        setCorrectionProposal(changed);
+        setCorrectionStatus(`${changed.size} תיקונים הוצעו על ידי Claude. דבר לא ישתנה לפני אישור שלכם.`);
+      }
+      if (changed.size > 0) {
+        // Reflect on the corrected text once the user approves (in accept), so
+        // we don't pay for a reflection on text that's about to change.
+        setCloudStatus("יש תיקונים מוצעים לאישור. הניתוח המורחב יופק אחרי האישור.");
+      } else {
+        setCloudStatus("Claude לא הציע תיקון; מפיקים ניתוח מורחב על הטקסט הקיים.");
+        await runCloudReflection(selected.id, selected.segments);
+      }
+      void logDiagnostic({ name: "cloud.correction_proposed", status: "success", sessionId: selected.id, itemCount: changed.size });
+    } catch (error) {
+      setCloudStatus(error instanceof TranscriptCorrectionError ? "ההצעה מהענן נדחתה כי שינתה משמעות (שלילה/מספר) או יותר מדי טקסט." : cloudErrorMessage(error));
+      void logDiagnostic({ name: "cloud.correction_failed", status: "error", sessionId: selected.id, errorCode: error instanceof Error ? error.message.slice(0, 40) : "unknown" });
+    } finally {
+      setCloudBusy(false);
+    }
+  };
+
+  const saveCloudApiKey = async () => {
+    const bridge = window.coupleLabDesktop;
+    if (!bridge?.saveCloudKey || !cloudKeyInput.trim()) return;
+    setCloudBusy(true);
+    try {
+      const status = await bridge.saveCloudKey("anthropic", cloudKeyInput.trim());
+      setCloudKeyPresent(Boolean(status?.hasKey));
+      setCloudKeyInput("");
+      setCloudStatus(status?.hasKey ? "המפתח נשמר מוצפן במכשיר. אפשר להשתמש בתיקון בענן." : "לא הצלחנו לשמור את המפתח.");
+    } catch {
+      setCloudStatus("שמירת המפתח נכשלה (ייתכן שהצפנת המערכת אינה זמינה).");
+    } finally {
+      setCloudBusy(false);
+    }
+  };
+
+  const clearCloudApiKey = async () => {
+    const bridge = window.coupleLabDesktop;
+    if (!bridge?.clearCloudKey) return;
+    await bridge.clearCloudKey().catch(() => undefined);
+    setCloudKeyPresent(false);
+    setCloudStatus("המפתח הוסר מהמכשיר.");
   };
 
   if (!sessions.length) {
@@ -4981,6 +5712,56 @@ function InsightsView({
                       </div>
                     </div>
                   )}
+
+                  {cloudAvailable && (
+                    <div className="cloud-correction">
+                      <div>
+                        <strong>תיקון וניתוח מורחב עם Claude (ענן)</strong>
+                        <small>
+                          שולח את <b>טקסט התמלול בלבד</b> ל-Claude עם מפתח ה-API שלכם — לתיקון ולרפלקציה מיודעת-גוטמן.
+                          ההקלטה עצמה לעולם אינה נשלחת. תיקונים תמיד עוברים אישור שלכם לפני שמירה.
+                        </small>
+                      </div>
+                      {cloudKeyPresent ? (
+                        <div className="cloud-correction-actions">
+                          <button className="secondary" onClick={requestCloudCorrection} disabled={cloudBusy || correctionPending}>
+                            <Sparkles size={16} aria-hidden="true" />
+                            {cloudBusy ? "שולחים ל-Claude…" : "תקן ונתח עם Claude"}
+                          </button>
+                          <details className="desktop-advanced">
+                            <summary>הגדרות מנוע הענן</summary>
+                            <label>
+                              מודל
+                              <select value={cloudModel} onChange={(event) => setCloudModel(event.target.value)}>
+                                <option value="claude-opus-5">Claude Opus 5 (החזק ביותר)</option>
+                                <option value="claude-sonnet-5">Claude Sonnet 5 (מהיר וזול יותר)</option>
+                                <option value="claude-haiku-4-5">Claude Haiku 4.5 (הזול ביותר)</option>
+                              </select>
+                            </label>
+                            <button className="text-button" onClick={() => void clearCloudApiKey()}>הסרת מפתח ה-API מהמכשיר</button>
+                          </details>
+                        </div>
+                      ) : (
+                        <div className="cloud-key-setup">
+                          <label>
+                            מפתח API של Claude (נשמר מוצפן במכשיר בלבד)
+                            <input
+                              type="password"
+                              autoComplete="off"
+                              value={cloudKeyInput}
+                              placeholder="sk-ant-…"
+                              onChange={(event) => setCloudKeyInput(event.target.value)}
+                            />
+                          </label>
+                          <button className="secondary" onClick={() => void saveCloudApiKey()} disabled={cloudBusy || !cloudKeyInput.trim()}>
+                            שמירת המפתח
+                          </button>
+                          <small>המפתח נשמר מוצפן דרך מערכת ההפעלה ואינו יוצא מהמכשיר, פרט לשליחת הבקשות שלכם ל-Claude.</small>
+                        </div>
+                      )}
+                      {cloudStatus && <p className="transcript-correction-status" role="status">{cloudStatus}</p>}
+                    </div>
+                  )}
                 </div>
               )}
             </section>
@@ -4989,6 +5770,31 @@ function InsightsView({
               <p>{selected.analysis.summary}</p>
               <small>זהו סיכום לתרגול המבוסס על המידע שנשמר, לא קביעה על רגשות או כוונות.</small>
             </section>
+            {selected.cloudReflection && (
+              <section className="saved-analysis-block cloud-reflection" aria-labelledby={`saved-cloud-${selected.id}`}>
+                <h3 id={`saved-cloud-${selected.id}`}>ניתוח מורחב (Claude · ענן)</h3>
+                <p>{selected.cloudReflection.summary}</p>
+                {selected.cloudReflection.strengths.length > 0 && (
+                  <div className="cloud-reflection-group">
+                    <strong>חוזקות שנשמעו</strong>
+                    <ul>{selected.cloudReflection.strengths.map((item, index) => <li key={`s-${index}`}>{item}</li>)}</ul>
+                  </div>
+                )}
+                {selected.cloudReflection.risks.length > 0 && (
+                  <div className="cloud-reflection-group">
+                    <strong>לשים לב</strong>
+                    <ul>{selected.cloudReflection.risks.map((item, index) => <li key={`r-${index}`}>{item}</li>)}</ul>
+                  </div>
+                )}
+                {selected.cloudReflection.nextSteps.length > 0 && (
+                  <div className="cloud-reflection-group">
+                    <strong>צעדים להמשך</strong>
+                    <ul>{selected.cloudReflection.nextSteps.map((item, index) => <li key={`n-${index}`}>{item}</li>)}</ul>
+                  </div>
+                )}
+                <small>הופק על ידי Claude בענן לפי בקשתכם, על טקסט התמלול בלבד. זהו חומר לתרגול — לא אבחון ולא קביעה על רגש או כוונה.</small>
+              </section>
+            )}
             {selected.acousticMetrics && <section className="saved-analysis-block" aria-labelledby={`saved-acoustic-${selected.id}`}>
               <h3 id={`saved-acoustic-${selected.id}`}>קצב והפסקות שנמדדו</h3>
               <div className="metric-row wide">
@@ -4999,6 +5805,12 @@ function InsightsView({
               </div>
               <small>המדדים מתארים קול שנקלט במיקרופון; הם אינם מסיקים רגש או כוונה.</small>
             </section>}
+            {(selected.vocalObservations?.length ?? 0) > 0 && (
+              <section className="saved-analysis-block" aria-labelledby={`saved-vocal-${selected.id}`}>
+                <h3 id={`saved-vocal-${selected.id}`}>טון הקול שנשמע</h3>
+                <VocalTonePanel profile={profile} observations={selected.vocalObservations ?? []} />
+              </section>
+            )}
             {selected.closingReflection && (
               <section className="session-shared-step" aria-labelledby={`shared-step-${selected.id}`}>
                 <HeartHandshake size={20} />
@@ -5011,6 +5823,7 @@ function InsightsView({
                 </div>
               </section>
             )}
+            {selected.structuredFlow && <StructuredFlowSummary flow={selected.structuredFlow} profile={profile} />}
             {selected.processingStatus !== "insufficient-data" && <div className="metric-row wide">
               {selected.analysis.metrics.speakerAttributionReliable !== false ? <>
                 <MiniMetric label={`מילים — ${partnerName(profile, "A")}`} value={selected.analysis.metrics.wordsA} raw />
