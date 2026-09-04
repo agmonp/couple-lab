@@ -5,7 +5,9 @@ export type SessionType =
   | "conflict"
   | "repair"
   | "intimacy"
-  | "shared-meaning";
+  | "shared-meaning"
+  | "aftermath"
+  | "stress-reducing";
 
 export type CueTone =
   | "warmth"
@@ -106,7 +108,7 @@ export interface TranscriptSegment {
   /** Immutable first ASR/manual text retained when a reviewed correction is accepted. */
   originalText?: string;
   correction?: {
-    provider: "ollama-local";
+    provider: "ollama-local" | "cloud-anthropic";
     modelId: string;
     correctedAt: string;
     reviewedByPartners: true;
@@ -214,6 +216,43 @@ export interface VisualObservation {
   metadata?: Record<string, string | number | boolean>;
 }
 
+/**
+ * Live vocal (prosody) states, read from the audio signal itself rather than
+ * the words. Each maps to an interaction family the way visual signals do.
+ */
+export type VocalStateLabel =
+  | "raised-voice"
+  | "tense-voice"
+  | "flat-withdrawn"
+  | "warm-engaged"
+  | "long-pause";
+
+export interface VocalObservation {
+  id: string;
+  seconds: number;
+  label: VocalStateLabel;
+  subject?: PartnerId;
+  score: number;
+  evidence: string;
+  provider?: "local-prosody-v1";
+  metadata?: Record<string, string | number | boolean>;
+}
+
+/**
+ * A Gottman-informed written reflection produced by an opt-in cloud model on
+ * the corrected transcript text. It is an aid for practice, framed as
+ * observations and never as a verdict on emotion, intent, or the relationship.
+ */
+export interface CloudReflection {
+  summary: string;
+  strengths: string[];
+  risks: string[];
+  nextSteps: string[];
+  provider: string;
+  model: string;
+  createdAt: string;
+}
+
 export interface NonverbalMetrics {
   sampleCount: number;
   analyzedSeconds?: number;
@@ -267,7 +306,7 @@ export interface PatternHit {
   target?: PartnerId;
   seconds?: number;
   endSeconds?: number;
-  source?: "transcript" | "manual-cue" | "visual" | "derived";
+  source?: "transcript" | "manual-cue" | "visual" | "vocal" | "derived";
   segmentId?: string;
   cueId?: string;
   observationId?: string;
@@ -290,7 +329,7 @@ export interface InteractionTag {
   id: string;
   label: string;
   family: InteractionTagFamily;
-  source: "transcript" | "manual-cue" | "visual" | "derived";
+  source: "transcript" | "manual-cue" | "visual" | "vocal" | "derived";
   seconds: number;
   endSeconds?: number;
   speaker?: PartnerId;
@@ -349,6 +388,31 @@ export interface SessionMediaRef {
   savedAt: string;
 }
 
+export type StructuredSessionKind = "aftermath" | "stress-reducing";
+
+/**
+ * A single step (or turn) of a structured session, with the moment it opened
+ * and closed relative to the recording. Used to show per-step coverage in the
+ * report without a schema migration — every field is optional-friendly and the
+ * whole record is optional on SessionRecord.
+ */
+export interface StructuredStepBoundary {
+  key: string;
+  title: string;
+  startSeconds: number;
+  endSeconds?: number;
+  speaker?: PartnerId;
+}
+
+export interface StructuredFlowRecord {
+  kind: StructuredSessionKind;
+  steps: StructuredStepBoundary[];
+  /** Self-reported stress (0–10) per partner before the conversation. */
+  stressBefore?: Partial<Record<PartnerId, number>>;
+  /** Self-reported stress (0–10) per partner after the conversation. */
+  stressAfter?: Partial<Record<PartnerId, number>>;
+}
+
 export interface SessionRecord {
   schemaVersion?: 2;
   id: string;
@@ -361,6 +425,9 @@ export interface SessionRecord {
   acousticMetrics?: AcousticMetrics;
   cues: LiveCue[];
   visualObservations: VisualObservation[];
+  vocalObservations?: VocalObservation[];
+  structuredFlow?: StructuredFlowRecord;
+  cloudReflection?: CloudReflection;
   nonverbalMetrics?: NonverbalMetrics;
   signals: BodySignals;
   analysis: SessionAnalysis;
@@ -458,6 +525,32 @@ export interface CoupleLabDesktopBridge {
   onTranscriptionModelProgress?: (
     listener: (progress: TranscriptionModelInstallProgress) => void
   ) => () => void;
+  /**
+   * Optional cloud (bring-your-own-key) text analysis, routed through the
+   * Electron main process. Desktop only, opt-in, text-only — never recordings.
+   */
+  saveCloudKey?: (provider: "anthropic", key: string) => Promise<CloudKeyStatus>;
+  getCloudKeyStatus?: () => Promise<CloudKeyStatus>;
+  clearCloudKey?: () => Promise<CloudKeyStatus>;
+  cloudComplete?: (request: CloudCompletionRequest) => Promise<CloudCompletionResult>;
+}
+
+export interface CloudKeyStatus {
+  hasKey: boolean;
+  provider?: string;
+  error?: string;
+}
+
+export interface CloudCompletionRequest {
+  system?: string;
+  user: string;
+  model?: string;
+  maxTokens?: number;
+}
+
+export interface CloudCompletionResult {
+  text: string;
+  model: string;
 }
 
 export interface TranscriptionModelInstallProgress {

@@ -10,9 +10,11 @@ import {
   SessionMetrics,
   SessionType,
   TranscriptSegment,
-  VisualObservation
+  VisualObservation,
+  VocalObservation
 } from "./types";
 import { sessionEvidenceSummary } from "./sessionFlow";
+import { fuzzyMatchesAny } from "./transcriptMatch";
 
 /**
  * Stable label for the contempt-risk pattern. UI logic must key on this
@@ -29,6 +31,12 @@ type TranscriptPattern = {
   suggestion: string;
   confidence: number;
   metadata?: Record<string, string | number | boolean>;
+  /**
+   * Distinctive Hebrew phrases for the noise-tolerant fallback. Only consulted
+   * when the exact regex misses, and only ever at reduced confidence — so a
+   * misheard word can surface a likely pattern without ever asserting it.
+   */
+  fuzzyPhrases?: string[];
 };
 
 const transcriptPatterns: TranscriptPattern[] = [
@@ -40,7 +48,8 @@ const transcriptPatterns: TranscriptPattern[] = [
     tagFamily: "four-horsemen",
     suggestion: "נסחו פתיחה רכה: תארו אירוע מסוים, אמרו איך הוא השפיע עליכם ובקשו דבר מעשי אחד.",
     confidence: 0.76,
-    metadata: { horseman: "criticism", antidote: "gentle startup" }
+    metadata: { horseman: "criticism", antidote: "gentle startup" },
+    fuzzyPhrases: ["אתה תמיד", "את תמיד", "אתה אף פעם", "את אף פעם", "לא אכפת לך", "מה הבעיה שלך"]
   },
   {
     label: CONTEMPT_RISK_LABEL,
@@ -50,7 +59,8 @@ const transcriptPatterns: TranscriptPattern[] = [
     tagFamily: "four-horsemen",
     suggestion: "עצרו את הטון המתנשא, אמרו מה כאב והוסיפו משפט אחד של כבוד או הערכה.",
     confidence: 0.78,
-    metadata: { horseman: "contempt", antidote: "fondness and admiration" }
+    metadata: { horseman: "contempt", antidote: "fondness and admiration" },
+    fuzzyPhrases: ["אתה פתטי", "את פתטית", "זה מגוחך", "אתה מטומטם", "את מטומטמת", "זה הזוי"]
   },
   {
     label: "חשש להתגוננות",
@@ -60,7 +70,8 @@ const transcriptPatterns: TranscriptPattern[] = [
     tagFamily: "four-horsemen",
     suggestion: "קחו אחריות על חלק קטן אחד לפני שתסבירו את נקודת המבט שלכם.",
     confidence: 0.74,
-    metadata: { horseman: "defensiveness", antidote: "take responsibility" }
+    metadata: { horseman: "defensiveness", antidote: "take responsibility" },
+    fuzzyPhrases: ["זה לא אשמתי", "גם אתה", "גם את", "זה לא נכון", "למה אתה תוקף", "למה את תוקפת", "אתה התחלת", "את התחלת"]
   },
   {
     label: "חשש להיסגרות או ניתוק",
@@ -70,7 +81,8 @@ const transcriptPatterns: TranscriptPattern[] = [
     tagFamily: "four-horsemen",
     suggestion: "קחו הפסקה מתוזמנת להרגעה וחזרו לשיחה בזמן שעליו הסכמתם.",
     confidence: 0.72,
-    metadata: { horseman: "stonewalling", antidote: "self soothing break" }
+    metadata: { horseman: "stonewalling", antidote: "self soothing break" },
+    fuzzyPhrases: ["אין לי מה להגיד", "לא רוצה לדבר", "עזוב אותי", "עזבי אותי", "תפסיק לדבר", "תפסיקי לדבר"]
   },
   {
     label: "האשמה גורפת",
@@ -88,7 +100,8 @@ const transcriptPatterns: TranscriptPattern[] = [
     tagFamily: "conversation-structure",
     suggestion: "כיוון טוב. הישארו ממוקדים ובקשו שינוי מעשי אחד.",
     confidence: 0.8,
-    metadata: { skill: "gentle startup" }
+    metadata: { skill: "gentle startup" },
+    fuzzyPhrases: ["אני מרגיש", "אני מרגישה", "אני צריך", "אני צריכה", "היית מוכן", "היית מוכנה", "אפשר לדבר"]
   },
   {
     label: "תיקוף והקשבה",
@@ -98,7 +111,8 @@ const transcriptPatterns: TranscriptPattern[] = [
     tagFamily: "strength",
     suggestion: "הישארו עוד מעט בהקשבה לפני שעוברים לפתרונות.",
     confidence: 0.8,
-    metadata: { skill: "attunement" }
+    metadata: { skill: "attunement" },
+    fuzzyPhrases: ["אני שומע אותך", "אני שומעת אותך", "זה הגיוני", "אני מבין אותך", "אני מבינה אותך", "ספר לי עוד", "ספרי לי עוד"]
   },
   {
     label: "הפקדה בחשבון הרגשי",
@@ -108,7 +122,8 @@ const transcriptPatterns: TranscriptPattern[] = [
     tagFamily: "strength",
     suggestion: "הפכו את ההערכה למסוימת ועכשווית, כדי שתהיה משאב גם ברגעי לחץ.",
     confidence: 0.82,
-    metadata: { skill: "emotional bank account" }
+    metadata: { skill: "emotional bank account" },
+    fuzzyPhrases: ["אני מעריך אותך", "אני מעריכה אותך", "אני אוהב אותך", "אני אוהבת אותך", "שמתי לב ש", "אני גאה בך"]
   },
   {
     label: "היענות לפנייה לקרבה",
@@ -118,7 +133,8 @@ const transcriptPatterns: TranscriptPattern[] = [
     tagFamily: "strength",
     suggestion: "זה רגע של פנייה או היענות לקרבה. תגובות קטנות מצטברות לאורך זמן.",
     confidence: 0.72,
-    metadata: { skill: "turning toward" }
+    metadata: { skill: "turning toward" },
+    fuzzyPhrases: ["אני מקשיב", "אני מקשיבה", "מה קרה", "אפשר רגע", "תקשיב לי", "תקשיבי לי"]
   },
   {
     label: "סקרנות",
@@ -138,7 +154,8 @@ const transcriptPatterns: TranscriptPattern[] = [
     tagFamily: "repair",
     suggestion: "האטו ותנו לניסיון התיקון להיקלט לפני שממשיכים.",
     confidence: 0.84,
-    metadata: { skill: "repair attempt" }
+    metadata: { skill: "repair attempt" },
+    fuzzyPhrases: ["אני מצטער", "אני מצטערת", "תן לי לנסות שוב", "תני לי לנסות שוב", "לא רוצה לריב", "אנחנו באותו צד", "אפשר לעצור"]
   },
   {
     label: "לקיחת אחריות",
@@ -148,7 +165,8 @@ const transcriptPatterns: TranscriptPattern[] = [
     tagFamily: "repair",
     suggestion: "אמרו מה הייתה ההשפעה על בן או בת הזוג ומה תעשו בפעם הבאה.",
     confidence: 0.82,
-    metadata: { skill: "personal responsibility" }
+    metadata: { skill: "personal responsibility" },
+    fuzzyPhrases: ["החלק שלי", "אני לוקח אחריות", "אני לוקחת אחריות", "הייתי צריך", "הייתי צריכה", "אני אשם", "אני אשמה"]
   },
   {
     label: "רמז לתשוקה או חיות",
@@ -211,7 +229,19 @@ function findLinkedSegment(segments: TranscriptSegment[], seconds: number) {
   return bestSegment;
 }
 
-function makeHit(pattern: TranscriptPattern, segment: TranscriptSegment): PatternHit {
+type MatchType = "exact" | "fuzzy";
+
+// A fuzzy match rests on a possibly-misheard word, so it is always reported as
+// less certain than an exact one.
+const FUZZY_CONFIDENCE_FACTOR = 0.85;
+
+function matchConfidence(pattern: TranscriptPattern, matchType: MatchType) {
+  return matchType === "fuzzy"
+    ? Math.round(pattern.confidence * FUZZY_CONFIDENCE_FACTOR * 100) / 100
+    : pattern.confidence;
+}
+
+function makeHit(pattern: TranscriptPattern, segment: TranscriptSegment, matchType: MatchType = "exact"): PatternHit {
   return {
     id: `${pattern.hitFamily}-${segment.id}-${slug(pattern.label)}`,
     label: pattern.label,
@@ -223,12 +253,14 @@ function makeHit(pattern: TranscriptPattern, segment: TranscriptSegment): Patter
     source: "transcript",
     segmentId: segment.id,
     evidence: segment.text,
-    suggestion: pattern.suggestion,
-    confidence: pattern.confidence
+    suggestion: matchType === "fuzzy"
+      ? `${pattern.suggestion} (זוהה מתוך תמלול שאולי אינו מדויק — כדאי לוודא שזה מה שנאמר.)`
+      : pattern.suggestion,
+    confidence: matchConfidence(pattern, matchType)
   };
 }
 
-function makeTag(pattern: TranscriptPattern, segment: TranscriptSegment): InteractionTag {
+function makeTag(pattern: TranscriptPattern, segment: TranscriptSegment, matchType: MatchType = "exact"): InteractionTag {
   return {
     id: `tag-${segment.id}-${slug(pattern.label)}`,
     label: pattern.label,
@@ -241,9 +273,10 @@ function makeTag(pattern: TranscriptPattern, segment: TranscriptSegment): Intera
     segmentId: segment.id,
     evidence: segment.text,
     suggestion: pattern.suggestion,
-    confidence: pattern.confidence,
+    confidence: matchConfidence(pattern, matchType),
     metadata: {
       ...(pattern.metadata ?? {}),
+      matchType,
       wordCount: segment.wordCount ?? countWords(segment.text),
       detectedLanguage: segment.detectedLanguage ?? "unknown"
     }
@@ -256,9 +289,17 @@ function scanSegments(segments: TranscriptSegment[]) {
 
   segments.forEach((segment) => {
     transcriptPatterns.forEach((pattern) => {
-      if (pattern.regex.test(segment.text)) {
-        hits.push(makeHit(pattern, segment));
-        tags.push(makeTag(pattern, segment));
+      // Exact regex first (unchanged behaviour). Only when it misses do we fall
+      // back to the noise-tolerant phrase match, and then at lower confidence —
+      // a misheard transcript can surface a likely pattern, never assert it.
+      const matchType: MatchType | null = pattern.regex.test(segment.text)
+        ? "exact"
+        : fuzzyMatchesAny(segment.text, pattern.fuzzyPhrases ?? [])
+          ? "fuzzy"
+          : null;
+      if (matchType) {
+        hits.push(makeHit(pattern, segment, matchType));
+        tags.push(makeTag(pattern, segment, matchType));
       }
     });
   });
@@ -407,6 +448,78 @@ function visualTags(observations: VisualObservation[], segments: TranscriptSegme
       confidence: clamp(observation.score, 0.35, 0.86),
       metadata: {
         visualLabel: observation.label,
+        linkedTranscript: Boolean(linkedSegment)
+      }
+    };
+  });
+}
+
+// Vocal (prosody) cues are probabilistic and descriptive, exactly like the
+// camera cues: they enrich the timeline and the nonverbal-stress count, but —
+// per the product boundary — they never raise flooding, never create
+// emotional-state verdicts, and are never sufficient evidence on their own.
+const vocalStressLabels = new Set<VocalObservation["label"]>([
+  "raised-voice",
+  "tense-voice",
+  "flat-withdrawn",
+  "long-pause"
+]);
+
+function vocalLabel(observation: VocalObservation) {
+  const labelMap: Record<VocalObservation["label"], string> = {
+    "raised-voice": "הרמת קול אפשרית",
+    "tense-voice": "מתח אפשרי בקול",
+    "flat-withdrawn": "קול שטוח או מרוחק אפשרי",
+    "warm-engaged": "טון חם ומעורב אפשרי",
+    "long-pause": "שתיקה ארוכה"
+  };
+  return labelMap[observation.label];
+}
+
+function vocalHits(observations: VocalObservation[], segments: TranscriptSegment[]): PatternHit[] {
+  return observations.slice(-40).map((observation) => {
+    const linkedSegment = findLinkedSegment(segments, observation.seconds);
+    const positive = observation.label === "warm-engaged";
+    return {
+      id: `vocal-${observation.id}`,
+      label: vocalLabel(observation),
+      family: positive ? "strength" : "body",
+      speaker: observation.subject ?? linkedSegment?.speaker,
+      target: observation.subject ? otherPartner(observation.subject) : linkedSegment?.target,
+      seconds: observation.seconds,
+      source: "vocal",
+      segmentId: linkedSegment?.id,
+      observationId: observation.id,
+      evidence: `${vocalLabel(observation)} בשנייה ${Math.round(observation.seconds)}`,
+      suggestion: positive
+        ? "אפשר להשתמש בזה כרמז תומך ולבדוק מול מה שכל אחד הרגיש."
+        : "התייחסו לזה כשאלה לבדיקה עדינה על צליל הקול, לא כהוכחה לרגש או לכוונה.",
+      confidence: clamp(observation.score, 0.35, 0.86)
+    };
+  });
+}
+
+function vocalTags(observations: VocalObservation[], segments: TranscriptSegment[]): InteractionTag[] {
+  return observations.map((observation) => {
+    const linkedSegment = findLinkedSegment(segments, observation.seconds);
+    const stressCue = vocalStressLabels.has(observation.label);
+    return {
+      id: `tag-vocal-${observation.id}`,
+      label: vocalLabel(observation),
+      family: "nonverbal",
+      source: "vocal",
+      seconds: observation.seconds,
+      speaker: observation.subject ?? linkedSegment?.speaker,
+      target: observation.subject ? otherPartner(observation.subject) : linkedSegment?.target,
+      segmentId: linkedSegment?.id,
+      observationId: observation.id,
+      evidence: vocalLabel(observation),
+      suggestion: stressCue
+        ? "בדקו אם זה שיקף לחץ, עייפות, התלהבות או התרחקות לפני שמסיקים מסקנה."
+        : "השתמשו בזה כהקשר לרגע המדובר, לא כהוכחה לרגש.",
+      confidence: clamp(observation.score, 0.35, 0.86),
+      metadata: {
+        vocalLabel: observation.label,
         linkedTranscript: Boolean(linkedSegment)
       }
     };
@@ -615,6 +728,7 @@ function buildMetrics(
   signals: BodySignals,
   cues: LiveCue[],
   observations: VisualObservation[],
+  vocalObservations: VocalObservation[],
   tags: InteractionTag[]
 ): SessionMetrics {
   const attributedSegments = segments.filter((segment) => segment.speakerAttribution !== "unknown");
@@ -630,7 +744,9 @@ function buildMetrics(
   const maxWords = Math.max(wordsA, wordsB, 1);
   const minWords = Math.min(wordsA, wordsB);
   const turnBalance = Math.round((minWords / maxWords) * 100);
-  const positiveSignals = hits.filter((hit) => hit.family === "strength" && hit.source !== "visual").length;
+  const positiveSignals = hits.filter(
+    (hit) => hit.family === "strength" && hit.source !== "visual" && hit.source !== "vocal"
+  ).length;
   const riskSignals = hits.filter((hit) => hit.family === "risk").length;
   const repairSignals = hits.filter((hit) => hit.family === "repair").length;
   const fourHorsemenSignals = tags.filter((tag) => tag.family === "four-horsemen").length;
@@ -640,7 +756,9 @@ function buildMetrics(
   const emotionalBankDeposits = tags.filter((tag) => tag.label === "הפקדה בחשבון הרגשי").length;
   const bidsOrTurningToward = tags.filter((tag) => tag.label === "היענות לפנייה לקרבה").length;
   const interruptionRisks = tags.filter((tag) => tag.label === "חפיפה או קטיעה אפשרית").length;
-  const nonverbalStressSignals = observations.filter((observation) => visualStressLabels.has(observation.label)).length;
+  const nonverbalStressSignals =
+    observations.filter((observation) => visualStressLabels.has(observation.label)).length +
+    vocalObservations.filter((observation) => vocalStressLabels.has(observation.label)).length;
   const risk = floodingRisk(signals, cues);
   const emotionalState = scoreEmotionalState(hits, cues, tags, risk);
   const balanceBonus = speakerAttributionReliable ? (turnBalance > 60 ? 8 : turnBalance > 40 ? 3 : -7) : 0;
@@ -682,15 +800,34 @@ function selectStrengths(metrics: SessionMetrics, tags: InteractionTag[]) {
   return Array.from(strengths).slice(0, 4);
 }
 
-function selectRisks(metrics: SessionMetrics, hits: PatternHit[]) {
+function selectRisks(metrics: SessionMetrics, hits: PatternHit[], sessionType: SessionType) {
   const risks = new Set<string>();
-  if (metrics.riskSignals > 0) risks.add("ייתכן שחלק מהניסוח נחווה כהאשמה, ביטול, זלזול או התגוננות.");
-  if (metrics.fourHorsemenSignals > 0) risks.add("הופיעו דפוסים מכאיבים שכדאי לרכך בעזרת התגובה המתקנת המתאימה.");
-  if (metrics.contemptSignals > 0) risks.add("ניסוח שעשוי להישמע מזלזל מצריך האטה וחזרה לכבוד הדדי.");
-  if (metrics.interruptionRisks > 0) risks.add("ייתכן שכדאי להבהיר טוב יותר את המעבר בין הדוברים.");
+  const stressReducing = sessionType === "stress-reducing";
+  // In a stress-reducing conversation the topic is meant to be stress from
+  // *outside* the relationship. The same partner-directed patterns the engine
+  // already tags are reframed here not as a "risk" but as the conversation
+  // drifting to an internal grievance — which belongs in Aftermath or Conflict.
+  if (stressReducing && (metrics.fourHorsemenSignals > 0 || metrics.contemptSignals > 0)) {
+    risks.add(
+      "חלק מהניסוח נשמע מכוון פנימה, זה אל זו. בשיחה מפחיתת-לחץ מתמקדים בלחץ שמגיע מבחוץ; נושא שבינֵיכם מתאים יותר ל'אחרי ריב' או ל'מחלוקת'."
+    );
+  } else {
+    if (metrics.riskSignals > 0) risks.add("ייתכן שחלק מהניסוח נחווה כהאשמה, ביטול, זלזול או התגוננות.");
+    if (metrics.fourHorsemenSignals > 0) risks.add("הופיעו דפוסים מכאיבים שכדאי לרכך בעזרת התגובה המתקנת המתאימה.");
+    if (metrics.contemptSignals > 0) risks.add("ניסוח שעשוי להישמע מזלזל מצריך האטה וחזרה לכבוד הדדי.");
+  }
+  if (metrics.interruptionRisks > 0) {
+    risks.add(
+      stressReducing
+        ? "היו רגעים של קטיעה; בתור של המקשיב/ה מספיק להקשיב ולשקף, בלי למהר לפתור."
+        : "ייתכן שכדאי להבהיר טוב יותר את המעבר בין הדוברים."
+    );
+  }
   if (metrics.speakerAttributionReliable !== false && metrics.turnBalance < 45) risks.add("זמן הדיבור לא היה מאוזן; כדאי לבדוק אם שניכם הרגשתם שנשמעתם.");
   if (metrics.floodingRisk > 58) risks.add("רמזי העומס מצדיקים בדיקה משותפת אם נחוצה הפסקה מתוזמנת.");
-  if (metrics.repairSignals === 0) risks.add("לא זוהה ניסיון תיקון; בפעם הבאה אפשר להוסיף אחד מוקדם.");
+  // "No repair attempt" is only a gap where repair is the point. A stress-
+  // reducing conversation is about support, not repair, so it is not flagged.
+  if (metrics.repairSignals === 0 && !stressReducing) risks.add("לא זוהה ניסיון תיקון; בפעם הבאה אפשר להוסיף אחד מוקדם.");
   if (hits.some((hit) => hit.label === "חשש להיסגרות או ניתוק")) risks.add("ניסוח שעלול להעיד על סגירות מציע לעצור את פתרון הבעיה ולבדוק מה נחוץ.");
   if (risks.size === 0) risks.add("הכללים הנוכחיים לא סימנו דפוס סיכון מרכזי.");
   return Array.from(risks).slice(0, 4);
@@ -713,7 +850,7 @@ function nextSteps(metrics: SessionMetrics, sessionType: SessionType) {
   if (metrics.riskSignals > metrics.positiveSignals) {
     steps.push("התחילו את הנושא מחדש, כשכל אחד מנסח פתיחה עדינה אחת.");
   }
-  if (metrics.repairSignals === 0) {
+  if (metrics.repairSignals === 0 && sessionType !== "stress-reducing") {
     steps.push("הסכימו על משפט תיקון אחד ששניכם תזהו.");
   }
   if (sessionType === "intimacy") {
@@ -721,6 +858,12 @@ function nextSteps(metrics: SessionMetrics, sessionType: SessionType) {
   }
   if (sessionType === "shared-meaning") {
     steps.push("הפכו ערך משותף אחד לטקס שבועי קטן.");
+  }
+  if (sessionType === "aftermath") {
+    steps.push("הפכו את הצעד מהשלב החמישי למשפט תיקון קצר שתזהו בפעם הבאה.");
+  }
+  if (sessionType === "stress-reducing") {
+    steps.push("המקשיב/ה: לפני כל עצה, שקפו משפט אחד ששמעתם — 'מה ששמעתי הוא…'.");
   }
   steps.push("עברו יחד על רגע מסומן אחד ותקנו אותו אם האפליקציה לא הבינה נכון.");
   return steps.slice(0, 5);
@@ -747,7 +890,8 @@ export function analyzeSession(
   signals: BodySignals,
   cues: LiveCue[],
   sessionType: SessionType,
-  observations: VisualObservation[] = []
+  observations: VisualObservation[] = [],
+  vocalObservations: VocalObservation[] = []
 ): SessionAnalysis {
   const evidence = sessionEvidenceSummary({ segments, cues, observations });
   if (!evidence.sufficient) {
@@ -800,6 +944,7 @@ export function analyzeSession(
     ...scanned.tags,
     ...cueTags(cues),
     ...visualTags(observations, segments),
+    ...vocalTags(vocalObservations, segments),
     ...repairAcceptance.tags
   ];
   const timelineTags = [...baseTags, ...deriveConversationTags(segments, baseTags)].sort((a, b) => a.seconds - b.seconds);
@@ -807,9 +952,10 @@ export function analyzeSession(
     ...scanned.hits,
     ...cueHits(cues),
     ...visualHits(observations, segments),
+    ...vocalHits(vocalObservations, segments),
     ...repairAcceptance.hits
   ].sort((a, b) => (a.seconds ?? 0) - (b.seconds ?? 0));
-  const metrics = buildMetrics(segments, allHits, signals, cues, observations, timelineTags);
+  const metrics = buildMetrics(segments, allHits, signals, cues, observations, vocalObservations, timelineTags);
   const allTags = timelineTags;
 
   const summary =
@@ -821,7 +967,7 @@ export function analyzeSession(
     summary,
     metrics,
     strengths: selectStrengths(metrics, allTags),
-    risks: selectRisks(metrics, allHits),
+    risks: selectRisks(metrics, allHits, sessionType),
     nextSteps: nextSteps(metrics, sessionType),
     suggestedScript: suggestedScript(metrics),
     hits: allHits.slice(0, 28),
