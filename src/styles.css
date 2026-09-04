@@ -1767,7 +1767,7 @@ input[type="range"] {
   text-align: center;
 }
 
-.stress-after-panel {
+.structured-flow-panel {
   display: grid;
   gap: 10px;
 }
@@ -1780,6 +1780,51 @@ input[type="range"] {
   color: var(--ink);
   font-weight: 700;
   line-height: 1.45;
+}
+
+.structured-flow-summary {
+  display: grid;
+  gap: 10px;
+}
+
+.structured-flow-summary h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--teal);
+}
+
+.structured-flow-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.structured-flow-steps li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.structured-flow-step-title {
+  color: var(--ink);
+}
+
+.structured-flow-step-speaker {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-inline-end: auto;
+}
+
+.structured-flow-step-duration {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .prompt-meta span {

@@ -231,6 +231,37 @@ export function buildStructuredTags(flow: StructuredFlowRecord): InteractionTag[
   }));
 }
 
+export interface StructuredFlowStepDisplay {
+  key: string;
+  title: string;
+  /** "m:ss", or a fixed label when the step has no recorded end time yet. */
+  durationLabel: string;
+  speaker?: PartnerId;
+}
+
+function formatDuration(totalSeconds: number): string {
+  const clamped = Math.max(0, Math.round(totalSeconds));
+  const minutes = Math.floor(clamped / 60);
+  const seconds = clamped % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+/**
+ * Turns a flow's raw step boundaries into report-ready rows: one line per
+ * step/turn with a formatted duration. Purely descriptive — no pacing
+ * judgment, no color-coding by length; see docs/STRUCTURED_SESSIONS_SPEC.md §7.5.
+ */
+export function describeStructuredFlowSteps(steps: StructuredStepBoundary[]): StructuredFlowStepDisplay[] {
+  return steps.map((step) => ({
+    key: step.key,
+    title: step.title,
+    durationLabel: typeof step.endSeconds === "number"
+      ? formatDuration(step.endSeconds - step.startSeconds)
+      : "עד סוף השיחה",
+    speaker: step.speaker
+  }));
+}
+
 function stressChangeWord(delta: number): string {
   if (delta <= -3) return "ירד בהרבה";
   if (delta < 0) return "ירד";

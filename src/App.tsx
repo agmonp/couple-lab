@@ -35,6 +35,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { analyzeSession, CONTEMPT_RISK_LABEL } from "./relationshipEngine";
 import {
   buildStructuredTags,
+  describeStructuredFlowSteps,
   evaluateAftermathGate,
   FEELINGS_PALETTE,
   LISTENER_RULES,
@@ -2641,6 +2642,43 @@ function StressCheckIn({
   );
 }
 
+/**
+ * Report-only view of a completed structured flow: a step/turn timeline with
+ * how long each part took, plus the stress-change line for "מפחיתת-לחץ".
+ * Purely descriptive — no pacing judgment, no coloring by duration.
+ */
+function StructuredFlowSummary({
+  flow,
+  profile
+}: {
+  flow: StructuredFlowRecord;
+  profile: CoupleProfile;
+}) {
+  const steps = describeStructuredFlowSteps(flow.steps);
+  const stressLine =
+    flow.kind === "stress-reducing"
+      ? summarizeStressChange(flow.stressBefore, flow.stressAfter, (partner) => partnerName(profile, partner))
+      : null;
+  if (steps.length === 0 && !stressLine) return null;
+  return (
+    <div className="structured-flow-summary" aria-label={`מבנה ${structuredKindLabel(flow.kind)}`}>
+      <h3>מבנה השיחה — {structuredKindLabel(flow.kind)}</h3>
+      <ol className="structured-flow-steps">
+        {steps.map((step) => (
+          <li key={step.key}>
+            <span className="structured-flow-step-title">{step.title}</span>
+            {step.speaker && (
+              <span className="structured-flow-step-speaker">{partnerName(profile, step.speaker)}</span>
+            )}
+            <span className="structured-flow-step-duration" dir="ltr">{step.durationLabel}</span>
+          </li>
+        ))}
+      </ol>
+      {stressLine && <p className="stress-delta" role="status">{stressLine}</p>}
+    </div>
+  );
+}
+
 function PracticeStudio({
   profile,
   setProfile,
@@ -4804,9 +4842,11 @@ function PracticeStudio({
               </div>
             </div>
             <GoldenMomentsReel session={lastCompletedSession} />
-            {lastCompletedSession.structuredFlow?.kind === "stress-reducing" && (
-              <div className="stress-after-panel">
-                {!stressAfterSaved && !lastCompletedSession.structuredFlow.stressAfter ? (
+            {lastCompletedSession.structuredFlow && (
+              <div className="structured-flow-panel">
+                {lastCompletedSession.structuredFlow.kind === "stress-reducing" &&
+                !stressAfterSaved &&
+                !lastCompletedSession.structuredFlow.stressAfter ? (
                   <>
                     <StressCheckIn
                       profile={profile}
@@ -4819,13 +4859,7 @@ function PracticeStudio({
                     </button>
                   </>
                 ) : (
-                  <p className="stress-delta" role="status">
-                    {summarizeStressChange(
-                      lastCompletedSession.structuredFlow.stressBefore,
-                      lastCompletedSession.structuredFlow.stressAfter,
-                      (partner) => partnerName(profile, partner)
-                    ) ?? "תודה — מפלס הלחץ נשמר במחשב הזה."}
-                  </p>
+                  <StructuredFlowSummary flow={lastCompletedSession.structuredFlow} profile={profile} />
                 )}
               </div>
             )}
@@ -5789,6 +5823,7 @@ function InsightsView({
                 </div>
               </section>
             )}
+            {selected.structuredFlow && <StructuredFlowSummary flow={selected.structuredFlow} profile={profile} />}
             {selected.processingStatus !== "insufficient-data" && <div className="metric-row wide">
               {selected.analysis.metrics.speakerAttributionReliable !== false ? <>
                 <MiniMetric label={`מילים — ${partnerName(profile, "A")}`} value={selected.analysis.metrics.wordsA} raw />

@@ -8,6 +8,7 @@ import {
   STRESS_REDUCING_DECK_ID,
   STRESS_REDUCING_STEPS,
   buildStructuredTags,
+  describeStructuredFlowSteps,
   evaluateAftermathGate,
   isStructuredDeck,
   structuredKindForDeck,
@@ -106,6 +107,28 @@ describe("buildStructuredTags", () => {
     expect(tags[1].speaker).toBe("B");
     expect(tags[1].endSeconds).toBeUndefined();
     expect(tags[0].confidence).toBe(1);
+  });
+});
+
+describe("describeStructuredFlowSteps", () => {
+  it("formats a closed step's duration as m:ss and keeps its key/title/speaker", () => {
+    const flow: StructuredFlowRecord = {
+      kind: "aftermath",
+      steps: [
+        { key: "feelings", title: "רגשות — מה הרגשתי", startSeconds: 10, endSeconds: 144, speaker: "A" }
+      ]
+    };
+    expect(describeStructuredFlowSteps(flow.steps)).toEqual([
+      { key: "feelings", title: "רגשות — מה הרגשתי", durationLabel: "2:14", speaker: "A" }
+    ]);
+  });
+
+  it("labels a step with no end time as still open, rather than guessing a duration", () => {
+    const flow: StructuredFlowRecord = {
+      kind: "stress-reducing",
+      steps: [{ key: "turn-a", title: "התור של דנה", startSeconds: 0 }]
+    };
+    expect(describeStructuredFlowSteps(flow.steps)[0].durationLabel).toBe("עד סוף השיחה");
   });
 });
 
