@@ -1,0 +1,10 @@
+From: Acme Billing <billing@acme.example>
+Subject: Your invoice #4482 is ready
+Message-ID: <m2@example.com>
+Date: Wed, 08 Jul 2026 09:00:00 +0000
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+Your invoice for June 2026 (total $29.00) is attached. No action required if =
+you have autopay enabled.

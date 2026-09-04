@@ -1,0 +1,10 @@
+From: Yossi Cohen <yossi@example.com>
+Subject: URGENT: production deploy blocked on your approval
+Message-ID: <m4@example.com>
+Date: Wed, 08 Jul 2026 09:00:00 +0000
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+Hey, the release train is waiting on your sign-off for the payment-service de=
+ploy. We need an answer before 17:00 today or we slip a week.
