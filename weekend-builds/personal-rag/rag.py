@@ -12,11 +12,6 @@ Retrieval is a local BM25 index built at startup — no vector database, no
 embedding model, no data leaves your machine except the retrieved chunks
 sent to Claude with your question. Conversation memory (last 10 exchanges)
 persists in memory.json.
-
-Optional GraphRAG: if you keep a knowledge graph in Neo4j (people, events,
-places...), add --graph and set NEO4J_URI / NEO4J_USER / NEO4J_PASSWORD.
-Facts from the graph neighborhood of your question are added to the context
-alongside the text chunks (pip install neo4j).
 """
 
 from __future__ import annotations
@@ -148,78 +143,6 @@ class BM25:
 
 
 # ---------------------------------------------------------------------------
-# GraphRAG — optional Neo4j knowledge-graph context
-# ---------------------------------------------------------------------------
-
-class GraphContext:
-    """Pulls facts from a Neo4j graph around the entities in a question.
-
-    For each meaningful question term, finds nodes whose string properties
-    contain it and returns their immediate relationships as readable triples:
-        (Dana:Person) -[KNOWS]-> (Yossi:Person)
-    """
-
-    def __init__(self, uri: str, user: str, password: str):
-        from neo4j import GraphDatabase  # pip install neo4j
-        self.driver = GraphDatabase.driver(uri, auth=(user, password))
-        self.driver.verify_connectivity()
-
-    @staticmethod
-    def describe(node) -> str:
-        props = dict(node)
-        name = next((props[k] for k in ("name", "title", "id", "label")
-                     if props.get(k)), None) or str(props)[:60]
-        labels = ":".join(node.labels) or "Node"
-        return f"({name}:{labels})"
-
-    def facts(self, question: str, limit: int = 30) -> list[str]:
-        terms = [t for t in set(tokenize(question)) if len(t) > 2][:8]
-        if not terms:
-            return []
-        facts: list[str] = []
-        with self.driver.session() as session:
-            for term in terms:
-                result = session.run(
-                    "MATCH (n) "
-                    "WHERE any(k IN keys(n) WHERE toLower(toString(n[k])) CONTAINS $term) "
-                    "OPTIONAL MATCH (n)-[r]-(m) "
-                    "RETURN n, type(r) AS rel, m, startNode(r) = n AS outgoing "
-                    "LIMIT $limit",
-                    term=term, limit=limit)
-                for record in result:
-                    n = self.describe(record["n"])
-                    if record["rel"] is None:
-                        facts.append(n)
-                    elif record["outgoing"]:
-                        facts.append(f"{n} -[{record['rel']}]-> {self.describe(record['m'])}")
-                    else:
-                        facts.append(f"{self.describe(record['m'])} -[{record['rel']}]-> {n}")
-        seen, unique = set(), []
-        for fact in facts:
-            if fact not in seen:
-                seen.add(fact)
-                unique.append(fact)
-        return unique[:limit]
-
-
-def connect_graph() -> GraphContext | None:
-    import os
-
-    uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
-    user = os.environ.get("NEO4J_USER", "neo4j")
-    password = os.environ.get("NEO4J_PASSWORD", "")
-    try:
-        graph = GraphContext(uri, user, password)
-        print(f"Graph connected: {uri}")
-        return graph
-    except ImportError:
-        print("Graph disabled: pip install neo4j")
-    except Exception as exc:
-        print(f"Graph disabled: cannot reach {uri} ({exc})")
-    return None
-
-
-# ---------------------------------------------------------------------------
 # Memory
 # ---------------------------------------------------------------------------
 
@@ -240,13 +163,11 @@ def save_memory(memory: list[dict]) -> None:
 
 SYSTEM = """You are a personal assistant answering questions about the user's own documents.
 Ground every answer in the provided context chunks and cite the source file names.
-A <graph> section, when present, contains facts from the user's personal knowledge
-graph — treat them as reliable structured facts and cite them as (graph).
 If the context doesn't contain the answer, say so plainly instead of guessing.
 Answer in the language the user asked in."""
 
 
-def chat(index: BM25, graph: GraphContext | None = None) -> None:
+def chat(index: BM25) -> None:
     import anthropic
 
     client = anthropic.Anthropic()
@@ -264,10 +185,6 @@ def chat(index: BM25, graph: GraphContext | None = None) -> None:
         context = "\n\n---\n\n".join(f"[{c['source']}]\n{c['text']}" for c in retrieved) \
             or "(no relevant chunks found)"
         user_content = f"<context>\n{context}\n</context>"
-        if graph is not None:
-            facts = graph.facts(question)
-            if facts:
-                user_content += "\n\n<graph>\n" + "\n".join(facts) + "\n</graph>"
         user_content += f"\n\nQuestion: {question}"
         messages = memory + [{"role": "user", "content": user_content}]
 
@@ -306,9 +223,6 @@ def main() -> None:
     parser.add_argument("--exclude", nargs="*", default=[],
                         help="Extra folder-name patterns to skip "
                              f"(always skipped: {', '.join(DEFAULT_EXCLUDES[:5])}...)")
-    parser.add_argument("--graph", action="store_true",
-                        help="Also pull facts from a Neo4j knowledge graph "
-                             "(NEO4J_URI / NEO4J_USER / NEO4J_PASSWORD)")
     parser.add_argument("--search", help="Test retrieval only: print top chunks, no API call")
     parser.add_argument("--forget", action="store_true", help="Clear conversation memory")
     args = parser.parse_args()
@@ -328,8 +242,7 @@ def main() -> None:
             print(f"\n--- {c['source']} (score {c['score']}) ---\n{c['text'][:400]}")
         return
 
-    graph = connect_graph() if args.graph else None
-    chat(index, graph)
+    chat(index)
 
 
 if __name__ == "__main__":

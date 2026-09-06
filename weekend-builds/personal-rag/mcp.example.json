@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "personal-rag": {
+      "command": "python",
+      "args": [
+        "C:\\Users\\User\\couple-lab\\weekend-builds\\personal-rag\\rag_mcp.py"
+      ],
+      "env": {
+        "PYTHONUTF8": "1"
+      }
+    }
+  }
+}
