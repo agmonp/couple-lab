@@ -1,0 +1,5 @@
+# One feed URL per line. Lines starting with # are ignored.
+https://hnrss.org/frontpage
+https://www.anthropic.com/news/rss.xml
+https://simonwillison.net/atom/everything/
+# Add your own: blogs, subreddits (https://www.reddit.com/r/X/.rss), news…

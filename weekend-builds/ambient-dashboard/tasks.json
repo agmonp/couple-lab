@@ -1,0 +1,6 @@
+[
+  { "text": "Buy groceries for the week", "done": false },
+  { "text": "Reply to the landlord", "done": false },
+  { "text": "Book dentist appointment", "done": true },
+  { "text": "Read 20 pages", "done": false }
+]

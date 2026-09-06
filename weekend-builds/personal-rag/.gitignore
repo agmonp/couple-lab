@@ -1,0 +1,6 @@
+# Local machine artifacts — not for version control
+.rag_index_cache.pkl
+memory.json
+docs/
+__pycache__/
+*.pyc

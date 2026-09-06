@@ -1,0 +1,26 @@
+{
+  "decision": "Take the startup offer vs. stay at the current job (5-year view)",
+  "notes": "Scores are subjective utility points, not money. Weights must reflect what YOU care about.",
+  "options": [
+    {
+      "name": "Join the startup",
+      "factors": [
+        {"name": "compensation (incl. equity outcome)", "min": -20, "mode": 5, "max": 90, "weight": 0.30},
+        {"name": "learning & growth", "min": 40, "mode": 70, "max": 95, "weight": 0.25},
+        {"name": "stress & hours", "min": -80, "mode": -45, "max": -10, "weight": 0.20},
+        {"name": "career optionality after", "min": 10, "mode": 50, "max": 85, "weight": 0.15},
+        {"name": "day-to-day enjoyment", "min": 20, "mode": 60, "max": 90, "weight": 0.10}
+      ]
+    },
+    {
+      "name": "Stay at current job",
+      "factors": [
+        {"name": "compensation (incl. equity outcome)", "min": 20, "mode": 35, "max": 55, "weight": 0.30},
+        {"name": "learning & growth", "min": 10, "mode": 30, "max": 60, "weight": 0.25},
+        {"name": "stress & hours", "min": -40, "mode": -20, "max": 0, "weight": 0.20},
+        {"name": "career optionality after", "min": 15, "mode": 35, "max": 60, "weight": 0.15},
+        {"name": "day-to-day enjoyment", "min": 15, "mode": 40, "max": 70, "weight": 0.10}
+      ]
+    }
+  ]
+}
