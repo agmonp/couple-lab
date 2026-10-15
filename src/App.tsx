@@ -4032,6 +4032,14 @@ function PracticeStudio({
           errorCode: result.metadata?.fallbackReason ?? "unknown"
         });
       }
+      if (result.metadata?.engineFallbackReason) {
+        void logDiagnostic({
+          name: "transcription.engine_fallback",
+          status: "error",
+          phase: result.metadata.modelId,
+          errorCode: result.metadata.engineFallbackReason.slice(0, 200)
+        });
+      }
       setSpeechStatus("מזהים מי אמר מה…");
       const attributedLocalSegments = await attributeSpeakersToLocalSegments(localSegments, samples, segmentation);
       const nextSegments = [...segmentsRef.current, ...attributedLocalSegments];

@@ -320,6 +320,27 @@ async function getTranscriptionWorker() {
   return transcriptionWorkerStarting;
 }
 
+/**
+ * The Hebrew GPU engine: faster-whisper with ivrit-ai whisper-large-v3-turbo,
+ * run by electron/whisper-engine.py from the project's .venv-asr
+ * (scripts/install-hebrew-asr.ps1 creates it). Only for the unpackaged app,
+ * where the script is a real file. COUPLE_LAB_ASR_PYTHON points at another
+ * Python that has faster-whisper; COUPLE_LAB_ASR_ENGINE=off disables it.
+ */
+async function resolveWhisperEngine() {
+  if (app.isPackaged || process.env.COUPLE_LAB_ASR_ENGINE === "off") return null;
+  const venv = path.resolve(__dirname, "..", ".venv-asr");
+  const python = process.env.COUPLE_LAB_ASR_PYTHON
+    || (process.platform === "win32" ? path.join(venv, "Scripts", "python.exe") : path.join(venv, "bin", "python"));
+  const script = path.join(__dirname, "whisper-engine.py");
+  try {
+    await Promise.all([fs.access(python), fs.access(script)]);
+    return { python, script };
+  } catch {
+    return null;
+  }
+}
+
 async function startTranscriptionWorker() {
   const model = await resolveTranscriptionModel();
   transcriptionWorker = new Worker(path.join(__dirname, "transcription-worker.cjs"), {
@@ -328,7 +349,8 @@ async function startTranscriptionWorker() {
       decoderPath: model.decoderPath,
       tokensPath: model.tokensPath,
       modelId: model.modelId,
-      vadPath: vadModelPath()
+      vadPath: vadModelPath(),
+      whisperEngine: await resolveWhisperEngine()
     }
   });
   transcriptionWorker.on("message", ({ id, ok, result, error }) => {
@@ -536,7 +558,7 @@ function registerIpcHandlers() {
       }
       return {
         ...status,
-        modelId: model.modelId,
+        modelId: status.modelId || model.modelId,
         vadReady: Boolean(status.vadReady && vadFileReady),
         vadModelId: "silero-vad"
       };
@@ -621,7 +643,7 @@ function createWindow() {
         const result = await win.webContents.executeJavaScript(
           "new Promise((resolve) => setTimeout(resolve, 500)).then(async () => { const edit = [...document.querySelectorAll('button')].find((button) => button.textContent.includes('עריכת ההגדרות')); edit?.click(); await new Promise((resolve) => setTimeout(resolve, 100)); const visionResponses = await Promise.all(['./mediapipe/wasm/vision_wasm_internal.js', './mediapipe/wasm/vision_wasm_internal.wasm', './models/face_landmarker.task', './models/pose_landmarker_lite.task'].map(async (url) => { const response = await fetch(url); return { url, ok: response.ok, bytes: (await response.arrayBuffer()).byteLength }; })); const body = document.body.innerText; return { title: document.title, origin: window.location.origin, direction: document.documentElement.dir, setupEntryVisible: body.includes('נכיר אתכם, נבין מה חשוב לכם') || body.includes('נכיר כל אחד מכם בכמה דקות') || body.includes('כמה פרטים שיעזרו לנו ללוות אתכם'), desktopRuntimeVisible: !body.includes('הזיהוי האוטומטי אינו זמין בחלון הזה'), visionResponses, voiceModel: await window.coupleLabDesktop.getVoiceModelStatus(), transcriptionModel: await window.coupleLabDesktop.getTranscriptionModelStatus(), runtime: await window.coupleLabDesktop.getRuntimeInfo() }; })"
         );
-        if (result.title !== "Couple Lab" || result.origin !== APP_ORIGIN || result.direction !== "rtl" || !result.setupEntryVisible || !result.desktopRuntimeVisible || !result.runtime?.isDesktop || !result.voiceModel?.ready || !result.transcriptionModel?.ready || !Array.isArray(result.visionResponses) || result.visionResponses.some((asset) => !asset.ok || asset.bytes < 1000)) {
+        if (!/(^| — )Couple Lab$/.test(result.title) || result.origin !== APP_ORIGIN || result.direction !== "rtl" || !result.setupEntryVisible || !result.desktopRuntimeVisible || !result.runtime?.isDesktop || !result.voiceModel?.ready || !result.transcriptionModel?.ready || !Array.isArray(result.visionResponses) || result.visionResponses.some((asset) => !asset.ok || asset.bytes < 1000)) {
           throw new Error(`desktop-ui-smoke-assertion-failed: ${JSON.stringify(result)}`);
         }
         process.stdout.write(`${JSON.stringify(result)}\n`);

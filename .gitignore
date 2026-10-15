@@ -17,3 +17,5 @@ output/
 *.onnx
 *.tar.bz2
 *.wav
+
+.venv-asr/

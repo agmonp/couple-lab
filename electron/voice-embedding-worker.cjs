@@ -17,7 +17,9 @@ function getExtractor() {
   const { SpeakerEmbeddingExtractor } = require("sherpa-onnx-node");
   extractor = new SpeakerEmbeddingExtractor({
     model: workerData.modelPath,
-    numThreads: 2,
+    // One thread: extra ONNX Runtime threads spin-wait on clips this short.
+    // Measured in the Shema project: identical vectors (cos 1.0), ~3x less CPU.
+    numThreads: 1,
     debug: false,
     provider: "cpu"
   });

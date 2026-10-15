@@ -147,6 +147,13 @@ export interface LocalTranscriptionMetadata {
   modelId: string;
   vadModelId?: string;
   segmentation: "silero-vad" | "full-audio-fallback";
+  /** Decode-window rule, e.g. "overlap+vadnorm" (GPU engine only). */
+  segmentationPreset?: string;
+  /** e.g. "faster-whisper-cuda"; absent for the sherpa-onnx engine. */
+  engine?: string;
+  /** Why the GPU engine was skipped and sherpa-onnx transcribed instead. */
+  engineFallbackReason?: string;
+  decodeWindowCount?: number;
   vadApplied: boolean;
   fallbackReason?: string;
   audioDurationSeconds: number;

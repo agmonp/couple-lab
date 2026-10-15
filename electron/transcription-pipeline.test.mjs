@@ -3,11 +3,91 @@ import pipeline from "./transcription-pipeline.cjs";
 
 const {
   aggregateRecognitionQuality,
+  isHallucination,
+  keepWhisperSegment,
   recognitionQuality,
   removeRepeatedPrefix,
+  uncoveredGaps,
   vadCoverage,
-  vadSegmentsToDecodeRanges
+  vadSegmentsToDecodeRanges,
+  vadSegmentsToWordWindows,
+  vadView,
+  whisperWindowsToSegments
 } = pipeline;
+
+const whisperSegment = (words, extra = {}) => ({
+  text: words.map((word) => word[2]).join(" "),
+  avgLogprob: -0.2,
+  noSpeechProb: 0.01,
+  tokenCount: words.length + 2,
+  words,
+  ...extra
+});
+
+describe("lessons ported from Shema ASR 2.0", () => {
+  it("raises quiet audio for the VAD only, capped at 30 dB", () => {
+    const quiet = new Float32Array([0.001, -0.002, 0.0005]);
+    const view = vadView(quiet);
+    expect(view[1]).toBeCloseTo(-0.002 * 10 ** 1.5, 6);
+    expect(quiet[1]).toBe(Math.fround(-0.002));
+    const loud = vadView(new Float32Array([0.1, -0.25]));
+    expect(loud[1]).toBeCloseTo(-0.5, 6);
+    const silence = new Float32Array(4);
+    expect(vadView(silence)).toBe(silence);
+  });
+
+  it("joins close speech, pads 0.5 s and splits long stretches into overlapping 20 s windows", () => {
+    const sampleRate = 100;
+    const windows = vadSegmentsToWordWindows([
+      { start: 100, sampleCount: 100 },   // 1-2 s
+      { start: 250, sampleCount: 100 },   // 2.5-3.5 s, gap 0.5 s -> joined
+      { start: 1000, sampleCount: 4500 }  // 10-55 s -> three pieces
+    ], 6000, { sampleRate });
+    expect(windows[0]).toMatchObject({ startSample: 50, endSample: 400, ownStartSeconds: 0, ownEndSeconds: 6.75 });
+    expect(windows.slice(1).map((window) => [window.speechStartSample, window.speechEndSample]))
+      .toEqual([[1000, 3000], [2800, 4800], [4600, 5500]]);
+    // The overlap is owned half by each piece, so no word is stored twice.
+    expect(windows[1].ownEndSeconds).toBe(29);
+    expect(windows[2].ownStartSeconds).toBe(29);
+    expect(windows[3].ownEndSeconds).toBe(60);
+  });
+
+  it("finds the silent stretches for the second, locally normalised VAD pass", () => {
+    expect(uncoveredGaps([
+      { start: 200, sampleCount: 100 },
+      { start: 250, sampleCount: 100 },
+      { start: 400, sampleCount: 100 }
+    ], 1000, 100)).toEqual([
+      { startSample: 0, endSample: 200 },
+      { startSample: 500, endSample: 1000 }
+    ]);
+    expect(uncoveredGaps([], 50, 100)).toEqual([]);
+  });
+
+  it("drops the subtitle-credit hallucinations and low-confidence segments", () => {
+    expect(isHallucination("תודה רבה.")).toBe(true);
+    expect(isHallucination("Thanks for watching!")).toBe(true);
+    expect(isHallucination("תודה רבה שבאת")).toBe(false);
+    expect(keepWhisperSegment(whisperSegment([[0, 1, "שלום"]]))).toBe(true);
+    expect(keepWhisperSegment(whisperSegment([[0, 1, "שלום"]], { noSpeechProb: 0.7 }))).toBe(false);
+    expect(keepWhisperSegment(whisperSegment([[0, 1, "שלום"]], { avgLogprob: -1.5 }))).toBe(false);
+  });
+
+  it("keeps each word once across overlapping windows", () => {
+    const windows = [
+      { ownStartSeconds: 0, ownEndSeconds: 29 },
+      { ownStartSeconds: 29, ownEndSeconds: 60 }
+    ];
+    const decoded = [
+      { segments: [whisperSegment([[27, 27.8, "אני"], [28.6, 29.2, "חושבת"], [29.3, 29.9, "שכן"]])] },
+      { segments: [whisperSegment([[28.62, 29.18, "חושבת"], [29.3, 29.9, "שכן"], [30, 30.5, "לגמרי"]])] }
+    ];
+    const lines = whisperWindowsToSegments(windows, decoded);
+    expect(lines.map((line) => line.text).join(" ")).toBe("אני חושבת שכן לגמרי");
+    expect(lines[0]).toMatchObject({ startSeconds: 27, endSeconds: 29.2 });
+    expect(lines[0].quality.confidenceLevel).toBe("high");
+  });
+});
 
 describe("local transcription pipeline helpers", () => {
   it("pads and merges nearby VAD speech without exceeding the audio", () => {

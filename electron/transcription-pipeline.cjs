@@ -224,10 +224,208 @@ function removeRepeatedPrefix(previousText, currentText, maximumWords = 12) {
   return currentWords.slice(overlap).join(" ").trim();
 }
 
+/*
+ * Lessons ported from the Shema project's ASR 2.0 benchmark (FLEURS Hebrew,
+ * phone-like conditions, RTX 5070 Ti, 2026-10-15):
+ *
+ * - "vadnorm": the VAD hears a copy raised to a fixed peak, Whisper still gets
+ *   the original. Quiet speakers (a phone on a table across the room) lost
+ *   whole sentences to the VAD: WER 28.2% -> 20.9% at -50 dBFS, no cost.
+ * - "overlap": pad 0.5 s, join regions closer than 0.8 s up to 28 s, cut
+ *   longer stretches into 20 s windows overlapping by 2 s, and let exactly one
+ *   window own each word (the one whose span holds the word's midpoint).
+ *   Together "overlap+vadnorm" was better or equal in every condition:
+ *   -3% relative on normal phone audio, -5% in noise, -27% for quiet speakers.
+ * - keep-filter: drop a Whisper segment when no_speech_prob >= 0.6, average
+ *   log-prob <= -1.2, or it is a known subtitle-credit hallucination.
+ */
+const WORD_WINDOW_DEFAULTS = {
+  paddingSeconds: 0.5,
+  mergeGapSeconds: 0.8,
+  maxMergeSeconds: 28,
+  minSpeechSeconds: 0.25,
+  splitSeconds: 20,
+  overlapSeconds: 2
+};
+const SEGMENTATION_PRESET = "overlap+vadnorm";
+
+// Whisper writes these on silence and noise (subtitle credits in its training data).
+const HALLUCINATIONS = new Set([
+  "תודה רבה", "תודה", "תודה רבה לכם", "תודה רבה לצפייה", "תודה שצפיתם", "תודה על הצפייה",
+  "כתוביות", "תרגום", "מתורגמן", "שבת שלום", "thank you", "thanks for watching", "you"
+]);
+
+function isHallucination(text) {
+  const normalized = String(text || "")
+    .replace(/[‏‪-‮.,!?״"' ]+/g, " ")
+    .trim()
+    .toLocaleLowerCase("he");
+  return HALLUCINATIONS.has(normalized);
+}
+
+/** What the VAD listens to: the audio scaled to a fixed peak, never more than 30 dB of gain so hiss stays hiss. */
+function vadView(samples, peak = 0.5, maxGainDb = 30) {
+  let maximum = 0;
+  for (let index = 0; index < samples.length; index += 1) {
+    const value = Math.abs(samples[index]);
+    if (value > maximum) maximum = value;
+  }
+  if (!(maximum > 0)) return samples;
+  const gain = Math.min(peak / maximum, 10 ** (maxGainDb / 20));
+  const scaled = new Float32Array(samples.length);
+  for (let index = 0; index < samples.length; index += 1) scaled[index] = samples[index] * gain;
+  return scaled;
+}
+
+/**
+ * Stretches the VAD called silent, for a second, locally normalised VAD pass.
+ * Whole-file vadnorm cannot lift one quiet partner sitting next to a loud one:
+ * on FLEURS recordings a sentence 37-43 dB below its neighbours was never
+ * decoded, although Whisper read it correctly once it was handed the audio.
+ */
+function uncoveredGaps(vadSegments, totalSamples, minimumGapSamples) {
+  const gaps = [];
+  let cursor = 0;
+  for (const range of unionRanges(rawVadRanges(vadSegments, totalSamples))) {
+    if (range.startSample - cursor >= minimumGapSamples) gaps.push({ startSample: cursor, endSample: range.startSample });
+    cursor = Math.max(cursor, range.endSample);
+  }
+  if (totalSamples - cursor >= minimumGapSamples) gaps.push({ startSample: cursor, endSample: totalSamples });
+  return gaps;
+}
+
+/**
+ * VAD segments -> decode windows. startSample/endSample is the padded slice the
+ * model hears; ownStartSeconds/ownEndSeconds is the span whose words this
+ * window keeps (half way to the neighbouring speech), so padding and the 2 s
+ * overlap never store a word twice.
+ */
+function vadSegmentsToWordWindows(vadSegments, totalSamples, options = {}) {
+  const sampleRate = Number.isFinite(options.sampleRate) && options.sampleRate > 0
+    ? options.sampleRate
+    : DEFAULT_SAMPLE_RATE;
+  const settings = { ...WORD_WINDOW_DEFAULTS, ...options };
+  const regions = [];
+  for (const range of rawVadRanges(vadSegments, totalSamples)) {
+    const previous = regions[regions.length - 1];
+    if (previous
+      && range.startSample - previous.endSample < settings.mergeGapSeconds * sampleRate
+      && range.endSample - previous.startSample < settings.maxMergeSeconds * sampleRate) {
+      previous.endSample = Math.max(previous.endSample, range.endSample);
+    } else {
+      regions.push({ ...range });
+    }
+  }
+  const kept = regions.filter((region) => region.endSample - region.startSample >= settings.minSpeechSeconds * sampleRate);
+  const padding = Math.round(settings.paddingSeconds * sampleRate);
+  const split = Math.round(settings.splitSeconds * sampleRate);
+  const step = Math.max(sampleRate, Math.round((settings.splitSeconds - settings.overlapSeconds) * sampleRate));
+  const windows = [];
+
+  kept.forEach((region, index) => {
+    const ownStart = index === 0 ? 0 : (kept[index - 1].endSample + region.startSample) / 2 / sampleRate;
+    const ownEnd = index === kept.length - 1
+      ? totalSamples / sampleRate
+      : (region.endSample + kept[index + 1].startSample) / 2 / sampleRate;
+    const pieces = [];
+    if (split > 0 && region.endSample - region.startSample > split) {
+      for (let cursor = region.startSample; ; cursor += step) {
+        const end = Math.min(region.endSample, cursor + split);
+        pieces.push([cursor, end]);
+        if (end >= region.endSample) break;
+      }
+    } else {
+      pieces.push([region.startSample, region.endSample]);
+    }
+    pieces.forEach(([start, end], pieceIndex) => {
+      windows.push({
+        startSample: Math.max(0, start - padding),
+        endSample: Math.min(totalSamples, end + padding),
+        speechStartSample: start,
+        speechEndSample: end,
+        ownStartSeconds: round(pieceIndex === 0 ? ownStart : (pieces[pieceIndex - 1][1] + start) / 2 / sampleRate),
+        ownEndSeconds: round(pieceIndex === pieces.length - 1 ? ownEnd : (end + pieces[pieceIndex + 1][0]) / 2 / sampleRate)
+      });
+    });
+  });
+  return windows;
+}
+
+function ownsWord(window, word) {
+  const middle = (word[0] + word[1]) / 2;
+  return window.ownStartSeconds <= middle && middle < window.ownEndSeconds;
+}
+
+function keepWhisperSegment(segment) {
+  return Number(segment?.noSpeechProb) < 0.6
+    && Number(segment?.avgLogprob) > -1.2
+    && !isHallucination(segment?.text);
+}
+
+function wordKey(text) {
+  return String(text || "").toLocaleLowerCase("he").replace(/[^\p{L}\p{N}]/gu, "");
+}
+
+/**
+ * Whisper segments decoded per window -> transcript segments with owned words
+ * only. An exact re-read at a window seam (same word, times overlapping by more
+ * than half of the shorter copy) is dropped; different words that overlap are
+ * kept, since two partners can talk at once.
+ */
+function whisperWindowsToSegments(windows, decodedWindows) {
+  const lines = [];
+  windows.forEach((window, windowIndex) => {
+    for (const segment of decodedWindows[windowIndex]?.segments ?? []) {
+      if (!keepWhisperSegment(segment)) continue;
+      const words = (segment.words ?? []).filter((word) => wordKey(word[2]) && ownsWord(window, word));
+      if (words.length) lines.push({ segment, words });
+    }
+  });
+  lines.sort((left, right) => left.words[0][0] - right.words[0][0]);
+
+  let previousWord = null;
+  const output = [];
+  for (const line of lines) {
+    const words = [];
+    for (const word of line.words) {
+      if (previousWord) {
+        const overlap = Math.min(previousWord[1], word[1]) - Math.max(previousWord[0], word[0]);
+        const shorter = Math.max(Math.min(previousWord[1] - previousWord[0], word[1] - word[0]), 0.01);
+        if (wordKey(previousWord[2]) === wordKey(word[2]) && overlap > 0.5 * shorter) continue;
+      }
+      words.push(word);
+      previousWord = word;
+    }
+    if (!words.length) continue;
+    const averageLogProbability = Number(line.segment.avgLogprob);
+    const confidenceProxy = clamp(Math.exp(Math.min(0, averageLogProbability)), 0, 1);
+    output.push({
+      text: words.map((word) => word[2]).join(" "),
+      startSeconds: round(words[0][0]),
+      endSeconds: round(Math.max(words[0][0], words[words.length - 1][1])),
+      quality: {
+        averageLogProbability: round(averageLogProbability, 4),
+        confidenceProxy: round(confidenceProxy, 4),
+        confidenceLevel: confidenceLevel(confidenceProxy),
+        tokenCount: Math.max(0, Number(line.segment.tokenCount) || 0),
+        timestampCount: words.length
+      }
+    });
+  }
+  return output;
+}
+
 module.exports = {
+  SEGMENTATION_PRESET,
   aggregateRecognitionQuality,
+  isHallucination,
+  keepWhisperSegment,
   recognitionQuality,
   removeRepeatedPrefix,
+  uncoveredGaps,
   vadCoverage,
-  vadSegmentsToDecodeRanges
+  vadSegmentsToDecodeRanges,
+  vadSegmentsToWordWindows,
+  vadView,
+  whisperWindowsToSegments
 };

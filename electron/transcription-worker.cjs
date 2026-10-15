@@ -1,10 +1,21 @@
 const { parentPort, workerData } = require("node:worker_threads");
+const { spawn } = require("node:child_process");
+const fs = require("node:fs/promises");
+const os = require("node:os");
+const path = require("node:path");
+const readline = require("node:readline");
 const {
+  SEGMENTATION_PRESET,
   aggregateRecognitionQuality,
+  isHallucination,
   recognitionQuality,
   removeRepeatedPrefix,
+  uncoveredGaps,
   vadCoverage,
-  vadSegmentsToDecodeRanges
+  vadSegmentsToDecodeRanges,
+  vadSegmentsToWordWindows,
+  vadView,
+  whisperWindowsToSegments
 } = require("./transcription-pipeline.cjs");
 
 if (!parentPort) throw new Error("transcription-worker-missing-parent-port");
@@ -16,6 +27,10 @@ const VAD_WINDOW_SAMPLES = 512;
 const recognizers = new Map();
 let vad = null;
 let workQueue = Promise.resolve();
+let whisperEngine = null;
+let whisperEngineRequestId = 0;
+let whisperEngineModelId = null;
+let whisperEngineError = null;
 
 function languageCode(language) {
   return language === "en-US" ? "en" : "he";
@@ -114,6 +129,24 @@ function detectSpeech(samples) {
   }
 }
 
+/**
+ * VAD on the whole-file normalised view, then once more on every stretch it
+ * called silent, each raised to its own peak (up to 40 dB), so a quiet partner
+ * next to a loud one is still heard. Whisper always gets the original audio.
+ */
+function detectSpeechBothLevels(samples) {
+  const detected = detectSpeech(vadView(samples));
+  for (const gap of uncoveredGaps(detected, samples.length, SAMPLE_RATE)) {
+    const slice = samples.subarray(gap.startSample, gap.endSample);
+    const local = vadView(slice, 0.5, 40);
+    if (local === slice) continue;
+    for (const segment of detectSpeech(local)) {
+      detected.push({ start: segment.start + gap.startSample, sampleCount: segment.sampleCount });
+    }
+  }
+  return detected.sort((left, right) => left.start - right.start);
+}
+
 async function decodeSamples(recognizer, samples, requestedLanguage) {
   const stream = recognizer.createStream();
   stream.acceptWaveform({ sampleRate: SAMPLE_RATE, samples });
@@ -136,9 +169,124 @@ function timelineSegments(detected, totalSamples) {
     .sort((left, right) => left.startSeconds - right.startSeconds);
 }
 
+/**
+ * The local GPU engine (electron/whisper-engine.py, faster-whisper with the
+ * ivrit-ai Hebrew turbo model). One long-lived Python process; requests are
+ * JSON lines. Started lazily; if it is missing or dies, the worker keeps using
+ * sherpa-onnx and reports why.
+ */
+function startWhisperEngine() {
+  const config = workerData.whisperEngine;
+  if (!config) throw new Error("whisper-engine-not-configured");
+  const child = spawn(config.python, ["-I", config.script], {
+    windowsHide: true,
+    stdio: ["pipe", "pipe", "pipe"],
+    env: { ...process.env, PYTHONIOENCODING: "utf-8", HF_HUB_OFFLINE: "1", ...(config.env || {}) }
+  });
+  const engine = { child, pending: new Map(), stderr: "" };
+  const fail = (error) => {
+    for (const request of engine.pending.values()) request.reject(error);
+    engine.pending.clear();
+    if (whisperEngine === engine) whisperEngine = null;
+  };
+  child.on("error", fail);
+  child.on("exit", (code) => fail(new Error(`whisper-engine-exited-${code}: ${engine.stderr.slice(-300).trim()}`)));
+  child.stderr.on("data", (chunk) => {
+    engine.stderr = (engine.stderr + chunk.toString("utf8")).slice(-4000);
+  });
+  readline.createInterface({ input: child.stdout }).on("line", (line) => {
+    let reply;
+    try {
+      reply = JSON.parse(line);
+    } catch {
+      return;
+    }
+    const request = engine.pending.get(reply.id);
+    if (!request) return;
+    engine.pending.delete(reply.id);
+    if (reply.ok) request.resolve(reply.result);
+    else request.reject(new Error(reply.error || "whisper-engine-failed"));
+  });
+  return engine;
+}
+
+function requestWhisperEngine(message) {
+  if (!whisperEngine) whisperEngine = startWhisperEngine();
+  const engine = whisperEngine;
+  return new Promise((resolve, reject) => {
+    const id = ++whisperEngineRequestId;
+    engine.pending.set(id, { resolve, reject });
+    engine.child.stdin.write(`${JSON.stringify({ id, ...message })}\n`, "utf8", (error) => {
+      if (error) {
+        engine.pending.delete(id);
+        reject(error);
+      }
+    });
+  });
+}
+
+async function whisperEngineStatus() {
+  if (!workerData.whisperEngine) return null;
+  if (whisperEngineModelId) return { modelId: whisperEngineModelId };
+  try {
+    const status = await requestWhisperEngine({ type: "status" });
+    whisperEngineModelId = `${status.modelId}${status.device === "cuda" ? "" : `-${status.device}`}`;
+    whisperEngineError = null;
+    return { modelId: whisperEngineModelId };
+  } catch (error) {
+    whisperEngineError = error instanceof Error ? error.message : String(error);
+    return null;
+  }
+}
+
+async function transcribeWithWhisperEngine(samples, language) {
+  const detected = detectSpeechBothLevels(samples);
+  const coverage = vadCoverage(detected, samples.length, SAMPLE_RATE);
+  const windows = vadSegmentsToWordWindows(detected, samples.length, { sampleRate: SAMPLE_RATE });
+  let decoded = { windows: [] };
+  if (windows.length) {
+    const audioPath = path.join(os.tmpdir(), `couple-lab-asr-${process.pid}-${Date.now()}.f32`);
+    try {
+      // The recording only touches disk for the duration of this call.
+      await fs.writeFile(audioPath, Buffer.from(samples.buffer, samples.byteOffset, samples.byteLength));
+      decoded = await requestWhisperEngine({
+        type: "transcribe",
+        audioPath,
+        language: languageCode(language),
+        windows: windows.map((window) => ({ a0: window.startSample, b0: window.endSample }))
+      });
+    } finally {
+      await fs.rm(audioPath, { force: true }).catch(() => undefined);
+    }
+  }
+  const lineLanguage = language === "en-US" ? "en-US" : "he-IL";
+  const segments = whisperWindowsToSegments(windows, decoded.windows)
+    .map((segment) => ({ ...segment, language: lineLanguage }));
+  return {
+    text: segments.map((segment) => segment.text).join(" ").trim(),
+    language: lineLanguage,
+    segments,
+    speechSegments: timelineSegments(detected, samples.length),
+    metadata: {
+      modelId: whisperEngineModelId || "ivrit-ai-whisper-large-v3-turbo",
+      vadModelId: VAD_MODEL_ID,
+      segmentation: "silero-vad",
+      segmentationPreset: SEGMENTATION_PRESET,
+      engine: `faster-whisper-${decoded.device || "cuda"}`,
+      vadApplied: true,
+      ...coverage,
+      detectedSpeechSegmentCount: detected.length,
+      decodeWindowCount: windows.length,
+      transcriptSegmentCount: segments.length,
+      quality: aggregateRecognitionQuality(segments.map((segment) => segment.quality))
+    }
+  };
+}
+
 async function transcribeWithVad(samples, language) {
   const recognizer = getRecognizer(language);
-  const detected = detectSpeech(samples);
+  // Same VAD as the GPU engine: quiet speakers are not lost before decoding.
+  const detected = detectSpeechBothLevels(samples);
   const coverage = vadCoverage(detected, samples.length, SAMPLE_RATE);
   const ranges = vadSegmentsToDecodeRanges(detected, samples.length, {
     sampleRate: SAMPLE_RATE,
@@ -155,6 +303,7 @@ async function transcribeWithVad(samples, language) {
       new Float32Array(samples.subarray(range.startSample, range.endSample)),
       language
     );
+    if (isHallucination(decoded.text)) continue;
     const text = removeRepeatedPrefix(previousText, decoded.text);
     if (!text) continue;
     const speechStartSample = Math.max(range.startSample, range.speechStartSample);
@@ -224,8 +373,19 @@ async function transcribeLegacy(samples, language, fallbackReason) {
 
 async function transcribe(samplesBuffer, language) {
   const samples = new Float32Array(samplesBuffer);
+  let engineFallbackReason;
+  if (workerData.whisperEngine) {
+    try {
+      await whisperEngineStatus();
+      return await transcribeWithWhisperEngine(samples, language);
+    } catch (error) {
+      engineFallbackReason = error instanceof Error ? error.message : String(error);
+    }
+  }
   try {
-    return await transcribeWithVad(samples, language);
+    const result = await transcribeWithVad(samples, language);
+    if (engineFallbackReason) result.metadata.engineFallbackReason = engineFallbackReason;
+    return result;
   } catch (error) {
     // VAD and segmented decoding are an enhancement. Preserve the previous full-audio
     // behavior if that layer cannot initialize or decode on a supported installation.
@@ -247,10 +407,17 @@ async function handleMessage({ id, type, samples, language }) {
       } catch {
         vadReady = false;
       }
+      const engine = await whisperEngineStatus();
       parentPort.postMessage({
         id,
         ok: true,
-        result: { ready: true, vadReady, modelId: MODEL_ID, vadModelId: VAD_MODEL_ID }
+        result: {
+          ready: true,
+          vadReady,
+          modelId: engine?.modelId ?? MODEL_ID,
+          vadModelId: VAD_MODEL_ID,
+          ...(workerData.whisperEngine && !engine ? { engineError: whisperEngineError } : {})
+        }
       });
       return;
     }
