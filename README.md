@@ -2,6 +2,8 @@
 
 A local, desktop-ready couples practice app for assessments, a unified Practice Studio, question prompts, guided conversation recording, tagged transcript reflection, MediaPipe face/body observations, safety checks, and exports.
 
+**Download (Windows):** https://agmonp.github.io/couple-lab/ — or grab `Couple-Lab-Windows.exe` from [the latest release](https://github.com/agmonp/couple-lab/releases/latest). It is a portable exe: no install, double-click to run.
+
 ## Run the Windows desktop app
 
 Use the `Couple Lab` desktop shortcut to launch Electron directly from the already-built local bundle and the private `couple-lab://app` origin. It does not open a browser, a command window, or a web server. Double-click `Open Couple Lab.cmd` only when you want to rebuild the local bundle before launching. A page at `127.0.0.1:5173` is a development server, not the Windows app.
