@@ -1249,12 +1249,12 @@ function FirstRunDashboard({
 }
 
 /**
- * Transcription engine status and one-click upgrade.
+ * Transcription engine status and one-click Hebrew upgrade.
  *
- * The packaged whisper-tiny pack measures around 80% word error rate on
+ * The packaged whisper-tiny pack measures around 88% word error rate on
  * Hebrew, which makes the transcript — and every metric derived from it —
- * unusable. The stronger packs are official sherpa-onnx exports, so the app
- * downloads and activates one directly. No terminal, no manual file handling.
+ * unusable. The ivrit-ai model (~550 MB, runs in the bundled whisper.cpp
+ * engine) is downloaded once from inside the app. No terminal, no manual files.
  */
 function TranscriptionEnginePanel() {
   const bridge = typeof window !== "undefined" ? window.coupleLabDesktop : undefined;
@@ -1262,7 +1262,6 @@ function TranscriptionEnginePanel() {
   const [installing, setInstalling] = useState(false);
   const [progress, setProgress] = useState<{ received: number; total: number } | null>(null);
   const [message, setMessage] = useState("");
-  const [choice, setChoice] = useState<"turbo" | "small">("turbo");
   const calibration = useMemo(() => summarizeCalibration(readCalibrationState()), [modelId, installing]);
 
   useEffect(() => {
@@ -1279,24 +1278,27 @@ function TranscriptionEnginePanel() {
 
   if (!bridge?.installTranscriptionModel) return null;
 
-  const isBasicModel = modelId.includes("tiny");
+  const isBasicModel = !modelId.includes("ivrit");
   const percent = progress && progress.total > 0
     ? Math.min(100, Math.round((progress.received / progress.total) * 100))
     : 0;
 
   const install = async () => {
     setInstalling(true);
-    setMessage("מורידים את מנוע התמלול. אפשר להמשיך להשתמש באפליקציה.");
+    setMessage("מורידים את מנוע העברית. אפשר להמשיך להשתמש באפליקציה; אם החיבור נקטע, ההורדה תמשיך מאותה נקודה.");
     setProgress({ received: 0, total: 1 });
     try {
-      const result = await bridge.installTranscriptionModel!(choice);
+      const result = await bridge.installTranscriptionModel!();
       setModelId(result.modelId);
-      setMessage("המנוע החדש פעיל. כדאי לעשות כיול קצר כדי לראות את ההבדל.");
+      setMessage("תמלול העברית המדויק פעיל מהשיחה הבאה. כדאי לעשות כיול קצר כדי לראות את ההבדל.");
     } catch (error) {
+      const text = error instanceof Error ? error.message : "";
       setMessage(
-        error instanceof Error && error.message.includes("download-failed")
-          ? "ההורדה נכשלה. בדקו את החיבור לאינטרנט ונסו שוב."
-          : "לא הצלחנו להתקין את המנוע. אפשר לנסות שוב."
+        text.includes("checksum")
+          ? "הקובץ שהורד לא עבר בדיקת תקינות ונמחק. נסו שוב."
+          : text.includes("download-failed") || text.includes("net::")
+            ? "ההורדה נעצרה. בדקו את החיבור לאינטרנט ולחצו שוב: היא תמשיך מאותה נקודה."
+            : "לא הצלחנו להתקין את המנוע. אפשר לנסות שוב."
       );
     } finally {
       setInstalling(false);
@@ -1309,7 +1311,7 @@ function TranscriptionEnginePanel() {
       <div className="engine-heading">
         <Mic size={19} aria-hidden="true" />
         <div>
-          <strong>{isBasicModel ? "מנוע התמלול הבסיסי פעיל" : "מנוע תמלול משופר פעיל"}</strong>
+          <strong>{isBasicModel ? "מנוע התמלול הבסיסי פעיל" : "תמלול עברית מדויק פעיל (ivrit.ai)"}</strong>
           <p>
             {calibration.averageWer !== null
               ? `בבדיקה האחרונה זוהו כ־${Math.max(0, Math.round((1 - calibration.averageWer) * 100))}% מהמילים שקראתם.`
@@ -1320,19 +1322,13 @@ function TranscriptionEnginePanel() {
 
       {isBasicModel && (
         <p className="engine-note">
-          המנוע הבסיסי חלש בעברית. גרסה חזקה יותר משפרת את התמלול משמעותית, ואיתו גם הסיכום,
-          זיהוי מי אמר מה והרגעים שנשמרים לכם.
+          המנוע הבסיסי חלש מאוד בעברית. המודל העברי של ivrit.ai מתמלל בערך פי שלושה יותר מילים נכון,
+          ואיתו משתפרים גם הסיכום, זיהוי מי אמר מה והרגעים שנשמרים לכם. הוא רץ על המחשב שלכם בלבד;
+          עם כרטיס מסך התמלול מהיר מאוד, ובלעדיו הוא לוקח בערך פי אחד וחצי מאורך השיחה.
         </p>
       )}
 
-      <label className="preference-field">
-        גרסה
-        <select value={choice} disabled={installing} onChange={(event) => setChoice(event.target.value as "turbo" | "small")}>
-          <option value="turbo">מדויקת — כ־1 ג׳יגה, מומלצת</option>
-          <option value="small">קלה — כ־0.4 ג׳יגה, מהירה יותר</option>
-        </select>
-        <small>ההורדה חד־פעמית ונשמרת במחשב. אפשר לחזור למנוע הקודם בכל שלב.</small>
-      </label>
+      {isBasicModel && <small className="engine-note">הורדה חד־פעמית של כ־550MB שנשמרת במחשב. ההקלטות עצמן לא יוצאות מהמחשב.</small>}
 
       {installing && (
         <div className="engine-progress" role="status" aria-live="polite">
@@ -1343,10 +1339,22 @@ function TranscriptionEnginePanel() {
         </div>
       )}
 
-      <button type="button" className="secondary" disabled={installing} onClick={() => void install()}>
-        <Download size={16} aria-hidden="true" />
-        {installing ? "מוריד…" : isBasicModel ? "שדרוג מנוע התמלול" : "החלפת מנוע התמלול"}
-      </button>
+      {isBasicModel ? (
+        <button type="button" className="secondary" disabled={installing} onClick={() => void install()}>
+          <Download size={16} aria-hidden="true" />
+          {installing ? "מוריד…" : "הורדת תמלול עברית מדויק"}
+        </button>
+      ) : bridge.removeTranscriptionModel && (
+        <button type="button" className="text-button" onClick={() => {
+          if (!window.confirm("לחזור למנוע הבסיסי ולמחוק את המודל העברי מהמחשב? אפשר להוריד אותו שוב בכל זמן.")) return;
+          void bridge.removeTranscriptionModel!().then(() => bridge.getTranscriptionModelStatus()).then((status) => {
+            setModelId(status.modelId ?? "");
+            setMessage("חזרתם למנוע הבסיסי.");
+          });
+        }}>
+          חזרה למנוע הבסיסי
+        </button>
+      )}
 
       {message && <p className="engine-message" role="status">{message}</p>}
     </div>

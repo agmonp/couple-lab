@@ -527,7 +527,8 @@ export interface CoupleLabDesktopBridge {
   getTranscriptionModelStatus: () => Promise<TranscriptionModelStatus>;
   transcribeAudio: (samples: Float32Array, language: "he-IL" | "en-US") => Promise<LocalTranscriptionResult>;
   /** Downloads and activates a stronger local transcription pack. Desktop only. */
-  installTranscriptionModel?: (model: "turbo" | "small") => Promise<{ ok: boolean; modelId: string }>;
+  installTranscriptionModel?: () => Promise<{ ok: boolean; modelId: string }>;
+  removeTranscriptionModel?: () => Promise<{ ok: boolean }>;
   /** Subscribes to install progress. Returns an unsubscribe function. */
   onTranscriptionModelProgress?: (
     listener: (progress: TranscriptionModelInstallProgress) => void

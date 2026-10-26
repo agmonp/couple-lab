@@ -4,21 +4,24 @@ A local, desktop-ready couples practice app for assessments, a unified Practice 
 
 **Download (Windows):** https://agmonp.github.io/couple-lab/ — or grab `Couple-Lab-Windows.exe` from [the latest release](https://github.com/agmonp/couple-lab/releases/latest). It is a portable exe: no install, double-click to run.
 
-## More accurate Hebrew transcription
+## Accurate Hebrew transcription
 
-The portable exe ships a small, fast transcription engine (whisper-tiny via sherpa-onnx), which is basic in Hebrew. Running from source enables the local ivrit-ai engine (faster-whisper, `ivrit-ai/whisper-large-v3-turbo-ct2`), which is much more accurate. An NVIDIA GPU is used when present; otherwise it runs on the CPU, more slowly. Everything still runs on your computer.
+The app starts with a small built-in engine (whisper-tiny), which is weak in Hebrew. From version 0.3.0, Settings has a **Download accurate Hebrew transcription** button: it downloads the [ivrit.ai](https://huggingface.co/ivrit-ai) Hebrew model once (~550 MB, `whisper-large-v3-turbo` quantized to q5_0, Apache-2.0) into your user folder, checks its SHA-256 and resumes if the connection drops. It runs in the bundled [whisper.cpp](https://github.com/ggml-org/whisper.cpp) engine: on the GPU through Vulkan when available (NVIDIA, AMD or Intel), otherwise on the CPU. Recordings never leave the computer.
 
-You need [Node.js 20+](https://nodejs.org/), [Python 3.10–3.12](https://www.python.org/downloads/) and [Git](https://git-scm.com/download/win). In PowerShell:
+Measured on 20 FLEURS Hebrew sentences (181 s of read speech) through the app's own pipeline (`scripts/bench-hebrew-asr.cjs`):
 
-```powershell
-git clone https://github.com/agmonp/couple-lab.git
-cd couple-lab
-npm install
-powershell -ExecutionPolicy Bypass -File .\scripts\install-hebrew-asr.ps1
-npm run desktop:run
-```
+| Engine | WER | Compute time per second of audio |
+|---|---|---|
+| whisper-tiny (built in) | 88.8% | 0.05 s |
+| ivrit.ai q5_0, whisper.cpp, CPU (16 threads available, 8 used) | 25.8% | 1.36 s |
+| ivrit.ai q5_0, whisper.cpp, Vulkan (RTX 5070 Ti) | 25.5% | 0.07 s |
+| ivrit.ai fp16, faster-whisper, CUDA (run from source) | 26.1% | 0.04 s |
 
-The install script downloads the model once (~1.6 GB). To roll back, delete `.venv-asr`.
+Much of the remaining WER is the reference spelling numbers and abbreviations differently ("10 000" vs "עשרת אלפים"). Read speech is easier than a real conversation, so take these as a direction, not a promise.
+
+The engine and the quantized model are built by `.github/workflows/build-asr-engine.yml` and published to the `asr-engine-v1` release. Before packaging, run `scripts/fetch-asr-engine.ps1` to place the engine in `vendor/whisper-engine`.
+
+Running from source can also use the faster-whisper engine (`scripts/install-hebrew-asr.ps1`, needs Python 3.10–3.12; delete `.venv-asr` to roll back).
 
 The small bundled models in `models/` are not in git. Fetch them once from the official sherpa-onnx releases (~140 MB), before `npm run desktop:run`:
 

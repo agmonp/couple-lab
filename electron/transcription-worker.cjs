@@ -17,6 +17,7 @@ const {
   vadView,
   whisperWindowsToSegments
 } = require("./transcription-pipeline.cjs");
+const { WhisperCppEngine } = require("./whispercpp-engine.cjs");
 
 if (!parentPort) throw new Error("transcription-worker-missing-parent-port");
 
@@ -31,6 +32,26 @@ let whisperEngine = null;
 let whisperEngineRequestId = 0;
 let whisperEngineModelId = null;
 let whisperEngineError = null;
+let whisperCpp = null;
+const WHISPER_CPP_MODEL_ID = "ivrit-ai-whisper-large-v3-turbo-q5";
+
+function usesWhisperCpp() {
+  return workerData.whisperEngine?.kind === "whispercpp";
+}
+
+function getWhisperCpp() {
+  if (!whisperCpp) {
+    const config = workerData.whisperEngine;
+    whisperCpp = new WhisperCppEngine({
+      server: config.server,
+      model: config.model,
+      threads: config.threads,
+      // The main process kills this pid when the worker goes away.
+      onSpawn: (pid) => parentPort.postMessage({ enginePid: pid })
+    });
+  }
+  return whisperCpp;
+}
 
 function languageCode(language) {
   return language === "en-US" ? "en" : "he";
@@ -228,6 +249,8 @@ function requestWhisperEngine(message) {
 async function whisperEngineStatus() {
   if (!workerData.whisperEngine) return null;
   if (whisperEngineModelId) return { modelId: whisperEngineModelId };
+  // whisper.cpp starts (and loads ~600 MB) only when there is audio to decode.
+  if (usesWhisperCpp()) return { modelId: WHISPER_CPP_MODEL_ID };
   try {
     const status = await requestWhisperEngine({ type: "status" });
     whisperEngineModelId = `${status.modelId}${status.device === "cuda" ? "" : `-${status.device}`}`;
@@ -244,7 +267,9 @@ async function transcribeWithWhisperEngine(samples, language) {
   const coverage = vadCoverage(detected, samples.length, SAMPLE_RATE);
   const windows = vadSegmentsToWordWindows(detected, samples.length, { sampleRate: SAMPLE_RATE });
   let decoded = { windows: [] };
-  if (windows.length) {
+  if (windows.length && usesWhisperCpp()) {
+    decoded = await getWhisperCpp().transcribe(samples, windows, languageCode(language));
+  } else if (windows.length) {
     const audioPath = path.join(os.tmpdir(), `couple-lab-asr-${process.pid}-${Date.now()}.f32`);
     try {
       // The recording only touches disk for the duration of this call.
@@ -268,11 +293,13 @@ async function transcribeWithWhisperEngine(samples, language) {
     segments,
     speechSegments: timelineSegments(detected, samples.length),
     metadata: {
-      modelId: whisperEngineModelId || "ivrit-ai-whisper-large-v3-turbo",
+      modelId: usesWhisperCpp()
+        ? `${WHISPER_CPP_MODEL_ID}-${decoded.device || "cpu"}`
+        : whisperEngineModelId || "ivrit-ai-whisper-large-v3-turbo",
       vadModelId: VAD_MODEL_ID,
       segmentation: "silero-vad",
       segmentationPreset: SEGMENTATION_PRESET,
-      engine: `faster-whisper-${decoded.device || "cuda"}`,
+      engine: usesWhisperCpp() ? `whisper.cpp-${decoded.device || "cpu"}` : `faster-whisper-${decoded.device || "cuda"}`,
       vadApplied: true,
       ...coverage,
       detectedSpeechSegmentCount: detected.length,

@@ -1,5 +1,8 @@
 const { app, BrowserWindow, ipcMain, net, protocol, safeStorage, session, shell } = require("electron");
+const crypto = require("node:crypto");
+const fsSync = require("node:fs");
 const fs = require("node:fs/promises");
+const os = require("node:os");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { Worker } = require("node:worker_threads");
@@ -26,6 +29,7 @@ const voiceRequests = new Map();
 let transcriptionWorker = null;
 let transcriptionWorkerStarting = null;
 let transcriptionRequestId = 0;
+let transcriptionEnginePid = null;
 const transcriptionRequests = new Map();
 let mainWindow = null;
 
@@ -144,108 +148,146 @@ async function resolveTranscriptionModel() {
 }
 
 /**
- * In-app transcription model installer.
+ * In-app Hebrew transcription model.
  *
  * Packaged whisper-tiny measures ~80% word error rate on Hebrew, which makes
- * every downstream signal unreliable. These are the official sherpa-onnx
- * exports, so they drop straight in with no conversion. Downloading from
- * inside the app means the couple never needs a terminal.
+ * every downstream signal unreliable. The ivrit-ai turbo model (Apache-2.0),
+ * quantized to q5_0 by .github/workflows/build-asr-engine.yml, runs in the
+ * bundled whisper.cpp engine. It is saved under userData, not the app folder:
+ * the portable exe unpacks to a fresh temp folder on every launch.
  */
-const INSTALLABLE_MODELS = {
-  turbo: { directory: "whisper-turbo", repository: "csukuangfj/sherpa-onnx-whisper-turbo", approximateBytes: 1_036_613_791 },
-  small: { directory: "whisper-small", repository: "csukuangfj/sherpa-onnx-whisper-small", approximateBytes: 375_485_327 }
+const ASR_RELEASE_BASE = "https://github.com/agmonp/couple-lab/releases/download/asr-engine-v1";
+const HEBREW_MODEL = {
+  file: "ggml-ivrit-large-v3-turbo-q5_0.bin",
+  sha256: "6c1da92e8e41dd64b8cc402eee7eb7a433d2152567e1a4d9cf181fefcc67a572",
+  bytes: 574041195
 };
 
 let modelInstallInProgress = false;
 
-function downloadToFile(url, destination, onChunk) {
+function hebrewModelPath() {
+  return path.join(app.getPath("userData"), "models", "asr", HEBREW_MODEL.file);
+}
+
+function whisperServerPath() {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, "whisper-engine", "whisper-server.exe")
+    : path.resolve(__dirname, "..", "vendor", "whisper-engine", "whisper-server.exe");
+}
+
+function sha256OfFile(file) {
   return new Promise((resolve, reject) => {
+    const hash = crypto.createHash("sha256");
+    fsSync.createReadStream(file)
+      .on("data", (chunk) => hash.update(chunk))
+      .on("end", () => resolve(hash.digest("hex")))
+      .on("error", reject);
+  });
+}
+
+/**
+ * Streams to `${destination}.part` and resumes it with a Range request after a
+ * dropped connection or an app restart, so 550 MB never sits in memory.
+ */
+async function downloadResumable(url, destination, onProgress) {
+  const partial = `${destination}.part`;
+  let existing = 0;
+  try {
+    existing = (await fs.stat(partial)).size;
+  } catch {
+    existing = 0;
+  }
+  await new Promise((resolve, reject) => {
     const request = net.request({ url, redirect: "follow" });
+    if (existing > 0) request.setHeader("Range", `bytes=${existing}-`);
     request.on("response", (response) => {
-      if (response.statusCode < 200 || response.statusCode >= 300) {
+      const resumed = response.statusCode === 206;
+      if (response.statusCode !== 200 && !resumed) {
         response.on("data", () => {});
-        response.on("end", () => {});
         reject(new Error(`download-failed-${response.statusCode}`));
         return;
       }
-      const total = Number(response.headers["content-length"]) || 0;
-      const chunks = [];
-      let received = 0;
+      if (!resumed) existing = 0;
+      const total = existing + (Number(response.headers["content-length"]) || 0);
+      const out = fsSync.createWriteStream(partial, { flags: resumed ? "a" : "w" });
+      let received = existing;
       response.on("data", (chunk) => {
-        chunks.push(chunk);
+        out.write(chunk);
         received += chunk.length;
-        onChunk(received, total);
+        onProgress(received, total);
       });
-      response.on("end", () => {
-        fs.writeFile(destination, Buffer.concat(chunks)).then(resolve, reject);
-      });
-      response.on("error", reject);
+      response.on("end", () => out.end(resolve));
+      response.on("error", (error) => out.end(() => reject(error)));
+      out.on("error", reject);
     });
     request.on("error", reject);
     request.end();
   });
+  return partial;
 }
 
-async function installTranscriptionModel(modelKey, onProgress) {
-  const model = INSTALLABLE_MODELS[modelKey];
-  if (!model) throw new Error("unknown-transcription-model");
+async function installTranscriptionModel(onProgress) {
   if (modelInstallInProgress) throw new Error("transcription-model-install-in-progress");
   modelInstallInProgress = true;
-
-  const root = transcriptionModelsRoot();
-  const directory = path.join(root, model.directory);
-  const shortName = model.directory.replace("whisper-", "");
-  const files = [
-    { name: `${shortName}-encoder.int8.onnx`, label: "encoder" },
-    { name: `${shortName}-decoder.int8.onnx`, label: "decoder" },
-    { name: `${shortName}-tokens.txt`, label: "tokens" }
-  ];
-
+  const destination = hebrewModelPath();
   try {
-    await fs.mkdir(directory, { recursive: true });
-    let completedBytes = 0;
-    for (const file of files) {
-      const destination = path.join(directory, file.name);
-      try {
-        const existing = await fs.stat(destination);
-        completedBytes += existing.size;
-        onProgress({ stage: file.label, receivedBytes: completedBytes, totalBytes: model.approximateBytes, skipped: true });
-        continue;
-      } catch {
-        // Not downloaded yet.
-      }
-      const partial = `${destination}.part`;
-      const url = `https://huggingface.co/${model.repository}/resolve/main/${file.name}`;
-      const startedAt = completedBytes;
-      await downloadToFile(url, partial, (received) => {
-        onProgress({
-          stage: file.label,
-          receivedBytes: startedAt + received,
-          totalBytes: model.approximateBytes
-        });
+    await fs.mkdir(path.dirname(destination), { recursive: true });
+    let ready = false;
+    try {
+      ready = (await fs.stat(destination)).size === HEBREW_MODEL.bytes;
+    } catch {
+      ready = false;
+    }
+    if (!ready) {
+      const partial = await downloadResumable(`${ASR_RELEASE_BASE}/${HEBREW_MODEL.file}`, destination, (received, total) => {
+        onProgress({ stage: "model", receivedBytes: received, totalBytes: total || HEBREW_MODEL.bytes });
       });
+      onProgress({ stage: "verify", receivedBytes: HEBREW_MODEL.bytes, totalBytes: HEBREW_MODEL.bytes });
+      const digest = await sha256OfFile(partial);
+      if (digest !== HEBREW_MODEL.sha256) {
+        await fs.rm(partial, { force: true });
+        throw new Error("download-checksum-mismatch");
+      }
       await fs.rename(partial, destination);
-      completedBytes = (await fs.stat(destination)).size + startedAt;
     }
-
-    await fs.writeFile(
-      path.join(directory, "SOURCE.md"),
-      `# ${model.directory}\n\nOfficial sherpa-onnx Whisper export.\nSource: https://huggingface.co/${model.repository}\nInstalled from inside Couple Lab.\nDelete this folder to roll back to whisper-tiny.\n`,
-      "utf8"
-    );
-
-    // Force re-detection and drop the worker so the next transcription loads
-    // the new pack without an app restart.
-    resolvedTranscriptionModel = null;
-    if (transcriptionWorker) {
-      await transcriptionWorker.terminate().catch(() => undefined);
-      transcriptionWorker = null;
-    }
-    const installed = await resolveTranscriptionModel();
-    return { ok: true, modelId: installed.modelId };
+    // Drop the worker (and its engine process) so the next transcription
+    // loads the Hebrew engine without an app restart.
+    await stopTranscriptionWorker();
+    const status = await requestTranscriptionWorker("status");
+    return { ok: true, modelId: status.modelId };
   } finally {
     modelInstallInProgress = false;
   }
+}
+
+/**
+ * Opt-in part of --smoke-test (COUPLE_LAB_SMOKE_INSTALL=1): installs the Hebrew
+ * model through the real download path and, with COUPLE_LAB_SMOKE_AUDIO set to
+ * a raw float32 16 kHz file, transcribes it with the packaged engine.
+ */
+async function smokeHebrewEngine() {
+  if (process.env.COUPLE_LAB_SMOKE_INSTALL !== "1") return undefined;
+  const started = Date.now();
+  const installed = await installTranscriptionModel(() => {});
+  const check = { installedModelId: installed.modelId, installSeconds: Math.round((Date.now() - started) / 1000) };
+  if (!process.env.COUPLE_LAB_SMOKE_AUDIO) return check;
+  const audio = await fs.readFile(process.env.COUPLE_LAB_SMOKE_AUDIO);
+  const samples = audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength);
+  const result = await requestTranscriptionWorker("transcribe", samples, "he-IL");
+  return {
+    ...check,
+    modelId: result.metadata.modelId,
+    engine: result.metadata.engine,
+    fallback: result.metadata.engineFallbackReason ?? null,
+    text: result.text
+  };
+}
+
+async function removeTranscriptionModel() {
+  await stopTranscriptionWorker();
+  await fs.rm(hebrewModelPath(), { force: true });
+  await fs.rm(`${hebrewModelPath()}.part`, { force: true });
+  return { ok: true };
 }
 
 function vadModelPath() {
@@ -328,14 +370,34 @@ async function getTranscriptionWorker() {
  * Python that has faster-whisper; COUPLE_LAB_ASR_ENGINE=off disables it.
  */
 async function resolveWhisperEngine() {
-  if (app.isPackaged || process.env.COUPLE_LAB_ASR_ENGINE === "off") return null;
+  if (process.env.COUPLE_LAB_ASR_ENGINE === "off") return null;
+  return (app.isPackaged ? null : await resolvePythonEngine()) ?? resolveWhisperCppEngine();
+}
+
+/**
+ * The bundled engine: whisper.cpp (Vulkan GPU when the driver has it, CPU
+ * otherwise) with the downloaded ivrit-ai model. Null until the model exists.
+ */
+async function resolveWhisperCppEngine() {
+  const server = whisperServerPath();
+  const model = hebrewModelPath();
+  try {
+    await Promise.all([fs.access(server), fs.access(model)]);
+  } catch {
+    return null;
+  }
+  const cores = typeof os.availableParallelism === "function" ? os.availableParallelism() : os.cpus().length;
+  return { kind: "whispercpp", server, model, threads: Math.max(2, Math.min(8, cores - 2)) };
+}
+
+async function resolvePythonEngine() {
   const venv = path.resolve(__dirname, "..", ".venv-asr");
   const python = process.env.COUPLE_LAB_ASR_PYTHON
     || (process.platform === "win32" ? path.join(venv, "Scripts", "python.exe") : path.join(venv, "bin", "python"));
   const script = path.join(__dirname, "whisper-engine.py");
   try {
     await Promise.all([fs.access(python), fs.access(script)]);
-    return { python, script };
+    return { kind: "python", python, script };
   } catch {
     return null;
   }
@@ -353,7 +415,11 @@ async function startTranscriptionWorker() {
       whisperEngine: await resolveWhisperEngine()
     }
   });
-  transcriptionWorker.on("message", ({ id, ok, result, error }) => {
+  transcriptionWorker.on("message", ({ id, ok, result, error, enginePid }) => {
+    if (enginePid) {
+      transcriptionEnginePid = enginePid;
+      return;
+    }
     const request = transcriptionRequests.get(id);
     if (!request) return;
     clearTimeout(request.timeout);
@@ -368,8 +434,27 @@ async function startTranscriptionWorker() {
   transcriptionWorker.on("exit", (code) => {
     if (code !== 0) rejectTranscriptionRequests(new Error(`transcription-worker-exited-${code}`));
     transcriptionWorker = null;
+    killTranscriptionEngine();
   });
   return transcriptionWorker;
+}
+
+/** The whisper.cpp server is a separate process; it must not outlive its worker. */
+function killTranscriptionEngine() {
+  if (!transcriptionEnginePid) return;
+  try {
+    process.kill(transcriptionEnginePid);
+  } catch {
+    // Already gone.
+  }
+  transcriptionEnginePid = null;
+}
+
+async function stopTranscriptionWorker() {
+  resolvedTranscriptionModel = null;
+  if (transcriptionWorker) await transcriptionWorker.terminate().catch(() => undefined);
+  transcriptionWorker = null;
+  killTranscriptionEngine();
 }
 
 async function requestTranscriptionWorker(type, samples, language) {
@@ -379,7 +464,7 @@ async function requestTranscriptionWorker(type, samples, language) {
     const timeout = setTimeout(() => {
       transcriptionRequests.delete(id);
       reject(new Error("transcription-inference-timeout"));
-    }, type === "status" ? 60000 : 10 * 60 * 1000);
+    }, type === "status" ? 180000 : Math.max(10 * 60 * 1000, (samples ? samples.byteLength / 4 / 16000 : 0) * 4 * 1000));
     transcriptionRequests.set(id, { resolve, reject, timeout });
     const message = { id, type, ...(samples ? { samples } : {}), ...(language ? { language } : {}) };
     if (samples) worker.postMessage(message, [samples]);
@@ -577,11 +662,14 @@ function registerIpcHandlers() {
   });
   ipcMain.handle("desktop:install-transcription-model", async (event, payload) => {
     validateIpcSender(event);
-    const modelKey = payload?.model === "small" ? "small" : "turbo";
     const sender = event.sender;
-    return installTranscriptionModel(modelKey, (progress) => {
+    return installTranscriptionModel((progress) => {
       if (!sender.isDestroyed()) sender.send("desktop:transcription-model-progress", progress);
     });
+  });
+  ipcMain.handle("desktop:remove-transcription-model", async (event) => {
+    validateIpcSender(event);
+    return removeTranscriptionModel();
   });
   ipcMain.handle("desktop:cloud-save-key", async (event, payload) => {
     validateIpcSender(event);
@@ -640,13 +728,17 @@ function createWindow() {
   if (isSmokeTest()) {
     win.webContents.once("did-finish-load", async () => {
       try {
+        const engineCheck = await smokeHebrewEngine();
         const result = await win.webContents.executeJavaScript(
           "new Promise((resolve) => setTimeout(resolve, 500)).then(async () => { const edit = [...document.querySelectorAll('button')].find((button) => button.textContent.includes('עריכת ההגדרות')); edit?.click(); await new Promise((resolve) => setTimeout(resolve, 100)); const visionResponses = await Promise.all(['./mediapipe/wasm/vision_wasm_internal.js', './mediapipe/wasm/vision_wasm_internal.wasm', './models/face_landmarker.task', './models/pose_landmarker_lite.task'].map(async (url) => { const response = await fetch(url); return { url, ok: response.ok, bytes: (await response.arrayBuffer()).byteLength }; })); const body = document.body.innerText; return { title: document.title, origin: window.location.origin, direction: document.documentElement.dir, setupEntryVisible: body.includes('נכיר אתכם, נבין מה חשוב לכם') || body.includes('נכיר כל אחד מכם בכמה דקות') || body.includes('כמה פרטים שיעזרו לנו ללוות אתכם'), desktopRuntimeVisible: !body.includes('הזיהוי האוטומטי אינו זמין בחלון הזה'), visionResponses, voiceModel: await window.coupleLabDesktop.getVoiceModelStatus(), transcriptionModel: await window.coupleLabDesktop.getTranscriptionModelStatus(), runtime: await window.coupleLabDesktop.getRuntimeInfo() }; })"
         );
         if (!/(^| — )Couple Lab$/.test(result.title) || result.origin !== APP_ORIGIN || result.direction !== "rtl" || !result.setupEntryVisible || !result.desktopRuntimeVisible || !result.runtime?.isDesktop || !result.voiceModel?.ready || !result.transcriptionModel?.ready || !Array.isArray(result.visionResponses) || result.visionResponses.some((asset) => !asset.ok || asset.bytes < 1000)) {
           throw new Error(`desktop-ui-smoke-assertion-failed: ${JSON.stringify(result)}`);
         }
-        process.stdout.write(`${JSON.stringify(result)}\n`);
+        const report = JSON.stringify(engineCheck ? { ...result, engineCheck } : result);
+        process.stdout.write(`${report}\n`);
+        // The portable exe's launcher does not forward stdout.
+        if (process.env.COUPLE_LAB_SMOKE_OUT) await fs.writeFile(process.env.COUPLE_LAB_SMOKE_OUT, report, "utf8");
         app.exit(0);
       } catch (error) {
         process.stderr.write(`desktop-smoke-failed: ${error instanceof Error ? error.message : String(error)}\n`);
@@ -704,4 +796,5 @@ app.on("window-all-closed", () => {
 app.on("before-quit", () => {
   if (voiceWorker) void voiceWorker.terminate();
   if (transcriptionWorker) void transcriptionWorker.terminate();
+  killTranscriptionEngine();
 });

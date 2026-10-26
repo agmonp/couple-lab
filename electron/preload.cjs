@@ -13,8 +13,8 @@ contextBridge.exposeInMainWorld("coupleLabDesktop", {
   getTranscriptionModelStatus: () => ipcRenderer.invoke("desktop:get-transcription-model-status"),
   transcribeAudio: (samples, language) =>
     ipcRenderer.invoke("desktop:transcribe-audio", { sampleRate: 16000, samples, language }),
-  installTranscriptionModel: (model) =>
-    ipcRenderer.invoke("desktop:install-transcription-model", { model }),
+  installTranscriptionModel: () => ipcRenderer.invoke("desktop:install-transcription-model", {}),
+  removeTranscriptionModel: () => ipcRenderer.invoke("desktop:remove-transcription-model"),
   onTranscriptionModelProgress: (listener) => {
     const handler = (_event, progress) => listener(progress);
     ipcRenderer.on("desktop:transcription-model-progress", handler);

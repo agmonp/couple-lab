@@ -19,3 +19,6 @@ output/
 *.wav
 
 .venv-asr/
+
+# whisper.cpp engine, fetched by scripts/fetch-asr-engine.ps1
+vendor/
