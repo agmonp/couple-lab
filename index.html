@@ -99,7 +99,43 @@
   .trust { list-style: none; padding: 0; margin: 26px 0 0; display: flex; flex-wrap: wrap; gap: 10px 22px; }
   .trust li { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 16px; }
   .trust .icon { color: var(--teal); width: 20px; height: 20px; }
-  .hero-art { border-radius: 22px; overflow: hidden; box-shadow: var(--shadow); }
+  .hero-shots { margin: 0; }
+  .shot-frame { position: relative; aspect-ratio: 16 / 10; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); background: var(--surface); box-shadow: var(--shadow); }
+  .shot-frame .slide { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top right; opacity: 0; animation: slide-fade 16s infinite both; }
+  .slide-captions { position: relative; height: 26px; margin-top: 14px; font-size: 15px; font-weight: 600; color: var(--muted); text-align: center; }
+  .slide-captions span { position: absolute; inset: 0; opacity: 0; animation: slide-fade 16s infinite both; }
+  .shot-frame .slide:nth-child(2), .slide-captions span:nth-child(2) { animation-delay: 4s; }
+  .shot-frame .slide:nth-child(3), .slide-captions span:nth-child(3) { animation-delay: 8s; }
+  .shot-frame .slide:nth-child(4), .slide-captions span:nth-child(4) { animation-delay: 12s; }
+  @keyframes slide-fade { 0% { opacity: 0; } 4% { opacity: 1; } 25% { opacity: 1; } 29% { opacity: 0; } 100% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .shot-frame .slide, .slide-captions span { animation: none; }
+    .shot-frame .slide:first-child, .slide-captions span:first-child { opacity: 1; }
+  }
+
+  /* Pause band */
+  .pause-band { background: var(--coral-soft); }
+  .pause { display: grid; gap: 36px; align-items: center; }
+  .pause h2 { margin-bottom: 14px; }
+  .pause .section-lead { margin-bottom: 14px; color: var(--ink); }
+  .pause p { color: var(--muted); margin: 0; max-width: 60ch; }
+  .eyebrow.coral { color: var(--coral); background: var(--surface); }
+  .pause-visual { display: grid; justify-items: center; gap: 22px; }
+  .pause-ring { width: 210px; height: 210px; border-radius: 50%; display: grid; place-content: center; text-align: center;
+    background: radial-gradient(closest-side, var(--surface) 82%, transparent 83%), conic-gradient(var(--coral) 0 72%, color-mix(in srgb, var(--coral) 22%, transparent) 72% 100%); }
+  .pause-time { font: 700 46px/1 "Assistant", sans-serif; direction: ltr; }
+  .pause-sub { font-size: 15px; color: var(--muted); margin-top: 6px; }
+  .pause-btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 20px; border-radius: 12px; border: 1.5px solid var(--coral); color: var(--coral); background: var(--surface); font-weight: 700; }
+  .pause-btn .icon { width: 20px; height: 20px; }
+  @media (min-width: 880px) { .pause { grid-template-columns: 1.5fr 1fr; gap: 56px; } }
+
+  /* Why free */
+  .why-free { margin-top: 40px; padding: 22px 24px; border-radius: 16px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14); display: flex; gap: 16px; align-items: flex-start; }
+  .why-free .icon { color: #8fd3cb; margin-top: 3px; }
+  .why-free p { margin: 0; color: var(--on-deep-muted); }
+  .why-free a { color: #8fd3cb; }
+
+  .final-art { max-width: 560px; margin: 0 auto 36px; border-radius: 20px; overflow: hidden; box-shadow: var(--shadow); }
   @media (min-width: 880px) { .hero { grid-template-columns: 1fr 1.1fr; padding-top: 56px; } }
 
   /* Sections */
@@ -204,6 +240,7 @@
     <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></symbol>
     <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></symbol>
     <symbol id="i-report" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h8"/><path d="M8 17h5"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
     <symbol id="i-timer" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M10 2h4"/></symbol>
     <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36z"/></symbol>
     <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></symbol>
@@ -231,21 +268,29 @@
     <div>
       <span class="eyebrow">אפליקציה לזוגות · ל־Windows</span>
       <h1>רגע שקט לשיחה טובה יותר ביניכם</h1>
-      <p class="lead">שאלות שפותחות שיחה, שיחות מונחות לרגעים הקשים, וסיכום עדין בסוף. הכול נשאר על המחשב שלכם.</p>
+      <p class="lead">שאלות ושיחות מונחות בהשראת עקרונות גוטמן, שעוזרות לפתוח את הלב ולדבר גם על הדברים הקשים. הכול נשאר על המחשב שלכם.</p>
       <div class="cta">
         <a class="btn" href="https://github.com/agmonp/couple-lab/releases/latest/download/Couple-Lab-Windows.exe"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-download"/></svg>הורדה חינם ל־Windows</a>
         <a class="btn ghost" href="#how">איך זה עובד</a>
       </div>
-      <p class="cta-note">קובץ אחד, כ־175MB, בלי התקנה. אם Windows מציגה אזהרה, <a href="#download">כך ממשיכים</a>.</p>
+      <p class="cta-note">הורדה מיידית · חינם לגמרי · ל־Windows 10 ו־11</p>
       <ul class="trust">
         <li><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-user-off"/></svg>בלי הרשמה</li>
         <li><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-cloud-off"/></svg>בלי ענן</li>
         <li><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-lock"/></svg>ההקלטות רק אצלכם</li>
       </ul>
     </div>
-    <div class="hero-art">
-      <img src="hero.webp" alt="איור: בני זוג משוחחים בסלון, ומיקרופון קטן על השולחן ביניהם" width="1400" height="788" fetchpriority="high">
-    </div>
+    <figure class="hero-shots" aria-label="צילומי מסך מתוך האפליקציה">
+      <div class="shot-frame">
+        <img class="slide" src="hero-1.webp" alt="מסך המדריך: בחירת חפיסת שאלות לשיחה" width="1440" height="900" fetchpriority="high">
+        <img class="slide" src="hero-2.webp" alt="מסך התמלול: מה כל אחד אמר, עם תגיות כמו הקשבה" width="1440" height="900">
+        <img class="slide" src="hero-3.webp" alt="מסך הדוח הזוגי בסוף השיחה" width="1440" height="900">
+        <img class="slide" src="hero-4.webp" alt="מסך הבית: הצעד שבחרתם והשיחות האחרונות" width="1440" height="900">
+      </div>
+      <figcaption class="slide-captions" aria-hidden="true">
+        <span>בוחרים שאלה</span><span>רואים מה נאמר</span><span>מסכמים בעדינות</span><span>חוזרים כל שבוע</span>
+      </figcaption>
+    </figure>
   </div>
 
   <section class="privacy" id="privacy">
@@ -278,6 +323,13 @@
           <div><h3>הסכמה של שניכם</h3><p>אין הקלטה בלי ששניכם אישרתם. את שאלון מפת הקשר כל אחד ממלא לבד, והתשובות מוסתרות מבן או בת הזוג.</p></div>
         </div>
       </div>
+      <div class="why-free">
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-heart"/></svg>
+        <div>
+          <h3>למה זה חינם?</h3>
+          <p>Couple Lab נבנתה כפרויקט אישי, בלי מטרת רווח, כדי לתת לזוגות כלי טוב, נגיש ופרטי. אין פרסומות, אין מנוי ואין איסוף מידע, כי אין כאן שום דבר למכור. <a href="https://github.com/agmonp/couple-lab">הקוד פתוח</a>, וכל אחד יכול לבדוק שזה באמת כך.</p>
+        </div>
+      </div>
       <p class="privacy-foot">יש באפליקציה גם אפשרות לחבר ניתוח בענן, למי שרוצה. היא כבויה כברירת מחדל, ופועלת רק אם תפעילו אותה ותזינו מפתח API משלכם.</p>
     </div>
   </section>
@@ -295,7 +347,7 @@
         <div class="card">
           <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-route"/></svg></span>
           <h3>שיחות מונחות לרגעים קשים</h3>
-          <p>"אחרי ריב" ו"שיחה מפחיתת לחץ" מחולקות לשלבים. האפליקציה מנהלת את התורות ושואלת כל אחד מכם איך הוא מרגיש לפני השיחה ואחריה.</p>
+          <p>"אחרי ריב" ו"שיחה מפחיתת לחץ" מחולקות לשלבים. האפליקציה מנהלת את התורות, כדי שתוכלו להתמקד זה בזה.</p>
         </div>
         <div class="card">
           <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-mic"/></svg></span>
@@ -308,15 +360,30 @@
           <p>מי דיבר כמה, אילו רגעים טובים היו, וצעד קטן לשבוע הקרוב. אפשר לשמור כ־PDF.</p>
         </div>
         <div class="card">
-          <span class="badge coral"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-timer"/></svg></span>
-          <h3>הפסקה כשמוצפים</h3>
-          <p>כפתור אחד עוצר את השיחה ל־20 דקות ומזכיר לחזור. כי שיחה טובה לא קורית כשהלב דוהר.</p>
+          <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-gauge"/></svg></span>
+          <h3>לחץ לפני ואחרי</h3>
+          <p>בשיחות המונחות כל אחד מסמן מ־0 עד 10 כמה הוא לחוץ, לפני השיחה ואחריה. כך רואים אם השיחה באמת עזרה.</p>
         </div>
         <div class="card">
           <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-compass"/></svg></span>
           <h3>מפת הקשר</h3>
           <p>עשר שאלות שכל אחד מכם עונה עליהן לבד. יחד הן מראות איפה אתם חזקים ובמה כדאי להתמקד עכשיו.</p>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pause-band" aria-labelledby="pause-title">
+    <div class="wrap pause">
+      <div>
+        <span class="eyebrow coral">לרגעים שבהם זה מתחמם</span>
+        <h2 id="pause-title">השיחה מתחממת? עוצרים.</h2>
+        <p class="section-lead">לחיצה אחת על "אני צריך/ה הפסקה" עוצרת את השיחה ואת ההקלטה, וקובעת לחזור בעוד 20 דקות. אף אחד לא צריך לנצח ברגע הכי סוער.</p>
+        <p>מחקרי גוטמן מראים שכשהלב דוהר, קשה מאוד להקשיב. עשרים דקות של הפסקה נותנות לגוף זמן להירגע, ואז אפשר לחזור ולדבר באמת.</p>
+      </div>
+      <div class="pause-visual" aria-hidden="true">
+        <div class="pause-ring"><span class="pause-time">20:00</span><span class="pause-sub">חוזרים בעוד</span></div>
+        <span class="pause-btn"><svg class="icon" focusable="false"><use href="#i-shield"/></svg>אני צריך/ה הפסקה</span>
       </div>
     </div>
   </section>
@@ -445,7 +512,7 @@
       <h2>שאלות נפוצות</h2>
       <div class="faq">
         <details><summary>צריך חיבור לאינטרנט?</summary><p>רק כדי להוריד את הקובץ. אחרי זה הכול עובד גם בלי חיבור.</p></details>
-        <details><summary>כמה זה עולה?</summary><p>כלום. האפליקציה חינמית, בלי פרסומות ובלי מנוי.</p></details>
+        <details><summary>כמה זה עולה?</summary><p>כלום. Couple Lab היא פרויקט אישי בלי מטרת רווח: בלי פרסומות, בלי מנוי ובלי איסוף מידע.</p></details>
         <details><summary>מישהו יכול לראות את השיחות שלנו?</summary><p>לא. השיחות נשמרות רק על המחשב שלכם. מי שיכול לפתוח אותן הוא מי שיש לו גישה למחשב הזה, לכן כדאי לנעול אותו בסיסמה.</p></details>
         <details><summary>זה מחליף טיפול זוגי?</summary><p>לא. זה כלי לתרגול בבית. הוא לא שופט מי צודק ולא קובע מה מישהו מרגיש. הוא יכול להשתלב יפה עם טיפול, אבל לא להחליף אותו.</p></details>
         <details><summary>מה אם יש אצלנו פחד או אלימות?</summary><p>Couple Lab לא מתאימה למצב כזה. בבדיקת הבטיחות הקצרה, סימון של פחד, איומים או אלימות מוביל להמלצה לפנות לאיש מקצוע לפני כל תרגול.</p></details>
@@ -457,10 +524,11 @@
 
   <section class="final">
     <div class="wrap">
+      <div class="final-art"><img src="hero.webp" alt="איור: בני זוג משוחחים בסלון, ומיקרופון קטן על השולחן ביניהם" width="1400" height="788" loading="lazy"></div>
       <h2>עשר דקות יחד יכולות לשנות שבוע</h2>
       <p class="section-lead">הורידו, שבו יחד, ובחרו שאלה ראשונה.</p>
       <a class="btn" href="https://github.com/agmonp/couple-lab/releases/latest/download/Couple-Lab-Windows.exe"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-download"/></svg>הורדה חינם ל־Windows</a>
-      <p class="cta-note">Windows 10/11 · כ־175MB · אם מופיעה אזהרה, <a href="#download">כך ממשיכים</a>.</p>
+      <p class="cta-note">הורדה מיידית · חינם לגמרי · בלי הרשמה</p>
     </div>
   </section>
 </main>
