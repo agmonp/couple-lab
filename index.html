@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Couple Lab – מרחב תרגול זוגי פרטי</title>
+<meta name="description" content="אפליקציית Windows לזוגות: שאלות לשיחה, שיחות מונחות, הקלטה ותמלול בעברית, וסיכום עדין – הכול נשאר במחשב שלכם.">
+<meta property="og:title" content="Couple Lab – מרחב תרגול זוגי פרטי">
+<meta property="og:description" content="שאלות לשיחה, שיחות מונחות ותמלול בעברית. הכול נשאר במחשב שלכם.">
+<meta property="og:image" content="https://agmonp.github.io/couple-lab/couple-lab-hero.png">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&family=Frank+Ruhl+Libre:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #faf5ec;
+    --surface: #ffffff;
+    --ink: #2a2522;
+    --muted: #6b625b;
+    --line: #e7ddcf;
+    --teal: #1f6b6b;
+    --teal-ink: #ffffff;
+    --coral: #d9644a;
+    --code-bg: #f2ebe0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1b1917;
+      --surface: #252220;
+      --ink: #f1ebe3;
+      --muted: #b3a99f;
+      --line: #3a3531;
+      --teal: #5fb3ad;
+      --teal-ink: #10201f;
+      --coral: #ef8b72;
+      --code-bg: #2e2a27;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 18px/1.65 "Assistant", system-ui, sans-serif;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 20px; }
+  header { display: flex; align-items: center; gap: 12px; padding: 22px 0; }
+  header img { width: 40px; height: 40px; border-radius: 10px; }
+  header b { font: 700 22px "Frank Ruhl Libre", serif; }
+  header a { margin-inline-start: auto; color: var(--muted); text-decoration: none; font-size: 16px; }
+  header a:hover { color: var(--ink); }
+
+  .hero { display: grid; gap: 28px; padding: 16px 0 40px; }
+  .hero img { width: 100%; border-radius: 18px; display: block; }
+  h1 { font: 700 clamp(32px, 5vw, 48px)/1.2 "Frank Ruhl Libre", serif; margin: 0 0 12px; }
+  .lead { font-size: 21px; color: var(--muted); margin: 0 0 26px; max-width: 40ch; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .btn {
+    display: inline-block; padding: 14px 26px; border-radius: 999px;
+    background: var(--teal); color: var(--teal-ink); font-weight: 700;
+    text-decoration: none; font-size: 19px;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn.ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--line); font-weight: 600; }
+  .note { font-size: 15px; color: var(--muted); }
+
+  section { padding: 40px 0; border-top: 1px solid var(--line); }
+  h2 { font: 700 28px "Frank Ruhl Libre", serif; margin: 0 0 18px; }
+  h3 { font-size: 19px; margin: 0 0 6px; }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
+  .card p { margin: 0; color: var(--muted); font-size: 16px; }
+
+  ol.steps { padding: 0; margin: 0; list-style: none; counter-reset: s; display: grid; gap: 14px; }
+  ol.steps li { counter-increment: s; position: relative; padding-inline-start: 52px; }
+  ol.steps li::before {
+    content: counter(s); position: absolute; inset-inline-start: 0; top: 0;
+    width: 36px; height: 36px; border-radius: 50%; background: var(--coral); color: #fff;
+    display: grid; place-items: center; font-weight: 700;
+  }
+  pre {
+    direction: ltr; text-align: left; background: var(--code-bg); border-radius: 10px;
+    padding: 14px 16px; overflow-x: auto; font-size: 14px; line-height: 1.5; margin: 8px 0 0;
+  }
+  code { font-family: ui-monospace, Consolas, monospace; }
+  details { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 20px; }
+  summary { cursor: pointer; font-weight: 700; }
+  .warn { border-inline-start: 4px solid var(--coral); padding: 4px 14px; color: var(--muted); }
+  footer { padding: 30px 0 50px; color: var(--muted); font-size: 15px; border-top: 1px solid var(--line); }
+  a { color: var(--teal); }
+
+  @media (min-width: 820px) {
+    .hero { grid-template-columns: 1fr 1.15fr; align-items: center; padding-top: 30px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="app-icon.png" alt="">
+    <b>Couple Lab</b>
+    <a href="https://github.com/agmonp/couple-lab/tree/local-hebrew">קוד המקור ב־GitHub</a>
+  </header>
+
+  <div class="hero">
+    <div>
+      <h1>רגע שקט לשיחה טובה יותר ביניכם</h1>
+      <p class="lead">Couple Lab היא אפליקציה לזוגות: בוחרים שאלה, מקיימים שיחה מונחית, ומקבלים סיכום עדין. הכול רץ על המחשב שלכם, ושום דבר לא עולה לאינטרנט.</p>
+      <div class="cta">
+        <a class="btn" href="https://github.com/agmonp/couple-lab/releases/latest/download/Couple-Lab-Windows.exe">הורדה ל־Windows</a>
+        <a class="btn ghost" href="#install">איך מתקינים</a>
+      </div>
+      <p class="note">חינם · קוד פתוח (MIT) · ל־Windows 10 ו־11 (64 ביט)</p>
+    </div>
+    <img src="couple-lab-hero.png" alt="איור של בני זוג משוחחים בסלון, ומיקרופון קטן על השולחן">
+  </div>
+
+  <section>
+    <h2>מה יש בפנים</h2>
+    <div class="grid">
+      <div class="card"><h3>חפיסות שאלות</h3><p>תשע חפיסות של שאלות לשיחה, בהשראת גוטמן, שעוזרות להתקרב ולהכיר מחדש.</p></div>
+      <div class="card"><h3>שיחות מונחות</h3><p>שיחה צעד אחר צעד: אחרי ריב, או כשאחד מכם עמוס וצריך הקשבה. יש תורות ברורים וזמנים.</p></div>
+      <div class="card"><h3>הקלטה ותמלול בעברית</h3><p>אם שניכם מסכימים, השיחה מוקלטת ומתומללת. בסוף רואים מי דיבר כמה ואילו רגעים חשובים עלו.</p></div>
+      <div class="card"><h3>פרטי לגמרי</h3><p>אין חשבון ואין שרת. ההקלטות, התמלולים והסיכומים נשמרים רק במחשב שלכם, ואפשר למחוק אותם בכל רגע.</p></div>
+    </div>
+    <p class="warn" style="margin-top:22px">Couple Lab היא כלי לתרגול, לא טיפול זוגי ולא אבחון. היא לא שופטת מי צודק. אם יש פגיעה או סכנה, פנו לאיש מקצוע.</p>
+  </section>
+
+  <section id="install">
+    <h2>התקנה, שתי דקות</h2>
+    <ol class="steps">
+      <li><b>מורידים</b> את הקובץ <code>Couple-Lab-Windows.exe</code> מהכפתור למעלה.</li>
+      <li><b>פותחים אותו בלחיצה כפולה.</b> אין התקנה. זו תוכנה ניידת שרצה ישירות מהקובץ, ואפשר לשמור אותה בכל תיקייה.</li>
+      <li><b>אם Windows מציג "Windows protected your PC"</b>, לוחצים על <i>More info</i> ואז על <i>Run anyway</i>. ההודעה מופיעה כי התוכנה עדיין לא חתומה דיגיטלית.</li>
+      <li><b>מאשרים מצלמה ומיקרופון</b> כשהאפליקציה מבקשת. כל אחד מכם נרשם בתורו, ואז אפשר להתחיל שיחה ראשונה.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>תמלול עברית מדויק (רשות, למתקדמים)</h2>
+    <p>הגרסה הניידת מתמללת עם מנוע קטן ומהיר. זה מספיק לסיכום, אבל לא מדויק בעברית. כדי לקבל תמלול טוב בהרבה (מודל ivrit-ai שרץ אצלכם במחשב), מריצים את האפליקציה מקוד המקור. עדיף מחשב עם כרטיס מסך NVIDIA. בלי כרטיס כזה זה עובד, אבל לאט יותר.</p>
+    <details>
+      <summary>הוראות התקנה מקוד המקור</summary>
+      <p>צריך <a href="https://nodejs.org/">Node.js 20+</a>, <a href="https://www.python.org/downloads/">Python 3.11</a> ו־<a href="https://git-scm.com/download/win">Git</a>. אחר כך ב־PowerShell:</p>
+<pre><code>git clone -b local-hebrew https://github.com/agmonp/couple-lab.git
+cd couple-lab
+npm install
+powershell -ExecutionPolicy Bypass -File .\scripts\install-hebrew-asr.ps1
+npm run desktop:run</code></pre>
+      <p class="note">ההתקנה מורידה פעם אחת מודל של כ־1.6GB. את קובצי המודלים הקטנים (תיקיית <code>models</code>) לוקחים מתוך הגרסה הניידת, או לפי <code>models/README.md</code>.</p>
+    </details>
+  </section>
+
+  <footer>
+    נבנה באהבה כפרויקט אישי · <a href="https://github.com/agmonp/couple-lab/issues">דיווח על בעיה</a> · <a href="https://github.com/agmonp/couple-lab/releases">כל הגרסאות</a>
+  </footer>
+</div>
+</body>
+</html>
