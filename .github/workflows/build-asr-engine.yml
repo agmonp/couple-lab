@@ -62,7 +62,7 @@ jobs:
         shell: pwsh
         run: |
           curl.exe -sSL -o ivrit-f16.bin "https://huggingface.co/ivrit-ai/whisper-large-v3-turbo-ggml/resolve/main/ggml-model.bin"
-          $quantize = Get-ChildItem build\bin\Release -Filter *quantize*.exe -Recurse | Select-Object -First 1
+          $quantize = Get-ChildItem build\bin\Release -Filter whisper-quantize.exe -Recurse | Select-Object -First 1
           & $quantize.FullName ivrit-f16.bin ggml-ivrit-large-v3-turbo-q5_0.bin q5_0
           if ($LASTEXITCODE -ne 0) { throw "quantize failed" }
           $hash = (Get-FileHash ggml-ivrit-large-v3-turbo-q5_0.bin -Algorithm SHA256).Hash.ToLower()
