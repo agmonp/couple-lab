@@ -4,6 +4,34 @@ A local, desktop-ready couples practice app for assessments, a unified Practice 
 
 **Download (Windows):** https://agmonp.github.io/couple-lab/ — or grab `Couple-Lab-Windows.exe` from [the latest release](https://github.com/agmonp/couple-lab/releases/latest). It is a portable exe: no install, double-click to run.
 
+## More accurate Hebrew transcription
+
+The portable exe ships a small, fast transcription engine (whisper-tiny via sherpa-onnx), which is basic in Hebrew. Running from source enables the local ivrit-ai engine (faster-whisper, `ivrit-ai/whisper-large-v3-turbo-ct2`), which is much more accurate. An NVIDIA GPU is used when present; otherwise it runs on the CPU, more slowly. Everything still runs on your computer.
+
+You need [Node.js 20+](https://nodejs.org/), [Python 3.10–3.12](https://www.python.org/downloads/) and [Git](https://git-scm.com/download/win). In PowerShell:
+
+```powershell
+git clone https://github.com/agmonp/couple-lab.git
+cd couple-lab
+npm install
+powershell -ExecutionPolicy Bypass -File .\scripts\install-hebrew-asr.ps1
+npm run desktop:run
+```
+
+The install script downloads the model once (~1.6 GB). To roll back, delete `.venv-asr`.
+
+The small bundled models in `models/` are not in git. Fetch them once from the official sherpa-onnx releases (~140 MB), before `npm run desktop:run`:
+
+```powershell
+New-Item -ItemType Directory -Force models\asr\whisper-tiny, models\speaker, models\vad | Out-Null
+$rel = "https://github.com/k2-fsa/sherpa-onnx/releases/download"
+Invoke-WebRequest "$rel/speaker-recongition-models/3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx" -OutFile models\speaker\3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx
+Invoke-WebRequest "$rel/asr-models/silero_vad.onnx" -OutFile models\vad\silero_vad.onnx
+Invoke-WebRequest "$rel/asr-models/sherpa-onnx-whisper-tiny.tar.bz2" -OutFile whisper-tiny.tar.bz2
+tar -xjf whisper-tiny.tar.bz2
+Copy-Item sherpa-onnx-whisper-tiny\tiny-encoder.int8.onnx, sherpa-onnx-whisper-tiny\tiny-decoder.int8.onnx, sherpa-onnx-whisper-tiny\tiny-tokens.txt models\asr\whisper-tiny\
+```
+
 ## Run the Windows desktop app
 
 Use the `Couple Lab` desktop shortcut to launch Electron directly from the already-built local bundle and the private `couple-lab://app` origin. It does not open a browser, a command window, or a web server. Double-click `Open Couple Lab.cmd` only when you want to rebuild the local bundle before launching. A page at `127.0.0.1:5173` is a development server, not the Windows app.
