@@ -6,6 +6,7 @@ import {
 import {
   Activity,
   BookOpenCheck,
+  CalendarPlus,
   Camera,
   Check,
   ChevronDown,
@@ -79,6 +80,8 @@ import {
   parseCloudReflection
 } from "./cloudReflection";
 import { DesktopFoundationPanel } from "./desktopFoundation";
+import { CalmingBreak, ListeningTurnTimer, SpeakerListenerTip } from "./practiceAids";
+import { buildReminderIcs } from "./calendarReminder";
 import { getVisionAssetUrls } from "./visionAssets";
 import {
   headOrientationObservations,
@@ -2784,6 +2787,7 @@ function PracticeStudio({
   const [completedAnswerers, setCompletedAnswerers] = useState<PartnerId[]>([]);
   const [turnMessage, setTurnMessage] = useState("");
   const [breakPlan, setBreakPlan] = useState("");
+  const [activeBreak, setActiveBreak] = useState<{ returnAt: number; requestedBy: string } | null>(null);
   const [interimTranscript, setInterimTranscript] = useState("");
   const [autoSpeechLanguage, setAutoSpeechLanguage] = useState<SpeechLanguage>(() => chooseInitialSpeechLanguage(profile, []));
   const [activeDeck, setActiveDeck] = useState<Deck>(() => decks.find((deck) => deck.id === practiceLaunch?.deckId) ?? decks[0]);
@@ -4399,7 +4403,9 @@ function PracticeStudio({
   };
 
   const requestCalmingBreak = () => {
-    const returnAt = new Date(Date.now() + 20 * 60 * 1000).toLocaleTimeString("he-IL", {
+    const returnAtMs = Date.now() + 20 * 60 * 1000;
+    setActiveBreak({ returnAt: returnAtMs, requestedBy: partnerName(profile, activeSpeakerRef.current) });
+    const returnAt = new Date(returnAtMs).toLocaleTimeString("he-IL", {
       hour: "2-digit",
       minute: "2-digit"
     });
@@ -4417,6 +4423,17 @@ function PracticeStudio({
     setBreakPlan(`עוצרים עכשיו וחוזרים בשעה ${returnAt}. בזמן ההפסקה לא ממשיכים את הוויכוח.`);
     setTurnMessage(`${partnerName(profile, activeSpeakerRef.current)} ביקש/ה הפסקה. קובעים חזרה לשיחה בשעה ${returnAt}.`);
     if (recordingRef.current) window.setTimeout(() => stopRecordingRef.current(), 0);
+  };
+
+  const resumeAfterBreak = () => {
+    setActiveBreak(null);
+    setBreakPlan("");
+  };
+
+  const saveStepReminder = () => {
+    const step = lastCompletedSession?.closingReflection?.nextStep || closingNextStep;
+    if (!step.trim()) return;
+    downloadBlob("couple-lab-weekly-step.ics", buildReminderIcs({ step }), "text/calendar;charset=utf-8");
   };
 
   const saveClosingReflection = () => {
@@ -4499,7 +4516,20 @@ function PracticeStudio({
           <strong>{activeDeck.title}</strong>
           <p>{activeDeck.lens} · {activeDeck.purpose}</p>
         </div>
-        <blockquote dir="auto">{activeDeck.cards[cardIndex]}</blockquote>
+        <blockquote dir="auto" key={`${activeDeck.id}-${cardIndex}`} className="prompt-card-enter">{activeDeck.cards[cardIndex]}</blockquote>
+        {!structuredKind && phase !== "ready" && (
+          <>
+            <SpeakerListenerTip
+              speakerName={partnerName(profile, activeSpeaker)}
+              listenerName={partnerName(profile, activeSpeaker === "A" ? "B" : "A")}
+            />
+            <ListeningTurnTimer
+              key={`${activeDeck.id}-${cardIndex}`}
+              speakerName={partnerName(profile, activeSpeaker)}
+              listenerName={partnerName(profile, activeSpeaker === "A" ? "B" : "A")}
+            />
+          </>
+        )}
         {structuredKind && phase !== "ready" ? (
           <StructuredGuidePanel
             kind={structuredKind}
@@ -4706,6 +4736,7 @@ function PracticeStudio({
             {transcriptionStatusKind === "error" && <button className="text-button" onClick={openManualCorrection}>הוספת טקסט ידנית</button>}
           </div>
           {breakPlan && <div className="practice-break-plan" role="status"><strong>תוכנית הפסקה</strong><span>{breakPlan}</span></div>}
+          {activeBreak && <CalmingBreak returnAt={activeBreak.returnAt} requestedBy={activeBreak.requestedBy} onResume={resumeAfterBreak} />}
           <p className="privacy-note"><Lock size={16} aria-hidden="true" /> הכניסה לתרגול מפעילה תצוגת מצלמה מקומית. הקלטה נשמרת רק לאחר הסכמה ואינה נשלחת לענן.</p>
           {videoUrl && (
             <a className="download-link" href={videoUrl} download="couple-lab-session.webm">
@@ -4897,6 +4928,9 @@ function PracticeStudio({
               <div className="closing-confirmation" role="status">
                 <HeartHandshake size={20} />
                 <div><strong>זה הצעד שבחרתם</strong><p>{lastCompletedSession.closingReflection?.nextStep || closingNextStep}</p></div>
+                <button className="secondary step-reminder-button" onClick={saveStepReminder}>
+                  <CalendarPlus size={16} aria-hidden="true" /> תזכורת ביומן לעוד שבוע
+                </button>
               </div>
             )}
             {(closingSaved || lastCompletedSession.closingReflection) && <div className="result-actions">

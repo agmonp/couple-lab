@@ -1,11 +1,11 @@
 :root {
-  color: #25312e;
+  color: #103537;
   background: #f7f4ef;
   font-family:
     "Noto Sans Hebrew", Arial, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --ink: #25312e;
+  --ink: #103537;
   --muted: #64716d;
   --line: #d8e0db;
   --surface: #fffcf8;
@@ -115,7 +115,7 @@ button {
 .nav-item:hover,
 .nav-item.active {
   background: var(--teal-soft);
-  color: #0c5b58;
+  color: #184a4c;
 }
 
 .nav-item:disabled {
@@ -369,7 +369,7 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--teal-soft);
-  color: #0c5b58;
+  color: #184a4c;
   padding: 12px;
   display: flex;
   align-items: center;
@@ -485,7 +485,7 @@ textarea {
 
 .segmented-choice button.selected {
   border-color: var(--teal);
-  color: #0c5b58;
+  color: #184a4c;
   background: var(--teal-soft);
 }
 
@@ -496,7 +496,7 @@ textarea {
   gap: 10px;
   padding: 12px;
   border-radius: 9px;
-  color: #0c5b58;
+  color: #184a4c;
   background: var(--teal-soft);
 }
 
@@ -695,7 +695,7 @@ textarea {
   flex: 0 0 auto;
   padding: 5px 9px;
   border-radius: 999px;
-  color: #0c5b58;
+  color: #184a4c;
   background: var(--teal-soft);
   font-size: 0.78rem;
   font-weight: 900;
@@ -872,7 +872,7 @@ textarea {
   min-height: 360px;
   overflow: hidden;
   border-radius: 16px;
-  background: #18322d;
+  background: #103537;
 }
 
 .enrollment-preview video {
@@ -1159,7 +1159,7 @@ textarea {
 }
 
 .process-step.done {
-  color: #0c5b58;
+  color: #184a4c;
   background: var(--teal-soft);
 }
 
@@ -2599,7 +2599,7 @@ blockquote {
   padding: 16px;
   border: 1px solid #b9ddd8;
   border-radius: 8px;
-  color: #0c5b58;
+  color: #184a4c;
   background: var(--teal-soft);
 }
 
@@ -2883,7 +2883,7 @@ blockquote {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--teal-soft);
-  color: #0c5b58;
+  color: #184a4c;
   padding: 16px;
   display: flex;
   gap: 12px;
@@ -3378,7 +3378,7 @@ summary:focus-visible {
   width: 100%;
   max-height: 440px;
   border-radius: 16px;
-  background: #18322d;
+  background: #103537;
   margin-bottom: 18px;
 }
 

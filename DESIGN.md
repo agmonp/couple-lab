@@ -2,38 +2,38 @@
 name: "Couple Lab"
 description: "מרחב זוגי שקט שמוביל משאלה אחת לשיחה אחת."
 colors:
-  ink: "#20312c"
-  mineral-bg: "#f2eee7"
+  ink: "#132a2b"
+  mineral-bg: "#faf6ee"
   paper: "#fffdf9"
   muted: "#596660"
   divider: "#d8d4ca"
-  forest: "#1f6259"
-  forest-deep: "#174f48"
-  forest-soft: "#dce9e3"
-  clay: "#b85849"
-  clay-soft: "#f6e3df"
-  honey: "#e5b970"
-  honey-hover: "#efc783"
+  forest: "#184a4c"
+  forest-deep: "#103537"
+  forest-soft: "#e6f0ec"
+  clay: "#c05630"
+  clay-soft: "#f9e2d8"
+  honey: "#d96b43"
+  honey-hover: "#c05630"
 typography:
   display:
-    fontFamily: "Frank Ruhl Libre, Noto Serif Hebrew, Georgia, serif"
+    fontFamily: "Rubik, Heebo, Segoe UI, sans-serif"
     fontSize: "clamp(2rem, 4vw, 4.2rem)"
     fontWeight: 560
     lineHeight: 1
     letterSpacing: "-0.025em"
   headline:
-    fontFamily: "Frank Ruhl Libre, Noto Serif Hebrew, Georgia, serif"
+    fontFamily: "Rubik, Heebo, Segoe UI, sans-serif"
     fontSize: "clamp(2rem, 3.2vw, 3.35rem)"
     fontWeight: 650
     lineHeight: 1.06
     letterSpacing: "-0.025em"
   body:
-    fontFamily: "Segoe UI, Arial, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Heebo, Segoe UI, Arial, ui-sans-serif, system-ui, sans-serif"
     fontSize: "1rem"
     fontWeight: 400
     lineHeight: 1.6
   label:
-    fontFamily: "Segoe UI, Arial, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Heebo, Segoe UI, Arial, ui-sans-serif, system-ui, sans-serif"
     fontSize: "0.9rem"
     fontWeight: 700
     lineHeight: 1.3
@@ -138,10 +138,10 @@ Couple Lab מרגיש כמו חדר פרטי ונעים לשני אנשים, ל�
 
 ## Typography
 
-**Display Font:** Frank Ruhl Libre, self-hosted, עם Noto Serif Hebrew ו־Georgia כ־fallback.  
-**Body Font:** Segoe UI, הזמין באופן מקומי ב־Windows, עם Arial ו־system-ui כ־fallback. אין להצהיר על גופן גוף שאינו נארז בפועל.
+**Display Font:** Rubik, self-hosted (`public/fonts/Rubik-Variable.ttf`, OFL), עם Heebo ו־Segoe UI כ־fallback.  
+**Body Font:** Heebo, self-hosted (`public/fonts/Heebo-Variable.ttf`, OFL), עם Segoe UI ו־Arial כ־fallback. הגופנים נארזים עם האפליקציה כדי שתעבוד בלי אינטרנט.
 
-**Character:** הכותרות ספרותיות, אנושיות וקצת טקסיות; טקסט ההפעלה נשאר מודרני ושקוף. הניגוד ביניהם מייצר עולם עריכתי בלי לפגוע בקריאות בזמן שיחה.
+**Character:** אותה שפה כמו דף הנחיתה (agmonp.github.io/couple-lab): כותרות עגולות וחמות ב־Rubik, טקסט קריא ומרווח ב־Heebo, רקע שמנת, ירוק־בקבוק עמוק וטרקוטה לפעולה. ערב ביתי בסלון, לא דאשבורד.
 
 ### Hierarchy
 
