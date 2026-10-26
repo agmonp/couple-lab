@@ -1,0 +1,88 @@
+# Builds the Hebrew transcription engine that the packaged app uses:
+#   - whisper.cpp with the Vulkan backend (any NVIDIA/AMD/Intel GPU) and CPU
+#     variants loaded at runtime, so one build runs on every Windows PC
+#   - the ivrit-ai Hebrew turbo model, quantized to q5_0, with its SHA-256
+# Everything is published to one release tag; the app downloads the model from
+# it and bundles the engine at build time (scripts/fetch-asr-engine.ps1).
+name: Build ASR engine
+
+on:
+  workflow_dispatch:
+    inputs:
+      whisper_cpp_ref:
+        description: whisper.cpp tag
+        default: v1.9.5
+      release_tag:
+        description: Release tag to publish to
+        default: asr-engine-v1
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      VULKAN_VERSION: 1.4.313.2
+    steps:
+      - name: Checkout whisper.cpp
+        uses: actions/checkout@v4
+        with:
+          repository: ggml-org/whisper.cpp
+          ref: ${{ inputs.whisper_cpp_ref }}
+
+      - name: Install Vulkan SDK
+        shell: pwsh
+        run: |
+          curl.exe -sSL -o "$env:RUNNER_TEMP\vulkan-sdk.exe" "https://sdk.lunarg.com/sdk/download/$env:VULKAN_VERSION/windows/vulkansdk-windows-X64-$env:VULKAN_VERSION.exe"
+          & "$env:RUNNER_TEMP\vulkan-sdk.exe" --accept-licenses --default-answer --confirm-command install
+          Add-Content $env:GITHUB_ENV "VULKAN_SDK=C:\VulkanSDK\$env:VULKAN_VERSION"
+          Add-Content $env:GITHUB_PATH "C:\VulkanSDK\$env:VULKAN_VERSION\bin"
+
+      - name: Build
+        shell: pwsh
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON `
+            -DGGML_VULKAN=ON -DGGML_BACKEND_DL=ON -DGGML_CPU_ALL_VARIANTS=ON -DGGML_NATIVE=OFF `
+            -DWHISPER_BUILD_EXAMPLES=ON -DWHISPER_BUILD_SERVER=ON -DWHISPER_BUILD_TESTS=OFF
+          cmake --build build --config Release -j 4
+
+      - name: Package engine
+        shell: pwsh
+        run: |
+          $out = "whisper-engine-win-x64"
+          New-Item -ItemType Directory -Force $out | Out-Null
+          Get-ChildItem build\bin\Release -Include *.exe,*.dll -Recurse | Copy-Item -Destination $out
+          Copy-Item LICENSE "$out\LICENSE-whisper.cpp.txt"
+          "whisper.cpp ${{ inputs.whisper_cpp_ref }} built with Vulkan + CPU variants (GGML_BACKEND_DL)." | Set-Content "$out\SOURCE.md"
+          Compress-Archive -Path "$out\*" -DestinationPath "$out.zip"
+          Get-ChildItem $out | Select-Object Name, Length | Format-Table | Out-String | Write-Host
+
+      - name: Quantize ivrit-ai model
+        shell: pwsh
+        run: |
+          curl.exe -sSL -o ivrit-f16.bin "https://huggingface.co/ivrit-ai/whisper-large-v3-turbo-ggml/resolve/main/ggml-model.bin"
+          $quantize = Get-ChildItem build\bin\Release -Filter *quantize*.exe -Recurse | Select-Object -First 1
+          & $quantize.FullName ivrit-f16.bin ggml-ivrit-large-v3-turbo-q5_0.bin q5_0
+          if ($LASTEXITCODE -ne 0) { throw "quantize failed" }
+          $hash = (Get-FileHash ggml-ivrit-large-v3-turbo-q5_0.bin -Algorithm SHA256).Hash.ToLower()
+          "$hash  ggml-ivrit-large-v3-turbo-q5_0.bin" | Set-Content -NoNewline SHA256SUMS.txt
+          $engineHash = (Get-FileHash whisper-engine-win-x64.zip -Algorithm SHA256).Hash.ToLower()
+          "`n$engineHash  whisper-engine-win-x64.zip" | Add-Content -NoNewline SHA256SUMS.txt
+          Get-Content SHA256SUMS.txt
+          (Get-Item ggml-ivrit-large-v3-turbo-q5_0.bin).Length
+
+      - name: Publish
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $notes = @"
+          Transcription engine assets for Couple Lab (downloaded by the app, not meant to be opened by hand).
+
+          - ggml-ivrit-large-v3-turbo-q5_0.bin: ivrit-ai/whisper-large-v3-turbo (Apache-2.0, https://huggingface.co/ivrit-ai/whisper-large-v3-turbo-ggml), quantized to q5_0. Only the format changed.
+          - whisper-engine-win-x64.zip: whisper.cpp ${{ inputs.whisper_cpp_ref }} (MIT, https://github.com/ggml-org/whisper.cpp) with Vulkan and CPU backends.
+          - SHA256SUMS.txt: checksums the app verifies.
+          "@
+          gh release create "${{ inputs.release_tag }}" --repo "${{ github.repository }}" --title "ASR engine (${{ inputs.release_tag }})" --notes "$notes" --prerelease `
+            ggml-ivrit-large-v3-turbo-q5_0.bin whisper-engine-win-x64.zip SHA256SUMS.txt
