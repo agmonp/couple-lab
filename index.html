@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Couple Lab – מרחב תרגול זוגי פרטי</title>
-<meta name="description" content="אפליקציית Windows לזוגות: שאלות לשיחה, שיחות מונחות, הקלטה ותמלול בעברית, וסיכום עדין – הכול נשאר במחשב שלכם.">
-<meta property="og:title" content="Couple Lab – מרחב תרגול זוגי פרטי">
-<meta property="og:description" content="שאלות לשיחה, שיחות מונחות ותמלול בעברית. הכול נשאר במחשב שלכם.">
+<title>Couple Lab – מרחב פרטי לשיחה זוגית</title>
+<meta name="description" content="אפליקציה לזוגות ל־Windows: שאלות שפותחות שיחה, שיחות מונחות לרגעים הקשים וסיכום עדין. הכול נשאר על המחשב שלכם, בלי חשבון ובלי ענן.">
+<meta property="og:title" content="Couple Lab – מרחב פרטי לשיחה זוגית">
+<meta property="og:description" content="שאלות לשיחה, שיחות מונחות וסיכום עדין. הכול נשאר על המחשב שלכם.">
 <meta property="og:image" content="https://agmonp.github.io/couple-lab/couple-lab-hero.png">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,146 +15,450 @@
 <style>
   :root {
     --bg: #faf5ec;
+    --bg-alt: #f3ecdf;
     --surface: #ffffff;
     --ink: #2a2522;
-    --muted: #6b625b;
+    --muted: #625a53;
     --line: #e7ddcf;
     --teal: #1f6b6b;
-    --teal-ink: #ffffff;
-    --coral: #d9644a;
+    --teal-soft: #e3efed;
+    --on-teal: #ffffff;
+    --coral: #b34a32;
+    --coral-soft: #f8e4dc;
+    --on-coral: #ffffff;
+    --deep: #1e3432;
+    --on-deep: #f3ede4;
+    --on-deep-muted: #bccac6;
     --code-bg: #f2ebe0;
+    --shadow: 0 18px 40px -18px rgba(42, 37, 34, .28);
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #1b1917;
-      --surface: #252220;
+      --bg-alt: #221f1c;
+      --surface: #2a2623;
       --ink: #f1ebe3;
       --muted: #b3a99f;
       --line: #3a3531;
-      --teal: #5fb3ad;
-      --teal-ink: #10201f;
+      --teal: #6cbdb5;
+      --teal-soft: #243634;
+      --on-teal: #0f1f1e;
       --coral: #ef8b72;
+      --coral-soft: #3a2a25;
+      --on-coral: #2a1510;
+      --deep: #13201f;
+      --on-deep: #f1ebe3;
+      --on-deep-muted: #a7b8b3;
       --code-bg: #2e2a27;
+      --shadow: 0 18px 40px -18px rgba(0, 0, 0, .6);
     }
   }
   * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
   body {
     margin: 0;
     background: var(--bg);
     color: var(--ink);
     font: 18px/1.65 "Assistant", system-ui, sans-serif;
   }
-  .wrap { max-width: 980px; margin: 0 auto; padding: 0 20px; }
-  header { display: flex; align-items: center; gap: 12px; padding: 22px 0; }
-  header img { width: 40px; height: 40px; border-radius: 10px; }
-  header b { font: 700 22px "Frank Ruhl Libre", serif; }
-  header a { margin-inline-start: auto; color: var(--muted); text-decoration: none; font-size: 16px; }
-  header a:hover { color: var(--ink); }
+  img { max-width: 100%; height: auto; display: block; }
+  a { color: var(--teal); }
+  a:focus-visible, summary:focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; border-radius: 8px; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+  .icon { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 
-  .hero { display: grid; gap: 28px; padding: 16px 0 40px; }
-  .hero img { width: 100%; border-radius: 18px; display: block; }
-  h1 { font: 700 clamp(32px, 5vw, 48px)/1.2 "Frank Ruhl Libre", serif; margin: 0 0 12px; }
-  .lead { font-size: 21px; color: var(--muted); margin: 0 0 26px; max-width: 40ch; }
-  .cta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  /* Header */
+  header { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 90%, transparent); backdrop-filter: blur(10px); }
+  header .wrap { display: flex; align-items: center; gap: 12px; height: 68px; }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; }
+  .brand img { width: 36px; height: 36px; border-radius: 9px; }
+  .brand b { font: 700 21px "Frank Ruhl Libre", serif; }
+  nav.top { margin-inline-start: auto; display: flex; align-items: center; gap: 22px; }
+  nav.top a { color: var(--muted); text-decoration: none; font-size: 16px; padding: 8px 0; }
+  nav.top a:hover { color: var(--ink); }
+  nav.top a.btn-sm { color: var(--on-teal); background: var(--teal); padding: 9px 20px; border-radius: 999px; font-weight: 700; }
+  @media (max-width: 720px) { nav.top a:not(.btn-sm) { display: none; } }
+  section[id] { scroll-margin-top: 72px; }
+
+  /* Buttons */
   .btn {
-    display: inline-block; padding: 14px 26px; border-radius: 999px;
-    background: var(--teal); color: var(--teal-ink); font-weight: 700;
-    text-decoration: none; font-size: 19px;
+    display: inline-flex; align-items: center; gap: 10px; padding: 15px 28px; border-radius: 999px;
+    background: var(--teal); color: var(--on-teal); font-weight: 700; text-decoration: none; font-size: 19px;
   }
   .btn:hover { filter: brightness(1.08); }
   .btn.ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--line); font-weight: 600; }
-  .note { font-size: 15px; color: var(--muted); }
+  .btn .icon { width: 22px; height: 22px; }
+  .cta-note { font-size: 15px; color: var(--muted); margin: 14px 0 0; }
 
-  section { padding: 40px 0; border-top: 1px solid var(--line); }
-  h2 { font: 700 28px "Frank Ruhl Libre", serif; margin: 0 0 18px; }
-  h3 { font-size: 19px; margin: 0 0 6px; }
-  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
-  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
-  .card p { margin: 0; color: var(--muted); font-size: 16px; }
+  /* Hero */
+  .hero { display: grid; gap: 36px; padding-block: 36px 60px; align-items: center; }
+  .eyebrow { display: inline-block; font-size: 15px; font-weight: 600; color: var(--teal); background: var(--teal-soft); padding: 4px 12px; border-radius: 999px; margin-bottom: 16px; }
+  h1 { font: 700 clamp(34px, 5.2vw, 54px)/1.15 "Frank Ruhl Libre", serif; margin: 0 0 16px; }
+  .lead { font-size: 21px; color: var(--muted); margin: 0 0 28px; max-width: 34ch; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .trust { list-style: none; padding: 0; margin: 26px 0 0; display: flex; flex-wrap: wrap; gap: 10px 22px; }
+  .trust li { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 16px; }
+  .trust .icon { color: var(--teal); width: 20px; height: 20px; }
+  .hero-art { border-radius: 22px; overflow: hidden; box-shadow: var(--shadow); }
+  @media (min-width: 880px) { .hero { grid-template-columns: 1fr 1.1fr; padding-top: 56px; } }
 
-  ol.steps { padding: 0; margin: 0; list-style: none; counter-reset: s; display: grid; gap: 14px; }
-  ol.steps li { counter-increment: s; position: relative; padding-inline-start: 52px; }
-  ol.steps li::before {
+  /* Sections */
+  section { padding: 72px 0; }
+  .alt { background: var(--bg-alt); }
+  h2 { font: 700 clamp(28px, 3.6vw, 38px)/1.2 "Frank Ruhl Libre", serif; margin: 0 0 14px; }
+  .section-lead { font-size: 19px; color: var(--muted); margin: 0 0 40px; max-width: 58ch; }
+  h3 { font-size: 20px; margin: 0 0 6px; line-height: 1.35; }
+
+  /* Privacy */
+  .privacy { background: var(--deep); color: var(--on-deep); }
+  .privacy .section-lead { color: var(--on-deep-muted); }
+  .privacy-grid { display: grid; gap: 28px 36px; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); }
+  .privacy-item { display: flex; gap: 16px; align-items: flex-start; }
+  .privacy-item .badge { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; background: rgba(255,255,255,.08); color: #8fd3cb; flex: none; }
+  .privacy-item p { margin: 0; color: var(--on-deep-muted); font-size: 17px; }
+  .privacy-foot { margin: 40px 0 0; padding-top: 22px; border-top: 1px solid rgba(255,255,255,.14); color: var(--on-deep-muted); font-size: 15px; }
+
+  /* Feature cards */
+  .cards { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 26px; }
+  .card .badge { width: 52px; height: 52px; border-radius: 15px; display: grid; place-items: center; background: var(--teal-soft); color: var(--teal); margin-bottom: 16px; }
+  .card .badge.coral { background: var(--coral-soft); color: var(--coral); }
+  .card .badge .icon { width: 26px; height: 26px; }
+  .card p { margin: 0; color: var(--muted); font-size: 17px; }
+  @media (max-width: 560px) {
+    .card { display: grid; grid-template-columns: auto 1fr; column-gap: 16px; padding: 20px; }
+    .card .badge { grid-row: span 2; margin: 0; width: 46px; height: 46px; }
+  }
+
+  /* Walkthrough */
+  .steps { display: grid; gap: 64px; }
+  .step { display: grid; gap: 24px; align-items: center; }
+  .step-num { display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: var(--coral); color: var(--on-coral); font-weight: 700; margin-bottom: 14px; }
+  .step p { color: var(--muted); margin: 0 0 10px; }
+  .step figure { margin: 0; }
+  .frame { display: block; border-radius: 14px; overflow: hidden; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); }
+  .frame:hover { border-color: var(--teal); }
+  .step figcaption { font-size: 14px; color: var(--muted); margin-top: 10px; }
+  @media (min-width: 880px) {
+    .step { grid-template-columns: 1fr 1.9fr; gap: 44px; }
+    .step:nth-child(even) { grid-template-columns: 1.9fr 1fr; }
+    .step:nth-child(even) .step-text { order: 2; }
+  }
+
+  /* Methods */
+  .methods { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .method { border-inline-start: 3px solid var(--teal); padding-inline-start: 18px; padding-block: 4px; }
+  .method p { margin: 0; color: var(--muted); font-size: 17px; }
+  .disclaimer { margin-top: 36px; font-size: 15px; color: var(--muted); }
+
+  /* Who */
+  .who { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .who li { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px 22px; display: flex; gap: 14px; align-items: flex-start; }
+  .who .icon { color: var(--coral); margin-top: 3px; }
+  .safety { margin-top: 28px; background: var(--coral-soft); border-radius: 16px; padding: 18px 22px; display: flex; gap: 14px; align-items: flex-start; }
+  .safety .icon { color: var(--coral); margin-top: 3px; }
+  .safety p { margin: 0; }
+
+  /* Install */
+  .install { display: grid; gap: 40px; }
+  @media (min-width: 880px) { .install { grid-template-columns: 1.3fr 1fr; } }
+  ol.numbered { padding: 0; margin: 0; list-style: none; counter-reset: s; display: grid; gap: 18px; }
+  ol.numbered li { counter-increment: s; position: relative; padding-inline-start: 54px; }
+  ol.numbered li::before {
     content: counter(s); position: absolute; inset-inline-start: 0; top: 0;
-    width: 36px; height: 36px; border-radius: 50%; background: var(--coral); color: #fff;
+    width: 38px; height: 38px; border-radius: 50%; background: var(--teal); color: var(--on-teal);
     display: grid; place-items: center; font-weight: 700;
   }
-  pre {
-    direction: ltr; text-align: left; background: var(--code-bg); border-radius: 10px;
-    padding: 14px 16px; overflow-x: auto; font-size: 14px; line-height: 1.5; margin: 8px 0 0;
-  }
-  code { font-family: ui-monospace, Consolas, monospace; }
-  details { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 20px; }
-  summary { cursor: pointer; font-weight: 700; }
-  .warn { border-inline-start: 4px solid var(--coral); padding: 4px 14px; color: var(--muted); }
-  footer { padding: 30px 0 50px; color: var(--muted); font-size: 15px; border-top: 1px solid var(--line); }
-  a { color: var(--teal); }
+  .req { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 24px; align-self: start; }
+  .req ul { margin: 0 0 20px; padding-inline-start: 20px; color: var(--muted); }
 
-  @media (min-width: 820px) {
-    .hero { grid-template-columns: 1fr 1.15fr; align-items: center; padding-top: 30px; }
-  }
+  /* FAQ */
+  .faq { display: grid; gap: 12px; max-width: 800px; }
+  details { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 22px; }
+  summary { cursor: pointer; font-weight: 700; font-size: 18px; }
+  details p { color: var(--muted); margin: 12px 0 0; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: .9em; }
+
+  /* Final CTA + footer */
+  .final { text-align: center; }
+  .final .section-lead { margin-inline: auto; }
+  footer { padding: 24px 0 40px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 4px 20px; justify-content: space-between; align-items: center; }
+  footer a { color: var(--muted); display: inline-block; padding: 8px 4px; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <img src="app-icon.png" alt="">
-    <b>Couple Lab</b>
-    <a href="https://github.com/agmonp/couple-lab/tree/local-hebrew">קוד המקור ב־GitHub</a>
-  </header>
 
-  <div class="hero">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+    <symbol id="i-cloud-off" viewBox="0 0 24 24"><path d="m2 2 20 20"/><path d="M5.78 5.78A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.31-.19"/><path d="M21.53 16.5A4.5 4.5 0 0 0 17.5 10h-1.79A7 7 0 0 0 10 5.07"/></symbol>
+    <symbol id="i-wifi-off" viewBox="0 0 24 24"><path d="M12 20h.01"/><path d="M8.5 16.43a5 5 0 0 1 7 0"/><path d="M2 8.82a15 15 0 0 1 4.17-2.65"/><path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76"/><path d="M16.85 11.25a10 10 0 0 1 2.22 1.68"/><path d="M5 12.86a10 10 0 0 1 5.17-2.69"/><path d="m2 2 20 20"/></symbol>
+    <symbol id="i-user-off" viewBox="0 0 24 24"><circle cx="10" cy="8" r="4.5"/><path d="M2.5 21a7.5 7.5 0 0 1 12.2-5.8"/><path d="m17 15 5 5"/><path d="m22 15-5 5"/></symbol>
+    <symbol id="i-user-check" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/></symbol>
+    <symbol id="i-laptop" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M2 20h20"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+    <symbol id="i-cards" viewBox="0 0 24 24"><rect x="7" y="3" width="14" height="16" rx="2"/><path d="M4 7v12a2 2 0 0 0 2 2h10"/></symbol>
+    <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></symbol>
+    <symbol id="i-report" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h8"/><path d="M8 17h5"/></symbol>
+    <symbol id="i-timer" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M10 2h4"/></symbol>
+    <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36z"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></symbol>
+    <symbol id="i-bandage" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 6v12"/><path d="M18 6v12"/><path d="M10 10h.01"/><path d="M14 10h.01"/><path d="M10 14h.01"/><path d="M14 14h.01"/></symbol>
+    <symbol id="i-sofa" viewBox="0 0 24 24"><path d="M20 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v3"/><path d="M2 16a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v1.5a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5V11a2 2 0 0 0-4 0z"/><path d="M4 18v2"/><path d="M20 18v2"/></symbol>
+    <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.13-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.13a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.13 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.13a.5.5 0 0 1-.96 0z"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
+  </defs>
+</svg>
+
+<header>
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="app-icon.png" alt="" width="36" height="36"><b>Couple Lab</b></a>
+    <nav class="top" aria-label="ניווט">
+      <a href="#privacy">פרטיות</a>
+      <a href="#how">איך זה עובד</a>
+      <a href="#faq">שאלות</a>
+      <a class="btn-sm" href="#download">הורדה</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <div class="wrap hero">
     <div>
+      <span class="eyebrow">אפליקציה לזוגות · ל־Windows</span>
       <h1>רגע שקט לשיחה טובה יותר ביניכם</h1>
-      <p class="lead">Couple Lab היא אפליקציה לזוגות: בוחרים שאלה, מקיימים שיחה מונחית, ומקבלים סיכום עדין. הכול רץ על המחשב שלכם, ושום דבר לא עולה לאינטרנט.</p>
+      <p class="lead">שאלות שפותחות שיחה, שיחות מונחות לרגעים הקשים, וסיכום עדין בסוף. הכול נשאר על המחשב שלכם.</p>
       <div class="cta">
-        <a class="btn" href="https://github.com/agmonp/couple-lab/releases/latest/download/Couple-Lab-Windows.exe">הורדה ל־Windows</a>
-        <a class="btn ghost" href="#install">איך מתקינים</a>
+        <a class="btn" href="https://github.com/agmonp/couple-lab/releases/latest/download/Couple-Lab-Windows.exe"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-download"/></svg>הורדה חינם ל־Windows</a>
+        <a class="btn ghost" href="#how">איך זה עובד</a>
       </div>
-      <p class="note">חינם · קוד פתוח (MIT) · ל־Windows 10 ו־11 (64 ביט)</p>
+      <p class="cta-note">קובץ אחד, כ־175MB, בלי התקנה. אם Windows מציגה אזהרה, <a href="#download">כך ממשיכים</a>.</p>
+      <ul class="trust">
+        <li><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-user-off"/></svg>בלי הרשמה</li>
+        <li><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-cloud-off"/></svg>בלי ענן</li>
+        <li><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-lock"/></svg>ההקלטות רק אצלכם</li>
+      </ul>
     </div>
-    <img src="couple-lab-hero.png" alt="איור של בני זוג משוחחים בסלון, ומיקרופון קטן על השולחן">
+    <div class="hero-art">
+      <img src="hero.webp" alt="איור: בני זוג משוחחים בסלון, ומיקרופון קטן על השולחן ביניהם" width="1400" height="788" fetchpriority="high">
+    </div>
   </div>
 
-  <section>
-    <h2>מה יש בפנים</h2>
-    <div class="grid">
-      <div class="card"><h3>חפיסות שאלות</h3><p>תשע חפיסות של שאלות לשיחה, בהשראת גוטמן, שעוזרות להתקרב ולהכיר מחדש.</p></div>
-      <div class="card"><h3>שיחות מונחות</h3><p>שיחה צעד אחר צעד: אחרי ריב, או כשאחד מכם עמוס וצריך הקשבה. יש תורות ברורים וזמנים.</p></div>
-      <div class="card"><h3>הקלטה ותמלול בעברית</h3><p>אם שניכם מסכימים, השיחה מוקלטת ומתומללת. בסוף רואים מי דיבר כמה ואילו רגעים חשובים עלו.</p></div>
-      <div class="card"><h3>פרטי לגמרי</h3><p>אין חשבון ואין שרת. ההקלטות, התמלולים והסיכומים נשמרים רק במחשב שלכם, ואפשר למחוק אותם בכל רגע.</p></div>
+  <section class="privacy" id="privacy">
+    <div class="wrap">
+      <h2>מה שנאמר ביניכם, נשאר ביניכם</h2>
+      <p class="section-lead">שיחה זוגית היא מהדברים הכי פרטיים שיש, ולכן Couple Lab עובדת כולה על המחשב שלכם. אין לנו שרת, כך שאין לנו שום דרך לראות או לשמוע מה נאמר.</p>
+      <div class="privacy-grid">
+        <div class="privacy-item">
+          <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-user-off"/></svg></span>
+          <div><h3>בלי חשבון ובלי סיסמה</h3><p>אין הרשמה, אין מייל ואין שם משתמש. פותחים את האפליקציה ומתחילים.</p></div>
+        </div>
+        <div class="privacy-item">
+          <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-laptop"/></svg></span>
+          <div><h3>הכול נשמר על המחשב שלכם</h3><p>ההקלטות, התמלולים והסיכומים נשמרים רק אצלכם, ולא עולים לשום מקום.</p></div>
+        </div>
+        <div class="privacy-item">
+          <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-wifi-off"/></svg></span>
+          <div><h3>תמלול בלי אינטרנט</h3><p>הפיכת הדיבור לטקסט נעשית במחשב עצמו. אפשר לנתק את האינטרנט, והכול ימשיך לעבוד.</p></div>
+        </div>
+        <div class="privacy-item">
+          <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-shield"/></svg></span>
+          <div><h3>זיהוי מי מדבר, בלי לשמור תמונות</h3><p>אם תבחרו שהאפליקציה תלמד מי מדבר, הצילומים ודגימות הקול שמשמשים ללמידה נמחקים מיד. נשמר רק תיאור מספרי, מוצפן בהצפנה של Windows.</p></div>
+        </div>
+        <div class="privacy-item">
+          <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-trash"/></svg></span>
+          <div><h3>אתם מחליטים מה נמחק</h3><p>אפשר למחוק את ההקלטה של כל שיחה (התמלול נשאר), או לפתוח פרופיל זוגי חדש ולהתחיל מאפס.</p></div>
+        </div>
+        <div class="privacy-item">
+          <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-user-check"/></svg></span>
+          <div><h3>הסכמה של שניכם</h3><p>אין הקלטה בלי ששניכם אישרתם. את שאלון מפת הקשר כל אחד ממלא לבד, והתשובות מוסתרות מבן או בת הזוג.</p></div>
+        </div>
+      </div>
+      <p class="privacy-foot">יש באפליקציה גם אפשרות לחבר ניתוח בענן, למי שרוצה. היא כבויה כברירת מחדל, ופועלת רק אם תפעילו אותה ותזינו מפתח API משלכם.</p>
     </div>
-    <p class="warn" style="margin-top:22px">Couple Lab היא כלי לתרגול, לא טיפול זוגי ולא אבחון. היא לא שופטת מי צודק. אם יש פגיעה או סכנה, פנו לאיש מקצוע.</p>
-  </section>
-
-  <section id="install">
-    <h2>התקנה, שתי דקות</h2>
-    <ol class="steps">
-      <li><b>מורידים</b> את הקובץ <code>Couple-Lab-Windows.exe</code> מהכפתור למעלה.</li>
-      <li><b>פותחים אותו בלחיצה כפולה.</b> אין התקנה. זו תוכנה ניידת שרצה ישירות מהקובץ, ואפשר לשמור אותה בכל תיקייה.</li>
-      <li><b>אם Windows מציג "Windows protected your PC"</b>, לוחצים על <i>More info</i> ואז על <i>Run anyway</i>. ההודעה מופיעה כי התוכנה עדיין לא חתומה דיגיטלית.</li>
-      <li><b>מאשרים מצלמה ומיקרופון</b> כשהאפליקציה מבקשת. כל אחד מכם נרשם בתורו, ואז אפשר להתחיל שיחה ראשונה.</li>
-    </ol>
   </section>
 
   <section>
-    <h2>תמלול עברית מדויק (רשות, למתקדמים)</h2>
-    <p>הגרסה הניידת מתמללת עם מנוע קטן ומהיר. זה מספיק לסיכום, אבל לא מדויק בעברית. כדי לקבל תמלול טוב בהרבה (מודל ivrit-ai שרץ אצלכם במחשב), מריצים את האפליקציה מקוד המקור. עדיף מחשב עם כרטיס מסך NVIDIA. בלי כרטיס כזה זה עובד, אבל לאט יותר.</p>
-    <details>
-      <summary>הוראות התקנה מקוד המקור</summary>
-      <p>צריך <a href="https://nodejs.org/">Node.js 20+</a>, <a href="https://www.python.org/downloads/">Python 3.11</a> ו־<a href="https://git-scm.com/download/win">Git</a>. אחר כך ב־PowerShell:</p>
-<pre><code>git clone -b local-hebrew https://github.com/agmonp/couple-lab.git
-cd couple-lab
-npm install
-powershell -ExecutionPolicy Bypass -File .\scripts\install-hebrew-asr.ps1
-npm run desktop:run</code></pre>
-      <p class="note">ההתקנה מורידה פעם אחת מודל של כ־1.6GB. את קובצי המודלים הקטנים (תיקיית <code>models</code>) לוקחים מתוך הגרסה הניידת, או לפי <code>models/README.md</code>.</p>
-    </details>
+    <div class="wrap">
+      <h2>מה יש בפנים</h2>
+      <p class="section-lead">כלים קטנים ופשוטים שעוזרים לדבר, להקשיב ולהתקרב.</p>
+      <div class="cards">
+        <div class="card">
+          <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-cards"/></svg></span>
+          <h3>17 חפיסות שאלות</h3>
+          <p>שאלות שפותחות שיחה אמיתית: על העולם הפנימי, על הערכה, על תשוקה, ועל החלומות שלכם יחד.</p>
+        </div>
+        <div class="card">
+          <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-route"/></svg></span>
+          <h3>שיחות מונחות לרגעים קשים</h3>
+          <p>"אחרי ריב" ו"שיחה מפחיתת לחץ" מחולקות לשלבים. האפליקציה מנהלת את התורות ושואלת כל אחד מכם איך הוא מרגיש לפני השיחה ואחריה.</p>
+        </div>
+        <div class="card">
+          <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-mic"/></svg></span>
+          <h3>הקלטה ותמלול</h3>
+          <p>אם שניכם מסכימים, השיחה מוקלטת ומתומללת על המחשב. התמלול בעברית בסיסי, אבל מספיק כדי לחפש אחר כך "מה אמרנו על...".</p>
+        </div>
+        <div class="card">
+          <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-report"/></svg></span>
+          <h3>סיכום וצעד אחד להמשך</h3>
+          <p>מי דיבר כמה, אילו רגעים טובים היו, וצעד קטן לשבוע הקרוב. אפשר לשמור כ־PDF.</p>
+        </div>
+        <div class="card">
+          <span class="badge coral"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-timer"/></svg></span>
+          <h3>הפסקה כשמוצפים</h3>
+          <p>כפתור אחד עוצר את השיחה ל־20 דקות ומזכיר לחזור. כי שיחה טובה לא קורית כשהלב דוהר.</p>
+        </div>
+        <div class="card">
+          <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-compass"/></svg></span>
+          <h3>מפת הקשר</h3>
+          <p>שאלון קצר ופרטי לכל אחד מכם, שמראה איפה אתם חזקים ובמה כדאי להתמקד עכשיו.</p>
+        </div>
+      </div>
+    </div>
   </section>
 
-  <footer>
-    נבנה באהבה כפרויקט אישי · <a href="https://github.com/agmonp/couple-lab/issues">דיווח על בעיה</a> · <a href="https://github.com/agmonp/couple-lab/releases">כל הגרסאות</a>
-  </footer>
-</div>
+  <section class="alt" id="how">
+    <div class="wrap">
+      <h2>איך זה עובד</h2>
+      <p class="section-lead">עשר עד עשרים דקות, פעם בשבוע או מתי שצריך. כך נראה מפגש אחד.</p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-text">
+            <span class="step-num">1</span>
+            <h3>בוחרים על מה לדבר</h3>
+            <p>שאלה אחת מתוך חפיסה, או שיחה מונחית כשיש משהו ספציפי. האפליקציה גם מציעה במה כדאי להתמקד היום, לפי מפת הקשר שלכם.</p>
+          </div>
+          <figure>
+            <a class="frame" href="shot-decks.webp" aria-label="הגדלת צילום המסך: בחירת חפיסת שאלות"><img src="shot-decks.webp" alt="מסך המדריך: רשימת חפיסות שאלות כמו העולם הפנימי שלנו, חיבה והערכה, ניסיון תיקון" width="1400" height="744" loading="lazy"></a>
+          </figure>
+        </div>
+        <div class="step">
+          <div class="step-text">
+            <span class="step-num">2</span>
+            <h3>מדברים, ואם בחרתם, היא מתמללת</h3>
+            <p>אחד מדבר, השני מקשיב ומשקף. אם הפעלתם הקלטה, האפליקציה מתמללת ומסמנת רגעים כמו הקשבה, הערכה או לקיחת אחריות.</p>
+            <p>ואם צריך לעצור, עוצרים.</p>
+          </div>
+          <figure>
+            <a class="frame" href="shot-transcript.webp" aria-label="הגדלת צילום המסך: התמלול"><img src="shot-transcript.webp" alt="מסך התמלול: משפטים של נועה ויונתן עם תגיות כמו תיקוף והקשבה" width="1400" height="753" loading="lazy"></a>
+            <figcaption>בתמונות: זוג לדוגמה (נועה ויונתן). אצלכם יופיעו השמות שלכם.</figcaption>
+          </figure>
+        </div>
+        <div class="step">
+          <div class="step-text">
+            <span class="step-num">3</span>
+            <h3>מסכמים בעדינות</h3>
+            <p>בסוף רואים מה עבד ומה כדאי לנסות בפעם הבאה, ובוחרים יחד צעד קטן אחד. בלי שיפוט ובלי הכרעה מי צודק. המדד שמופיע הוא מדד תרגול, לא ציון לקשר.</p>
+          </div>
+          <figure>
+            <a class="frame" href="shot-report.webp" aria-label="הגדלת צילום המסך: הדוח הזוגי"><img src="shot-report.webp" alt="מסך הדוח הזוגי: מספר השיחות, ניסיונות התיקון, בדיקת בטיחות וכפתור לשמירה כ־PDF" width="1400" height="578" loading="lazy"></a>
+          </figure>
+        </div>
+        <div class="step">
+          <div class="step-text">
+            <span class="step-num">4</span>
+            <h3>חוזרים, ורואים התקדמות</h3>
+            <p>במסך הבית מחכים לכם הצעד שבחרתם, השיחות הקודמות והקצב השבועי שלכם. כך התרגול הופך להרגל.</p>
+          </div>
+          <figure>
+            <a class="frame" href="shot-home.webp" aria-label="הגדלת צילום המסך: מסך הבית"><img src="shot-home.webp" alt="מסך הבית: המרחב הזוגי של נועה ויונתן, הצעד שבחרו יחד והשיחות האחרונות" width="1400" height="910" loading="lazy"></a>
+          </figure>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>על מה זה מבוסס</h2>
+      <p class="section-lead">התרגילים בנויים בהשראת עקרונות מוכרים מעולם הטיפול הזוגי, בעיקר מהמחקר של ג'ון וג'ולי גוטמן על מה שעוזר לזוגות להישאר קרובים.</p>
+      <div class="methods">
+        <div class="method"><h3>פתיחה רכה</h3><p>להתחיל ממה שאני מרגיש וממה שאני צריך, במקום מביקורת.</p></div>
+        <div class="method"><h3>דובר ומקשיב</h3><p>אחד מדבר, והשני משקף את מה ששמע לפני שהוא עונה.</p></div>
+        <div class="method"><h3>ניסיונות תיקון</h3><p>לשים לב לרגעים הקטנים שעוצרים הסלמה, ולהיענות להם.</p></div>
+        <div class="method"><h3>הפסקה מוסכמת</h3><p>כשמישהו מוצף, עוצרים ל־20 דקות לפחות, נרגעים וחוזרים.</p></div>
+        <div class="method"><h3>היענות לפנייה</h3><p>לשים לב לבקשות הקטנות לקרבה במהלך היום, ולהיענות להן.</p></div>
+        <div class="method"><h3>היכרות מתמשכת</h3><p>לשאול שאלות פתוחות, גם אחרי שנים יחד, ולגלות מה השתנה.</p></div>
+      </div>
+      <p class="disclaimer">Couple Lab אינה קשורה למכון גוטמן ואינה מחליפה טיפול זוגי.</p>
+    </div>
+  </section>
+
+  <section class="alt">
+    <div class="wrap">
+      <h2>למי זה מתאים</h2>
+      <p class="section-lead">לא צריך שתהיה בעיה כדי להתחיל. זוגות שמתרגלים כשטוב, מתמודדים טוב יותר כשקשה.</p>
+      <ul class="who">
+        <li><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-calendar"/></svg><span>לזוגות שרוצים זמן קבוע לדבר באמת, לא רק על לוגיסטיקה.</span></li>
+        <li><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-bandage"/></svg><span>אחרי ריב, כשלא ברור איך מתחילים לדבר שוב.</span></li>
+        <li><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-sofa"/></svg><span>למי שבטיפול זוגי ורוצה לתרגל בבית בין הפגישות.</span></li>
+        <li><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-sparkles"/></svg><span>לזוגות ותיקים שרוצים להכיר זה את זה מחדש.</span></li>
+      </ul>
+      <div class="safety">
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-alert"/></svg>
+        <p><b>חשוב לדעת:</b> Couple Lab היא כלי לתרגול, לא טיפול ולא אבחון. יש בה בדיקת בטיחות קצרה. אם מסמנים בה פחד, איומים או אלימות, היא ממליצה לפנות לאיש מקצוע לפני שממשיכים לתרגל.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="download">
+    <div class="wrap">
+      <h2>הורדה והפעלה בשתי דקות</h2>
+      <p class="section-lead">אין אשף התקנה. זה קובץ אחד: פותחים ומתחילים.</p>
+      <div class="install">
+        <ol class="numbered">
+          <li><b>מורידים את הקובץ</b> <bdi dir="ltr"><code>Couple-Lab-Windows.exe</code></bdi> מהכפתור.</li>
+          <li><b>פותחים אותו בלחיצה כפולה.</b> אפשר לשמור אותו בכל תיקייה, למשל על שולחן העבודה.</li>
+          <li><b>אם מופיעה ההודעה <bdi dir="ltr">"Windows protected your PC"</bdi></b>, לוחצים על <bdi dir="ltr">More info</bdi> ואז על <bdi dir="ltr">Run anyway</bdi>. ההודעה מופיעה כי הקובץ לא חתום דיגיטלית. זו אזהרה כללית של Windows לכל קובץ לא חתום, ולא סימן שמשהו לא בסדר.</li>
+          <li><b>מאשרים מיקרופון (ומצלמה, אם תרצו).</b> אם תבחרו, האפליקציה לומדת להכיר את הקול והפנים של כל אחד מכם. אפשר גם לדלג. מכאן מתחילים שיחה ראשונה.</li>
+        </ol>
+        <div class="req">
+          <h3>מה צריך</h3>
+          <ul>
+            <li>מחשב עם Windows 10 או 11</li>
+            <li>מיקרופון, ואם רוצים גם מצלמה (המובנים במחשב נייד מספיקים)</li>
+            <li>כ־175MB להורדה</li>
+          </ul>
+          <a class="btn" href="https://github.com/agmonp/couple-lab/releases/latest/download/Couple-Lab-Windows.exe"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-download"/></svg>הורדה חינם</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="alt" id="faq">
+    <div class="wrap">
+      <h2>שאלות נפוצות</h2>
+      <div class="faq">
+        <details><summary>צריך חיבור לאינטרנט?</summary><p>רק כדי להוריד את הקובץ. אחרי זה הכול עובד גם בלי חיבור.</p></details>
+        <details><summary>כמה זה עולה?</summary><p>כלום. האפליקציה חינמית, בלי פרסומות ובלי מנוי.</p></details>
+        <details><summary>מישהו יכול לראות את השיחות שלנו?</summary><p>לא. השיחות נשמרות רק על המחשב שלכם. מי שיכול לפתוח אותן הוא מי שיש לו גישה למחשב הזה, לכן כדאי לנעול אותו בסיסמה.</p></details>
+        <details><summary>זה מחליף טיפול זוגי?</summary><p>לא. זה כלי לתרגול בבית. הוא לא שופט מי צודק ולא קובע מה מישהו מרגיש. הוא יכול להשתלב יפה עם טיפול, אבל לא להחליף אותו.</p></details>
+        <details><summary>מה אם יש אצלנו פחד או אלימות?</summary><p>Couple Lab לא מתאימה למצב כזה. בבדיקת הבטיחות הקצרה, סימון של פחד, איומים או אלימות מוביל להמלצה לפנות לאיש מקצוע לפני כל תרגול.</p></details>
+        <details><summary>יש גרסה למק או לטלפון?</summary><p>כרגע רק ל־Windows.</p></details>
+        <details><summary>התמלול לא מדויק מספיק. אפשר לשפר?</summary><p>התמלול המובנה קטן ומהיר, ובעברית הוא בסיסי. מי שמותקן אצלו <a href="https://ollama.com/">Ollama</a> יכול להפעיל מודל מקומי שמציע תיקוני כתיב ופיסוק, ואתם מאשרים כל תיקון. מי שמרגיש בנוח עם שורת פקודה יכול להריץ גרסה עם מנוע עברית מדויק יותר, <a href="https://github.com/agmonp/couple-lab#more-accurate-hebrew-transcription">לפי ההוראות כאן</a>.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="final">
+    <div class="wrap">
+      <h2>עשר דקות יחד יכולות לשנות שבוע</h2>
+      <p class="section-lead">הורידו, שבו יחד, ובחרו שאלה ראשונה.</p>
+      <a class="btn" href="https://github.com/agmonp/couple-lab/releases/latest/download/Couple-Lab-Windows.exe"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-download"/></svg>הורדה חינם ל־Windows</a>
+      <p class="cta-note">Windows 10/11 · כ־175MB · אם מופיעה אזהרה, <a href="#download">כך ממשיכים</a>.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Couple Lab · פרויקט אישי וחינמי</span>
+    <span><a href="https://github.com/agmonp/couple-lab">קוד המקור (MIT)</a> · <a href="https://github.com/agmonp/couple-lab/issues">דיווח על בעיה</a> · <a href="https://github.com/agmonp/couple-lab/releases">כל הגרסאות</a></span>
+  </div>
+</footer>
 </body>
 </html>
