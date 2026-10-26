@@ -47,7 +47,6 @@
     },
     "files": [
       "dist/**/*",
-      "!dist/personal-media-*",
       "electron/**/*",
       "package.json"
     ],

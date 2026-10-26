@@ -1,7 +1,7 @@
 # מה להריץ אצלך במחשב
 
 הכול כבר כתוב לפרויקט ונבדק (`npm run build` עבר, 80 בדיקות ירוקות).
-נשארו ארבע פקודות שחייבות לרוץ על Windows — אין לי גישה להרצת פקודות
+נשארו שלוש פקודות שחייבות לרוץ על Windows — אין לי גישה להרצת פקודות
 במחשב שלך, רק לכתיבת קבצים.
 
 פתח PowerShell בתיקיית הפרויקט:
@@ -12,18 +12,7 @@ cd "C:\Users\User\Documents\Love app tamar agmon"
 
 ---
 
-## 1. מחיקת הנכסים המיותרים (~15MB מכל build)
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\remove-unused-assets.ps1 -WhatIf   # תצוגה מקדימה
-powershell -ExecutionPolicy Bypass -File .\scripts\remove-unused-assets.ps1           # ביצוע
-```
-
-הקבצים עוברים ל**סל המיחזור**, לא נמחקים לצמיתות. הסקריפט בודק לפני כל
-מחיקה שהקובץ באמת לא מופנה מהקוד, ומדלג אם כן. פרויקט האנימציה עצמו
-(`personal-media-graduation-animation/`) לא נוגעים בו — רק בעותקים ב־`public/`.
-
-## 2. שדרוג מנוע התמלול
+## 1. שדרוג מנוע התמלול
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\install-better-asr.ps1
@@ -36,14 +25,14 @@ whisper-tiny — בלי שינוי קוד או הגדרה.
 אם זה איטי מדי אצלך: `-Model small` (~0.4GB, עדיין הרבה יותר טוב מ־tiny).
 לביטול: פשוט למחוק את התיקייה.
 
-## 3. בנייה ובדיקות
+## 2. בנייה ובדיקות
 
 ```powershell
 npm run build
 npm test
 ```
 
-## 4. Smoke test של אפליקציית Windows
+## 3. Smoke test של אפליקציית Windows
 
 ```powershell
 npm run desktop:smoke
