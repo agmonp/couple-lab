@@ -1,543 +1,1660 @@
-<!doctype html>
-<html lang="he" dir="rtl">
+<!DOCTYPE html>
+<html lang="he" dir="rtl" class="scroll-smooth">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Couple Lab – מרחב פרטי לשיחה זוגית</title>
-<meta name="description" content="אפליקציה לזוגות ל־Windows: שאלות שפותחות שיחה, שיחות מונחות לרגעים הקשים וסיכום עדין. הכול נשאר על המחשב שלכם, בלי חשבון ובלי ענן.">
-<meta property="og:title" content="Couple Lab – מרחב פרטי לשיחה זוגית">
-<meta property="og:description" content="שאלות לשיחה, שיחות מונחות וסיכום עדין. הכול נשאר על המחשב שלכם.">
-<meta property="og:image" content="https://agmonp.github.io/couple-lab/couple-lab-hero.png">
-<link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&family=Frank+Ruhl+Libre:wght@500;700&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --bg: #faf5ec;
-    --bg-alt: #f3ecdf;
-    --surface: #ffffff;
-    --ink: #2a2522;
-    --muted: #625a53;
-    --line: #e7ddcf;
-    --teal: #1f6b6b;
-    --teal-soft: #e3efed;
-    --on-teal: #ffffff;
-    --coral: #b34a32;
-    --coral-soft: #f8e4dc;
-    --on-coral: #ffffff;
-    --deep: #1e3432;
-    --on-deep: #f3ede4;
-    --on-deep-muted: #bccac6;
-    --code-bg: #f2ebe0;
-    --shadow: 0 18px 40px -18px rgba(42, 37, 34, .28);
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #1b1917;
-      --bg-alt: #221f1c;
-      --surface: #2a2623;
-      --ink: #f1ebe3;
-      --muted: #b3a99f;
-      --line: #3a3531;
-      --teal: #6cbdb5;
-      --teal-soft: #243634;
-      --on-teal: #0f1f1e;
-      --coral: #ef8b72;
-      --coral-soft: #3a2a25;
-      --on-coral: #2a1510;
-      --deep: #13201f;
-      --on-deep: #f1ebe3;
-      --on-deep-muted: #a7b8b3;
-      --code-bg: #2e2a27;
-      --shadow: 0 18px 40px -18px rgba(0, 0, 0, .6);
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Couple Lab | הדייט הביתי הכי קרוב שלכם — שיחות זוגיות מונחות בפרטיות מלאה</title>
+  <meta name="description" content="אפליקציה חינמית בקוד פתוח ל-Windows: שאלות שפותחות שיחה, שיחות מונחות לרגעים הקשים וסיכום עדין, בהשראת מחקרי גוטמן. הכול נשאר על המחשב שלכם, בלי חשבון ובלי ענן.">
+  <meta property="og:title" content="Couple Lab — להפוך 15 דקות בסלון לשיחה הכי קרובה שהייתה לכם השנה">
+  <meta property="og:description" content="שיחות זוגיות מונחות בהשראת גוטמן. חינם, קוד פתוח, 100% אופליין על המחשב שלכם.">
+  <meta property="og:image" content="https://agmonp.github.io/couple-lab/hero-evening.jpg">
+  <meta name="theme-color" content="#103537">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&family=Rubik:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Heebo', 'Rubik', 'sans-serif'],
+            display: ['Rubik', 'Heebo', 'sans-serif'],
+          },
+          colors: {
+            cream: {
+              50: '#FDFBF7',
+              100: '#F9F5EB',
+              200: '#F1E9D6',
+              300: '#E5D7B8',
+            },
+            teal: {
+              700: '#1F5C5E',
+              800: '#184A4C',
+              900: '#103537',
+              950: '#0A2324',
+            },
+            terra: {
+              50: '#FCF2EE',
+              100: '#F9E2D8',
+              500: '#D96B43',
+              600: '#C05630',
+              700: '#9E4222',
+            },
+            sage: {
+              100: '#E6F0EC',
+              200: '#C9E0D8',
+              600: '#3B7A6B',
+            }
+          }
+        }
+      }
     }
-  }
-  * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-  body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--ink);
-    font: 18px/1.65 "Assistant", system-ui, sans-serif;
-  }
-  img { max-width: 100%; height: auto; display: block; }
-  a { color: var(--teal); }
-  a:focus-visible, summary:focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; border-radius: 8px; }
-  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
-  .icon { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
-
-  /* Header */
-  header { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 90%, transparent); backdrop-filter: blur(10px); }
-  header .wrap { display: flex; align-items: center; gap: 12px; height: 68px; }
-  .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; }
-  .brand img { width: 36px; height: 36px; border-radius: 9px; }
-  .brand b { font: 700 21px "Frank Ruhl Libre", serif; }
-  nav.top { margin-inline-start: auto; display: flex; align-items: center; gap: 22px; }
-  nav.top a { color: var(--muted); text-decoration: none; font-size: 16px; padding: 8px 0; }
-  nav.top a:hover { color: var(--ink); }
-  nav.top a.btn-sm { color: var(--on-teal); background: var(--teal); padding: 9px 20px; border-radius: 999px; font-weight: 700; }
-  @media (max-width: 720px) { nav.top a:not(.btn-sm) { display: none; } }
-  section[id] { scroll-margin-top: 72px; }
-
-  /* Buttons */
-  .btn {
-    display: inline-flex; align-items: center; gap: 10px; padding: 15px 28px; border-radius: 999px;
-    background: var(--teal); color: var(--on-teal); font-weight: 700; text-decoration: none; font-size: 19px;
-  }
-  .btn:hover { filter: brightness(1.08); }
-  .btn.ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--line); font-weight: 600; }
-  .btn .icon { width: 22px; height: 22px; }
-  .cta-note { font-size: 15px; color: var(--muted); margin: 14px 0 0; }
-
-  /* Hero */
-  .hero { display: grid; gap: 36px; padding-block: 36px 60px; align-items: center; }
-  .eyebrow { display: inline-block; font-size: 15px; font-weight: 600; color: var(--teal); background: var(--teal-soft); padding: 4px 12px; border-radius: 999px; margin-bottom: 16px; }
-  h1 { font: 700 clamp(34px, 5.2vw, 54px)/1.15 "Frank Ruhl Libre", serif; margin: 0 0 16px; }
-  .lead { font-size: 21px; color: var(--muted); margin: 0 0 28px; max-width: 34ch; }
-  .cta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-  .trust { list-style: none; padding: 0; margin: 26px 0 0; display: flex; flex-wrap: wrap; gap: 10px 22px; }
-  .trust li { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 16px; }
-  .trust .icon { color: var(--teal); width: 20px; height: 20px; }
-  .hero-shots { margin: 0; }
-  .shot-frame { position: relative; aspect-ratio: 16 / 10; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); background: var(--surface); box-shadow: var(--shadow); }
-  .shot-frame .slide { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top right; opacity: 0; animation: slide-fade 16s infinite both; }
-  .slide-captions { position: relative; height: 26px; margin-top: 14px; font-size: 15px; font-weight: 600; color: var(--muted); text-align: center; }
-  .slide-captions span { position: absolute; inset: 0; opacity: 0; animation: slide-fade 16s infinite both; }
-  .shot-frame .slide:nth-child(2), .slide-captions span:nth-child(2) { animation-delay: 4s; }
-  .shot-frame .slide:nth-child(3), .slide-captions span:nth-child(3) { animation-delay: 8s; }
-  .shot-frame .slide:nth-child(4), .slide-captions span:nth-child(4) { animation-delay: 12s; }
-  @keyframes slide-fade { 0% { opacity: 0; } 4% { opacity: 1; } 25% { opacity: 1; } 29% { opacity: 0; } 100% { opacity: 0; } }
-  @media (prefers-reduced-motion: reduce) {
-    .shot-frame .slide, .slide-captions span { animation: none; }
-    .shot-frame .slide:first-child, .slide-captions span:first-child { opacity: 1; }
-  }
-
-  /* Pause band */
-  .pause-band { background: var(--coral-soft); }
-  .pause { display: grid; gap: 36px; align-items: center; }
-  .pause h2 { margin-bottom: 14px; }
-  .pause .section-lead { margin-bottom: 14px; color: var(--ink); }
-  .pause p { color: var(--muted); margin: 0; max-width: 60ch; }
-  .eyebrow.coral { color: var(--coral); background: var(--surface); }
-  .pause-visual { display: grid; justify-items: center; gap: 22px; }
-  .pause-ring { width: 210px; height: 210px; border-radius: 50%; display: grid; place-content: center; text-align: center;
-    background: radial-gradient(closest-side, var(--surface) 82%, transparent 83%), conic-gradient(var(--coral) 0 72%, color-mix(in srgb, var(--coral) 22%, transparent) 72% 100%); }
-  .pause-time { font: 700 46px/1 "Assistant", sans-serif; direction: ltr; }
-  .pause-sub { font-size: 15px; color: var(--muted); margin-top: 6px; }
-  .pause-btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 20px; border-radius: 12px; border: 1.5px solid var(--coral); color: var(--coral); background: var(--surface); font-weight: 700; }
-  .pause-btn .icon { width: 20px; height: 20px; }
-  @media (min-width: 880px) { .pause { grid-template-columns: 1.5fr 1fr; gap: 56px; } }
-
-  /* Why free */
-  .why-free { margin-top: 40px; padding: 22px 24px; border-radius: 16px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14); display: flex; gap: 16px; align-items: flex-start; }
-  .why-free .icon { color: #8fd3cb; margin-top: 3px; }
-  .why-free p { margin: 0; color: var(--on-deep-muted); }
-  .why-free a { color: #8fd3cb; }
-
-  .final-art { max-width: 560px; margin: 0 auto 36px; border-radius: 20px; overflow: hidden; box-shadow: var(--shadow); }
-  @media (min-width: 880px) { .hero { grid-template-columns: 1fr 1.1fr; padding-top: 56px; } }
-
-  /* Sections */
-  section { padding: 72px 0; }
-  .alt { background: var(--bg-alt); }
-  h2 { font: 700 clamp(28px, 3.6vw, 38px)/1.2 "Frank Ruhl Libre", serif; margin: 0 0 14px; }
-  .section-lead { font-size: 19px; color: var(--muted); margin: 0 0 40px; max-width: 58ch; }
-  h3 { font-size: 20px; margin: 0 0 6px; line-height: 1.35; }
-
-  /* Privacy */
-  .privacy { background: var(--deep); color: var(--on-deep); }
-  .privacy .section-lead { color: var(--on-deep-muted); }
-  .privacy-grid { display: grid; gap: 28px 36px; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); }
-  .privacy-item { display: flex; gap: 16px; align-items: flex-start; }
-  .privacy-item .badge { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; background: rgba(255,255,255,.08); color: #8fd3cb; flex: none; }
-  .privacy-item p { margin: 0; color: var(--on-deep-muted); font-size: 17px; }
-  .privacy-foot { margin: 40px 0 0; padding-top: 22px; border-top: 1px solid rgba(255,255,255,.14); color: var(--on-deep-muted); font-size: 15px; }
-
-  /* Feature cards */
-  .cards { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); }
-  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 26px; }
-  .card .badge { width: 52px; height: 52px; border-radius: 15px; display: grid; place-items: center; background: var(--teal-soft); color: var(--teal); margin-bottom: 16px; }
-  .card .badge.coral { background: var(--coral-soft); color: var(--coral); }
-  .card .badge .icon { width: 26px; height: 26px; }
-  .card p { margin: 0; color: var(--muted); font-size: 17px; }
-  @media (max-width: 560px) {
-    .card { display: grid; grid-template-columns: auto 1fr; column-gap: 16px; padding: 20px; }
-    .card .badge { grid-row: span 2; margin: 0; width: 46px; height: 46px; }
-  }
-
-  /* Walkthrough */
-  .steps { display: grid; gap: 64px; }
-  .step { display: grid; gap: 24px; align-items: center; }
-  .step-num { display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: var(--coral); color: var(--on-coral); font-weight: 700; margin-bottom: 14px; }
-  .step p { color: var(--muted); margin: 0 0 10px; }
-  .step figure { margin: 0; }
-  .frame { display: block; border-radius: 14px; overflow: hidden; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); }
-  .frame:hover { border-color: var(--teal); }
-  .step figcaption { font-size: 14px; color: var(--muted); margin-top: 10px; }
-  @media (min-width: 880px) {
-    .step { grid-template-columns: 1fr 1.9fr; gap: 44px; }
-    .step:nth-child(even) { grid-template-columns: 1.9fr 1fr; }
-    .step:nth-child(even) .step-text { order: 2; }
-  }
-
-  /* Methods */
-  .methods { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-  .method { border-inline-start: 3px solid var(--teal); padding-inline-start: 18px; padding-block: 4px; }
-  .method p { margin: 0; color: var(--muted); font-size: 17px; }
-  .disclaimer { margin-top: 36px; font-size: 15px; color: var(--muted); }
-
-  /* Who */
-  .who { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-  .who li { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px 22px; display: flex; gap: 14px; align-items: flex-start; }
-  .who .icon { color: var(--coral); margin-top: 3px; }
-  .safety { margin-top: 28px; background: var(--coral-soft); border-radius: 16px; padding: 18px 22px; display: flex; gap: 14px; align-items: flex-start; }
-  .safety .icon { color: var(--coral); margin-top: 3px; }
-  .safety p { margin: 0; }
-
-  /* Install */
-  .install { display: grid; gap: 40px; }
-  @media (min-width: 880px) { .install { grid-template-columns: 1.3fr 1fr; } }
-  ol.numbered { padding: 0; margin: 0; list-style: none; counter-reset: s; display: grid; gap: 18px; }
-  ol.numbered li { counter-increment: s; position: relative; padding-inline-start: 54px; }
-  ol.numbered li::before {
-    content: counter(s); position: absolute; inset-inline-start: 0; top: 0;
-    width: 38px; height: 38px; border-radius: 50%; background: var(--teal); color: var(--on-teal);
-    display: grid; place-items: center; font-weight: 700;
-  }
-  .req { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 24px; align-self: start; }
-  .req ul { margin: 0 0 20px; padding-inline-start: 20px; color: var(--muted); }
-
-  /* FAQ */
-  .faq { display: grid; gap: 12px; max-width: 800px; }
-  details { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 22px; }
-  summary { cursor: pointer; font-weight: 700; font-size: 18px; }
-  details p { color: var(--muted); margin: 12px 0 0; }
-  code { font-family: ui-monospace, Consolas, monospace; font-size: .9em; }
-
-  /* Final CTA + footer */
-  .final { text-align: center; }
-  .final .section-lead { margin-inline: auto; }
-  footer { padding: 24px 0 40px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); }
-  footer .wrap { display: flex; flex-wrap: wrap; gap: 4px 20px; justify-content: space-between; align-items: center; }
-  footer a { color: var(--muted); display: inline-block; padding: 8px 4px; }
-</style>
+  </script>
+  <style>
+    body {
+      font-family: 'Heebo', 'Rubik', sans-serif;
+      background-color: #FAF6EE;
+      color: #132A2B;
+      overflow-x: hidden;
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .hero-glow {
+      background: radial-gradient(circle at 75% 25%, rgba(217, 107, 67, 0.14), rgba(24, 74, 76, 0.08) 45%, transparent 70%);
+    }
+    @keyframes floatSlow {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-6px); }
+    }
+    .animate-float {
+      animation: floatSlow 5s ease-in-out infinite;
+    }
+    .animate-float-delayed {
+      animation: floatSlow 6s ease-in-out 2s infinite;
+    }
+    @keyframes pulseWave {
+      0%, 100% { transform: scaleY(0.45); }
+      50% { transform: scaleY(1); }
+    }
+    .wave-bar-1 { animation: pulseWave 1.1s ease-in-out infinite; }
+    .wave-bar-2 { animation: pulseWave 0.9s ease-in-out 0.2s infinite; }
+    .wave-bar-3 { animation: pulseWave 1.3s ease-in-out 0.4s infinite; }
+    .wave-bar-4 { animation: pulseWave 0.8s ease-in-out 0.1s infinite; }
+    .card-flip-enter {
+      animation: cardReveal 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes cardReveal {
+      from { opacity: 0; transform: translateY(10px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+  </style>
 </head>
-<body>
+<body class="antialiased selection:bg-terra-500 selection:text-white">
 
-<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
-  <defs>
-    <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
-    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
-    <symbol id="i-cloud-off" viewBox="0 0 24 24"><path d="m2 2 20 20"/><path d="M5.78 5.78A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.31-.19"/><path d="M21.53 16.5A4.5 4.5 0 0 0 17.5 10h-1.79A7 7 0 0 0 10 5.07"/></symbol>
-    <symbol id="i-wifi-off" viewBox="0 0 24 24"><path d="M12 20h.01"/><path d="M8.5 16.43a5 5 0 0 1 7 0"/><path d="M2 8.82a15 15 0 0 1 4.17-2.65"/><path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76"/><path d="M16.85 11.25a10 10 0 0 1 2.22 1.68"/><path d="M5 12.86a10 10 0 0 1 5.17-2.69"/><path d="m2 2 20 20"/></symbol>
-    <symbol id="i-user-off" viewBox="0 0 24 24"><circle cx="10" cy="8" r="4.5"/><path d="M2.5 21a7.5 7.5 0 0 1 12.2-5.8"/><path d="m17 15 5 5"/><path d="m22 15-5 5"/></symbol>
-    <symbol id="i-user-check" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/></symbol>
-    <symbol id="i-laptop" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M2 20h20"/></symbol>
-    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
-    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
-    <symbol id="i-cards" viewBox="0 0 24 24"><rect x="7" y="3" width="14" height="16" rx="2"/><path d="M4 7v12a2 2 0 0 0 2 2h10"/></symbol>
-    <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></symbol>
-    <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></symbol>
-    <symbol id="i-report" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h8"/><path d="M8 17h5"/></symbol>
-    <symbol id="i-gauge" viewBox="0 0 24 24"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
-    <symbol id="i-timer" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M10 2h4"/></symbol>
-    <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36z"/></symbol>
-    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></symbol>
-    <symbol id="i-bandage" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 6v12"/><path d="M18 6v12"/><path d="M10 10h.01"/><path d="M14 10h.01"/><path d="M10 14h.01"/><path d="M14 14h.01"/></symbol>
-    <symbol id="i-sofa" viewBox="0 0 24 24"><path d="M20 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v3"/><path d="M2 16a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v1.5a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5V11a2 2 0 0 0-4 0z"/><path d="M4 18v2"/><path d="M20 18v2"/></symbol>
-    <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.13-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.13a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.13 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.13a.5.5 0 0 1-.96 0z"/></symbol>
-    <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
-  </defs>
-</svg>
-
-<header>
-  <div class="wrap">
-    <a class="brand" href="#top"><img src="app-icon.png" alt="" width="36" height="36"><b>Couple Lab</b></a>
-    <nav class="top" aria-label="ניווט">
-      <a href="#privacy">פרטיות</a>
-      <a href="#how">איך זה עובד</a>
-      <a href="#faq">שאלות</a>
-      <a class="btn-sm" href="#download">הורדה</a>
-    </nav>
-  </div>
-</header>
-
-<main id="top">
-  <div class="wrap hero">
-    <div>
-      <span class="eyebrow">אפליקציה לזוגות · ל־Windows</span>
-      <h1>רגע שקט לשיחה טובה יותר ביניכם</h1>
-      <p class="lead">שאלות ושיחות מונחות בהשראת עקרונות גוטמן, שעוזרות לפתוח את הלב ולדבר גם על הדברים הקשים. הכול נשאר על המחשב שלכם.</p>
-      <div class="cta">
-        <a class="btn" href="https://github.com/agmonp/couple-lab/releases/latest/download/Couple-Lab-Windows.exe"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-download"/></svg>הורדה חינם ל־Windows</a>
-        <a class="btn ghost" href="#how">איך זה עובד</a>
-      </div>
-      <p class="cta-note">הורדה מיידית · חינם לגמרי · ל־Windows 10 ו־11</p>
-      <ul class="trust">
-        <li><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-user-off"/></svg>בלי הרשמה</li>
-        <li><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-cloud-off"/></svg>בלי ענן</li>
-        <li><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-lock"/></svg>ההקלטות רק אצלכם</li>
-      </ul>
+  <!-- Top Sticky Notification Banner for Mobile Users / Quick Value -->
+  <div class="bg-teal-900 text-cream-50 text-xs sm:text-sm py-2 px-4 text-center border-b border-teal-800">
+    <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-center gap-2">
+      <span class="inline-flex items-center gap-1.5 font-medium">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        100% חינם, קוד פתוח וללא שרתים — כל מילה שנאמרת נשארת רק על המחשב שלכם
+      </span>
+      <button type="button" onclick="openModal('reportModal')" class="underline decoration-terra-500 underline-offset-4 font-semibold text-amber-200 hover:text-white transition mr-2">
+        צפו בדוח סיכום שיחה לדוגמה &larr;
+      </button>
     </div>
-    <figure class="hero-shots" aria-label="צילומי מסך מתוך האפליקציה">
-      <div class="shot-frame">
-        <img class="slide" src="hero-1.webp" alt="מסך המדריך: בחירת חפיסת שאלות לשיחה" width="1440" height="900" fetchpriority="high">
-        <img class="slide" src="hero-2.webp" alt="מסך התמלול: מה כל אחד אמר, עם תגיות כמו הקשבה" width="1440" height="900">
-        <img class="slide" src="hero-3.webp" alt="מסך הדוח הזוגי בסוף השיחה" width="1440" height="900">
-        <img class="slide" src="hero-4.webp" alt="מסך הבית: הצעד שבחרתם והשיחות האחרונות" width="1440" height="900">
-      </div>
-      <figcaption class="slide-captions" aria-hidden="true">
-        <span>בוחרים שאלה</span><span>רואים מה נאמר</span><span>מסכמים בעדינות</span><span>חוזרים כל שבוע</span>
-      </figcaption>
-    </figure>
   </div>
 
-  <section class="privacy" id="privacy">
-    <div class="wrap">
-      <h2>מה שנאמר ביניכם, נשאר ביניכם</h2>
-      <p class="section-lead">שיחה זוגית היא מהדברים הכי פרטיים שיש, ולכן Couple Lab עובדת כולה על המחשב שלכם. אין לנו שרת, כך שאין לנו שום דרך לראות או לשמוע מה נאמר.</p>
-      <div class="privacy-grid">
-        <div class="privacy-item">
-          <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-user-off"/></svg></span>
-          <div><h3>בלי חשבון ובלי סיסמה</h3><p>אין הרשמה, אין מייל ואין שם משתמש. פותחים את האפליקציה ומתחילים.</p></div>
+  <!-- Sticky Navigation Header -->
+  <header class="sticky top-0 z-40 glass-card border-b border-stone-200/80 transition-all">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between gap-3">
+      <!-- Brand Logo -->
+      <a href="#top" class="flex items-center gap-2.5 group focus:outline-none">
+        <div class="w-10 h-10 rounded-2xl bg-teal-800 text-cream-50 flex items-center justify-center shadow-sm group-hover:bg-teal-700 transition">
+          <svg class="w-5 h-5 text-amber-200" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          </svg>
         </div>
-        <div class="privacy-item">
-          <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-laptop"/></svg></span>
-          <div><h3>הכול נשמר על המחשב שלכם</h3><p>ההקלטות, התמלולים והסיכומים נשמרים רק אצלכם, ולא עולים לשום מקום.</p></div>
-        </div>
-        <div class="privacy-item">
-          <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-wifi-off"/></svg></span>
-          <div><h3>תמלול בלי אינטרנט</h3><p>הפיכת הדיבור לטקסט נעשית במחשב עצמו. אפשר לנתק את האינטרנט, והכול ימשיך לעבוד.</p></div>
-        </div>
-        <div class="privacy-item">
-          <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-shield"/></svg></span>
-          <div><h3>זיהוי מי מדבר, בלי לשמור תמונות</h3><p>אם תבחרו שהאפליקציה תלמד מי מדבר, הצילומים ודגימות הקול שמשמשים ללמידה נמחקים מיד. נשמר רק תיאור מספרי, מוצפן בהצפנה של Windows.</p></div>
-        </div>
-        <div class="privacy-item">
-          <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-trash"/></svg></span>
-          <div><h3>אתם מחליטים מה נמחק</h3><p>אפשר למחוק את ההקלטה של כל שיחה (התמלול נשאר), או לפתוח פרופיל זוגי חדש ולהתחיל מאפס.</p></div>
-        </div>
-        <div class="privacy-item">
-          <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-user-check"/></svg></span>
-          <div><h3>הסכמה של שניכם</h3><p>אין הקלטה בלי ששניכם אישרתם. את שאלון מפת הקשר כל אחד ממלא לבד, והתשובות מוסתרות מבן או בת הזוג.</p></div>
-        </div>
-      </div>
-      <div class="why-free">
-        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-heart"/></svg>
         <div>
-          <h3>למה זה חינם?</h3>
-          <p>Couple Lab נבנתה כפרויקט אישי, בלי מטרת רווח, כדי לתת לזוגות כלי טוב, נגיש ופרטי. אין פרסומות, אין מנוי ואין איסוף מידע, כי אין כאן שום דבר למכור. <a href="https://github.com/agmonp/couple-lab">הקוד פתוח</a>, וכל אחד יכול לבדוק שזה באמת כך.</p>
+          <span class="font-display font-bold text-lg sm:text-xl tracking-tight text-teal-950 block leading-none whitespace-nowrap">Couple Lab</span>
+          <span class="text-xs text-stone-500 hidden sm:inline-block">מרחב ביתי לשיחה זוגית קרובה</span>
         </div>
-      </div>
-      <p class="privacy-foot">יש באפליקציה גם אפשרות לחבר ניתוח בענן, למי שרוצה. היא כבויה כברירת מחדל, ופועלת רק אם תפעילו אותה ותזינו מפתח API משלכם.</p>
-    </div>
-  </section>
+      </a>
 
-  <section>
-    <div class="wrap">
-      <h2>מה יש בפנים</h2>
-      <p class="section-lead">כלים קטנים ופשוטים שעוזרים לדבר, להקשיב ולהתקרב.</p>
-      <div class="cards">
-        <div class="card">
-          <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-cards"/></svg></span>
-          <h3>17 חפיסות שאלות</h3>
-          <p>שאלות שפותחות שיחה אמיתית: על העולם הפנימי, על הערכה, על תשוקה, ועל החלומות שלכם יחד.</p>
-        </div>
-        <div class="card">
-          <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-route"/></svg></span>
-          <h3>שיחות מונחות לרגעים קשים</h3>
-          <p>"אחרי ריב" ו"שיחה מפחיתת לחץ" מחולקות לשלבים. האפליקציה מנהלת את התורות, כדי שתוכלו להתמקד זה בזה.</p>
-        </div>
-        <div class="card">
-          <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-mic"/></svg></span>
-          <h3>הקלטה ותמלול</h3>
-          <p>אם שניכם מסכימים, השיחה מוקלטת ומתומללת על המחשב. התמלול בעברית בסיסי, אבל מספיק כדי לחפש אחר כך "מה אמרנו על...".</p>
-        </div>
-        <div class="card">
-          <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-report"/></svg></span>
-          <h3>סיכום וצעד אחד להמשך</h3>
-          <p>מי דיבר כמה, אילו רגעים טובים היו, וצעד קטן לשבוע הקרוב. אפשר לשמור כ־PDF.</p>
-        </div>
-        <div class="card">
-          <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-gauge"/></svg></span>
-          <h3>לחץ לפני ואחרי</h3>
-          <p>בשיחות המונחות כל אחד מסמן מ־0 עד 10 כמה הוא לחוץ, לפני השיחה ואחריה. כך רואים אם השיחה באמת עזרה.</p>
-        </div>
-        <div class="card">
-          <span class="badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-compass"/></svg></span>
-          <h3>מפת הקשר</h3>
-          <p>עשר שאלות שכל אחד מכם עונה עליהן לבד. יחד הן מראות איפה אתם חזקים ובמה כדאי להתמקד עכשיו.</p>
-        </div>
+      <!-- Desktop Navigation Links -->
+      <nav class="hidden lg:flex items-center gap-5 text-sm font-medium text-stone-700 whitespace-nowrap">
+        <a href="#interactive-demo" class="hover:text-teal-800 transition flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-terra-500"></span>
+          התנסות חיה (30 שניות)
+        </a>
+        <a href="#features" class="hover:text-teal-800 transition">מה בפנים</a>
+        <a href="#how-it-works" class="hover:text-teal-800 transition">איך זה עובד</a>
+        <a href="#privacy" class="hover:text-teal-800 transition">פרטיות מוחלטת</a>
+        <a href="#faq" class="hover:text-teal-800 transition">שאלות נפוצות</a>
+      </nav>
+
+      <!-- Header CTAs -->
+      <div class="flex items-center gap-2 whitespace-nowrap">
+        <button type="button" onclick="openModal('partnerModal')" class="px-3 py-2 rounded-xl border border-stone-300 bg-white hover:bg-stone-50 text-xs sm:text-sm font-semibold text-teal-900 transition flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
+          </svg>
+          <span class="hidden sm:inline">שלחו לבן/בת הזוג</span>
+          <span class="sm:hidden">שיתוף</span>
+        </button>
+
+        <button type="button" onclick="openDownloadFlow()" class="px-4 py-2.5 rounded-xl bg-teal-800 hover:bg-teal-900 text-white text-xs sm:text-sm font-bold shadow-sm transition flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"/>
+          </svg>
+          <span>הורדה חינם</span>
+        </button>
       </div>
     </div>
-  </section>
+  </header>
 
-  <section class="pause-band" aria-labelledby="pause-title">
-    <div class="wrap pause">
-      <div>
-        <span class="eyebrow coral">לרגעים שבהם זה מתחמם</span>
-        <h2 id="pause-title">השיחה מתחממת? עוצרים.</h2>
-        <p class="section-lead">לחיצה אחת על "אני צריך/ה הפסקה" עוצרת את השיחה ואת ההקלטה, וקובעת לחזור בעוד 20 דקות. אף אחד לא צריך לנצח ברגע הכי סוער.</p>
-        <p>מחקרי גוטמן מראים שכשהלב דוהר, קשה מאוד להקשיב. עשרים דקות של הפסקה נותנות לגוף זמן להירגע, ואז אפשר לחזור ולדבר באמת.</p>
-      </div>
-      <div class="pause-visual" aria-hidden="true">
-        <div class="pause-ring"><span class="pause-time">20:00</span><span class="pause-sub">חוזרים בעוד</span></div>
-        <span class="pause-btn"><svg class="icon" focusable="false"><use href="#i-shield"/></svg>אני צריך/ה הפסקה</span>
-      </div>
-    </div>
-  </section>
-
-  <section class="alt">
-    <div class="wrap">
-      <h2>על מה זה מבוסס</h2>
-      <p class="section-lead">התרגילים בנויים בהשראת עקרונות מוכרים מעולם הטיפול הזוגי, בעיקר מהמחקר של ג'ון וג'ולי גוטמן על מה שעוזר לזוגות להישאר קרובים.</p>
-      <div class="methods">
-        <div class="method"><h3>פתיחה רכה</h3><p>להתחיל ממה שאני מרגיש וממה שאני צריך, במקום מביקורת.</p></div>
-        <div class="method"><h3>דובר ומקשיב</h3><p>אחד מדבר, והשני משקף את מה ששמע לפני שהוא עונה.</p></div>
-        <div class="method"><h3>ניסיונות תיקון</h3><p>לשים לב לרגעים הקטנים שעוצרים הסלמה, ולהיענות להם.</p></div>
-        <div class="method"><h3>הפסקה מוסכמת</h3><p>כשמישהו מוצף, עוצרים ל־20 דקות לפחות, נרגעים וחוזרים.</p></div>
-        <div class="method"><h3>היענות לפנייה</h3><p>לשים לב לבקשות הקטנות לקרבה במהלך היום, ולהיענות להן.</p></div>
-        <div class="method"><h3>היכרות מתמשכת</h3><p>לשאול שאלות פתוחות, גם אחרי שנים יחד, ולגלות מה השתנה.</p></div>
-      </div>
-      <p class="disclaimer">Couple Lab אינה קשורה למכון גוטמן ואינה מחליפה טיפול זוגי.</p>
-    </div>
-  </section>
-
-  <section>
-    <div class="wrap">
-      <h2>למי זה מתאים</h2>
-      <p class="section-lead">לא צריך שתהיה בעיה כדי להתחיל. זוגות שמתרגלים כשטוב, מתמודדים טוב יותר כשקשה.</p>
-      <ul class="who">
-        <li><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-calendar"/></svg><span>לזוגות שרוצים זמן קבוע לדבר באמת, לא רק על לוגיסטיקה.</span></li>
-        <li><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-bandage"/></svg><span>אחרי ריב, כשלא ברור איך מתחילים לדבר שוב.</span></li>
-        <li><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-sofa"/></svg><span>למי שבטיפול זוגי ורוצה לתרגל בבית בין הפגישות.</span></li>
-        <li><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-sparkles"/></svg><span>לזוגות ותיקים שרוצים להכיר זה את זה מחדש.</span></li>
-      </ul>
-      <div class="safety">
-        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-alert"/></svg>
-        <p><b>חשוב לדעת:</b> Couple Lab היא כלי לתרגול, לא טיפול ולא אבחון. יש בה בדיקת בטיחות קצרה. אם מסמנים בה פחד, איומים או אלימות, היא ממליצה לפנות לאיש מקצוע לפני שממשיכים לתרגל.</p>
-      </div>
-    </div>
-  </section>
-
-  <section class="alt" id="how">
-    <div class="wrap">
-      <h2>איך זה עובד</h2>
-      <p class="section-lead">מתחילים בהיכרות קצרה, פעם אחת. אחר כך, עשר עד עשרים דקות, פעם בשבוע או מתי שצריך.</p>
-      <div class="steps">
-        <div class="step">
-          <div class="step-text">
-            <span class="step-num">1</span>
-            <h3>כל אחד ממלא שאלון, לבד</h3>
-            <p>בפעם הראשונה כל אחד מכם עונה בפרטיות על עשר שאלות קצרות: עד כמה אתם מכירים זה את עולמו של זה, ביטחון רגשי, מחלוקת, אינטימיות, חלוקת הבית ועוד. זה לוקח כמה דקות.</p>
-            <p>בסיום מעבירים את המחשב לשני, והתשובות נשארות מוסתרות. משתי התשובות נבנית מפת הקשר שלכם, ולפיה האפליקציה מציעה במה כדאי להתמקד.</p>
+  <!-- HERO SECTION -->
+  <section id="top" class="relative hero-glow pt-8 pb-16 sm:pt-14 sm:pb-24 border-b border-stone-200/70">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
+        
+        <!-- Right Column: Persuasive Copy & High-Converting Actions (7 cols) -->
+        <div class="lg:col-span-7 space-y-6 text-right">
+          <div class="inline-flex flex-wrap items-center gap-2 bg-sage-100 border border-sage-200 text-teal-900 px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-semibold">
+            <span class="px-2 py-0.5 rounded-full bg-teal-800 text-white text-xs">חדש ל-Windows 10/11</span>
+            <span>בהשראת מחקרי ג'ון וג'ולי גוטמן · 100% אופליין</span>
           </div>
-          <figure>
-            <a class="frame" href="shot-questionnaire.webp" aria-label="הגדלת צילום המסך: השאלון האישי"><img src="shot-questionnaire.webp" alt="מסך הגדרת הזוג: נועה ממלאת את השאלון האישי, השותף השני ממתין לתורו, ושאלות בסולם 1 עד 10" width="1400" height="1046" loading="lazy"></a>
-          </figure>
-        </div>
-        <div class="step">
-          <div class="step-text">
-            <span class="step-num">2</span>
-            <h3>בוחרים על מה לדבר</h3>
-            <p>שאלה אחת מתוך חפיסה, או שיחה מונחית כשיש משהו ספציפי. האפליקציה גם מציעה במה כדאי להתמקד היום, לפי מפת הקשר שלכם.</p>
+
+          <h1 class="font-display text-3xl sm:text-5xl lg:text-[3.35rem] font-extrabold text-teal-950 leading-[1.15] tracking-tight">
+            להפוך 15 דקות בסלון <br class="hidden sm:inline">
+            <span class="text-terra-600 underline decoration-terra-500/30 decoration-wavy underline-offset-8">לשיחה הכי קרובה</span> שהייתה לכם השנה.
+          </h1>
+
+          <p class="text-base sm:text-xl text-stone-700 leading-relaxed max-w-2xl">
+            בלי מסכים שמסיחים את הדעת ובלי לדבר רק על סידורים ולוגיסטיקה. <strong>Couple Lab</strong> מנחה אתכם צעד-אחר-צעד בשיחות עומק, הערכה ופתרון קונפליקטים — כשכל מילה נשמרת <strong>אך ורק על המחשב האישי שלכם</strong>.
+          </p>
+
+          <!-- Primary & Secondary Conversion Buttons -->
+          <div class="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5">
+            <button type="button" onclick="openDownloadFlow()" class="group relative px-7 py-4 rounded-2xl bg-teal-800 hover:bg-teal-900 text-white font-bold text-base sm:text-lg shadow-lg shadow-teal-900/15 transition-all flex items-center justify-center gap-3">
+              <svg class="w-6 h-6 text-amber-200 group-hover:translate-y-0.5 transition-transform" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"/>
+              </svg>
+              <span>הורדה חינם ל-Windows</span>
+              <span class="hidden sm:inline text-xs font-normal bg-teal-700/90 text-cream-100 px-2.5 py-0.5 rounded-lg whitespace-nowrap">קובץ יחיד · ללא התקנה</span>
+            </button>
+
+            <button type="button" onclick="openModal('partnerModal')" class="px-5 py-4 rounded-2xl bg-white hover:bg-stone-50 text-teal-950 border-2 border-stone-300/90 font-bold text-sm sm:text-base transition flex items-center justify-center gap-2 shadow-sm">
+              <svg class="w-5 h-5 text-terra-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+              </svg>
+              <span>גולשים מהנייד? שלחו קישור לערב במחשב</span>
+            </button>
           </div>
-          <figure>
-            <a class="frame" href="shot-decks.webp" aria-label="הגדלת צילום המסך: בחירת חפיסת שאלות"><img src="shot-decks.webp" alt="מסך המדריך: רשימת חפיסות שאלות כמו העולם הפנימי שלנו, חיבה והערכה, ניסיון תיקון" width="1400" height="744" loading="lazy"></a>
-          </figure>
-        </div>
-        <div class="step">
-          <div class="step-text">
-            <span class="step-num">3</span>
-            <h3>מדברים, ואם בחרתם, היא מתמללת</h3>
-            <p>אחד מדבר, השני מקשיב ומשקף. אם הפעלתם הקלטה, האפליקציה מתמללת ומסמנת רגעים כמו הקשבה, הערכה או לקיחת אחריות.</p>
-            <p>ואם צריך לעצור, עוצרים.</p>
+
+          <!-- Micro Trust & Friction Reducers -->
+          <div class="pt-1 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs sm:text-sm text-stone-600 font-medium">
+            <span class="flex items-center gap-1.5">
+              <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+              בלי הרשמה ובלי חשבון
+            </span>
+            <span class="flex items-center gap-1.5">
+              <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+              עובד גם בניתוק מלא מאינטרנט
+            </span>
+            <span class="flex items-center gap-1.5">
+              <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+              דוח סיכום PDF אישי בסוף כל שיחה
+            </span>
           </div>
-          <figure>
-            <a class="frame" href="shot-transcript.webp" aria-label="הגדלת צילום המסך: התמלול"><img src="shot-transcript.webp" alt="מסך התמלול: משפטים של נועה ויונתן עם תגיות כמו תיקוף והקשבה" width="1400" height="753" loading="lazy"></a>
-            <figcaption>בתמונות: זוג לדוגמה (נועה ויונתן). אצלכם יופיעו השמות שלכם.</figcaption>
-          </figure>
-        </div>
-        <div class="step">
-          <div class="step-text">
-            <span class="step-num">4</span>
-            <h3>מסכמים בעדינות</h3>
-            <p>בסוף רואים מה עבד ומה כדאי לנסות בפעם הבאה, ובוחרים יחד צעד קטן אחד. בלי שיפוט ובלי הכרעה מי צודק. המדד שמופיע הוא מדד תרגול, לא ציון לקשר.</p>
+
+          <!-- Instant Anchor to Interactive Card Pull -->
+          <div class="pt-2">
+            <a href="#interactive-demo" class="inline-flex items-center gap-2 text-sm font-bold text-terra-600 hover:text-terra-700 group">
+              <span>רוצים להרגיש איך זה עובד לפני שמורידים? שלפו קלף שיחה חי עכשיו</span>
+              <span class="group-hover:-translate-x-1 transition-transform">&larr;</span>
+            </a>
           </div>
-          <figure>
-            <a class="frame" href="shot-report.webp" aria-label="הגדלת צילום המסך: הדוח הזוגי"><img src="shot-report.webp" alt="מסך הדוח הזוגי: מספר השיחות, ניסיונות התיקון, בדיקת בטיחות וכפתור לשמירה כ־PDF" width="1400" height="578" loading="lazy"></a>
-          </figure>
         </div>
-        <div class="step">
-          <div class="step-text">
-            <span class="step-num">5</span>
-            <h3>חוזרים, ורואים התקדמות</h3>
-            <p>במסך הבית מחכים לכם הצעד שבחרתם, השיחות הקודמות והקצב השבועי שלכם. כך התרגול הופך להרגל.</p>
+
+        <!-- Left Column: Atmospheric Visual + Floating UI Layers (5 cols) -->
+        <div class="lg:col-span-5 relative">
+          <!-- Main Cozy Evening Illustration Card -->
+          <div class="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-white bg-teal-950">
+            <img src="hero-evening.webp" alt="זוג משוחח בסלון ביתי חמים מול Couple Lab" width="1376" height="768" fetchpriority="high" class="w-full h-auto sm:aspect-[4/3] object-cover object-top" />
+            <div class="hidden sm:block absolute inset-0 bg-gradient-to-t from-teal-950/85 via-teal-950/20 to-transparent"></div>
+
+            <!-- Overlaid Active Question Card inside the Scene (below the image on phones) -->
+            <div class="relative m-3 sm:m-0 sm:absolute sm:bottom-4 sm:right-4 sm:left-4 glass-card rounded-2xl p-4 shadow-lg border border-white/60">
+              <div class="flex items-center justify-between text-xs font-semibold text-teal-800 mb-1.5">
+                <span class="flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-terra-500"></span>
+                  חפיסת חיבה והערכה · תור הדובר: יונתן
+                </span>
+                <span class="bg-sage-100 text-teal-900 px-2 py-0.5 rounded-md">100% מקומי</span>
+              </div>
+              <p class="font-display font-bold text-teal-950 text-sm sm:text-base leading-snug">
+                "מהו רגע קטן מהשבוע האחרון שבו הרגשת שאני באמת רואה אותך ואיתך?"
+              </p>
+              <div class="mt-3 flex items-center justify-between border-t border-stone-200/80 pt-2.5 text-xs text-stone-600">
+                <div class="flex items-center gap-2">
+                  <div class="flex items-end gap-0.5 h-3.5">
+                    <span class="w-1 h-3 bg-teal-700 rounded-full wave-bar-1"></span>
+                    <span class="w-1 h-3.5 bg-terra-500 rounded-full wave-bar-2"></span>
+                    <span class="w-1 h-2.5 bg-teal-700 rounded-full wave-bar-3"></span>
+                    <span class="w-1 h-3.5 bg-teal-700 rounded-full wave-bar-4"></span>
+                  </div>
+                  <span>מזהה הקשבה ושיקוף אמפתי...</span>
+                </div>
+                <button type="button" onclick="openModal('reportModal')" class="font-bold text-teal-800 hover:underline">
+                  צפו בסיכום &larr;
+                </button>
+              </div>
+            </div>
           </div>
-          <figure>
-            <a class="frame" href="shot-home.webp" aria-label="הגדלת צילום המסך: מסך הבית"><img src="shot-home.webp" alt="מסך הבית: המרחב הזוגי של נועה ויונתן, הצעד שבחרו יחד והשיחות האחרונות" width="1400" height="910" loading="lazy"></a>
-          </figure>
+
+          <!-- Floating UI Badge 1: 20-Minute Pause Shield (Top Right) -->
+          <button type="button" onclick="scrollToSection('pause-simulator')" class="animate-float hidden sm:flex absolute -top-5 -right-5 glass-card rounded-2xl p-3.5 shadow-xl border border-stone-200/90 items-center gap-3 text-right hover:border-terra-500 transition cursor-pointer">
+            <div class="w-10 h-10 rounded-xl bg-terra-100 text-terra-600 flex items-center justify-center font-display font-bold text-xs shrink-0">
+              20:00
+            </div>
+            <div>
+              <div class="text-xs font-extrabold text-teal-950">השיחה מתחממת?</div>
+              <div class="text-[11px] text-stone-600">כפתור "הפסקה מוסכמת" בלחיצה</div>
+            </div>
+          </button>
+
+          <!-- Floating UI Badge 2: Stress Reduction Metric (Top Left) -->
+          <div class="animate-float-delayed hidden sm:flex absolute -top-4 -left-4 bg-teal-900 text-white rounded-2xl p-3 shadow-xl border border-teal-700 items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold text-sm">
+              ↓62%
+            </div>
+            <div class="text-right">
+              <div class="text-xs font-bold text-cream-50">מדד לחץ לפני/אחרי</div>
+              <div class="text-[11px] text-teal-200">בשיחה לדוגמה: מ-8/10 ל-3/10</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- INTERACTIVE PRODUCT-LED EXPERIENCE (TRY IN 30 SECONDS) -->
+  <section id="interactive-demo" class="py-16 sm:py-20 bg-cream-100/70 border-b border-stone-200/80">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6">
+      <div class="text-center max-w-2xl mx-auto mb-10">
+        <span class="inline-block px-3.5 py-1 rounded-full bg-terra-100 text-terra-700 text-xs font-bold mb-3">
+          טעימה חיה לפני שמורידים למחשב
+        </span>
+        <h2 class="font-display text-2xl sm:text-4xl font-extrabold text-teal-950">
+          תרגישו את הקסם של Couple Lab ב-30 שניות
+        </h2>
+        <p class="mt-2.5 text-stone-600 text-sm sm:text-base">
+          בחרו קלף שיחה אמיתי מתוך 17 החפיסות באפליקציה, או בדקו ב-3 שאלות קצרות איזו שיחה הכי מתאימה לכם הערב.
+        </p>
+
+        <!-- Mode Switcher Tabs -->
+        <div class="mt-6 inline-flex p-1.5 rounded-2xl bg-stone-200/80 border border-stone-300/60">
+          <button type="button" id="tab-cards-btn" onclick="switchDemoTab('cards')" class="px-5 py-2.5 rounded-xl text-sm font-bold transition bg-teal-800 text-white shadow-sm">
+            1. שליפת קלף שיחה חי
+          </button>
+          <button type="button" id="tab-quiz-btn" onclick="switchDemoTab('quiz')" class="px-5 py-2.5 rounded-xl text-sm font-bold transition text-stone-700 hover:text-teal-900">
+            2. מיני-אבחון: מפת הקשר (30 שנ׳)
+          </button>
+        </div>
+      </div>
+
+      <!-- TAB 1: LIVE CARD DECK SIMULATOR -->
+      <div id="demo-cards-panel" class="bg-white rounded-3xl shadow-xl border border-stone-200/90 p-6 sm:p-10">
+        <!-- Category Pills -->
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-6 border-b border-stone-200">
+          <div class="flex flex-wrap items-center gap-2" id="deck-category-buttons">
+            <button type="button" onclick="selectDeckCategory('appreciation')" data-cat="appreciation" class="deck-cat-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-teal-800 text-white transition">
+              💛 חיבה והערכה
+            </button>
+            <button type="button" onclick="selectDeckCategory('after_fight')" data-cat="after_fight" class="deck-cat-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-stone-100 text-stone-700 hover:bg-stone-200 transition">
+              🕊️ אחרי ויכוח או מתח
+            </button>
+            <button type="button" onclick="selectDeckCategory('intimacy')" data-cat="intimacy" class="deck-cat-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-stone-100 text-stone-700 hover:bg-stone-200 transition">
+              🔥 תשוקה ואינטימיות
+            </button>
+            <button type="button" onclick="selectDeckCategory('dreams')" data-cat="dreams" class="deck-cat-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-stone-100 text-stone-700 hover:bg-stone-200 transition">
+              🌱 חלומות ועולם פנימי
+            </button>
+          </div>
+
+          <button type="button" onclick="drawNextCard()" class="px-4 py-2 rounded-xl bg-terra-50 hover:bg-terra-100 text-terra-700 font-bold text-xs sm:text-sm transition flex items-center gap-1.5 border border-terra-200">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            <span>שלפו שאלה אחרת מהחפיסה</span>
+          </button>
+        </div>
+
+        <!-- Active Card Display -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 pt-6 items-center">
+          <div class="lg:col-span-7">
+            <div id="live-question-card" class="rounded-2xl bg-gradient-to-br from-cream-50 to-cream-200/70 border-2 border-stone-200 p-6 sm:p-8 relative shadow-inner">
+              <div class="flex items-center justify-between text-xs font-bold text-teal-800 mb-3">
+                <span id="card-deck-badge" class="px-3 py-1 rounded-full bg-white border border-stone-200 shadow-sm">חפיסת חיבה והערכה · קלף 1 מתוך 3</span>
+                <span class="text-stone-500">עקרון גוטמן: מפות אהבה והערכה</span>
+              </div>
+
+              <blockquote id="card-question-text" class="font-display text-xl sm:text-2xl font-bold text-teal-950 leading-relaxed my-4">
+                "מהו דבר אחד שעשיתי החודש — אפילו קטן מאוד — שגרם לך להרגיש שאנחנו צוות?"
+              </blockquote>
+
+              <div class="mt-5 p-4 rounded-xl bg-white/90 border border-stone-200/90 text-xs sm:text-sm text-stone-700 space-y-1.5">
+                <div class="font-bold text-teal-900 flex items-center gap-1.5">
+                  <svg class="w-4 h-4 text-terra-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.34.208-.646.477-.859a4 4 0 10-4.954 0c.27.213.462.519.476.859h4.002z"/></svg>
+                  <span>איך האפליקציה מנחה אתכם ברגע הזה:</span>
+                </div>
+                <p id="card-guidance-text" class="text-stone-600 leading-relaxed">
+                  <strong>דובר/ת:</strong> תנו דוגמה ספציפית ולא כללית. <strong>מקשיב/ה:</strong> לפני שעונים, שיקפו במשפט אחד מה שמעתם ואיך זה גורם לכם להרגיש.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Interactive Companion: Live Turn Timer & Instant Share/Download -->
+          <div class="lg:col-span-5 bg-teal-950 text-cream-50 rounded-2xl p-6 space-y-5">
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="text-xs text-teal-200 font-medium block">רוצים לנסות כבר עכשיו?</span>
+                <h3 class="font-display font-bold text-lg text-white">טיימר תור הקשבה (2 דקות)</h3>
+              </div>
+              <div id="turn-timer-display" class="font-mono text-2xl font-extrabold bg-teal-900 px-3.5 py-1.5 rounded-xl border border-teal-700 text-amber-200">
+                02:00
+              </div>
+            </div>
+
+            <p class="text-xs sm:text-sm text-teal-100 leading-relaxed">
+              באפליקציה המלאה, Couple Lab מנהלת את התורות עבורכם, מתמללת אופליין (אם תבחרו) ומזהה רגעי אמפתיה ולקיחת אחריות.
+            </p>
+
+            <div class="flex flex-wrap gap-2">
+              <button type="button" id="turn-timer-btn" onclick="toggleTurnTimer()" class="flex-1 py-2.5 px-4 rounded-xl bg-terra-500 hover:bg-terra-600 text-white font-bold text-xs sm:text-sm transition">
+                הפעילו טיימר הקשבה (2:00)
+              </button>
+              <button type="button" onclick="shareCurrentCardWhatsApp()" class="py-2.5 px-3.5 rounded-xl bg-teal-800 hover:bg-teal-700 text-cream-100 font-semibold text-xs sm:text-sm transition border border-teal-700">
+                שלחו את השאלה לבן/בת הזוג
+              </button>
+            </div>
+
+            <div class="pt-3 border-t border-teal-800/80 flex items-center justify-between gap-2">
+              <span class="text-xs text-teal-200">אהבתם את השאלה? באפליקציה מחכות עוד 17 חפיסות שלמות.</span>
+              <button type="button" onclick="openDownloadFlow()" class="shrink-0 text-xs font-bold text-amber-300 hover:text-amber-200 underline">
+                להורדה למחשב &larr;
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: MINI RELATIONSHIP MAP DIAGNOSTIC (HIDDEN BY DEFAULT) -->
+      <div id="demo-quiz-panel" class="hidden bg-white rounded-3xl shadow-xl border border-stone-200/90 p-6 sm:p-10">
+        <div class="max-w-3xl mx-auto space-y-6">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-stone-200 pb-4">
+            <div>
+              <h3 class="font-display font-bold text-xl text-teal-950">דגימה מתוך "מפת הקשר"</h3>
+              <p class="text-xs sm:text-sm text-stone-600">באפליקציה כל אחד עונה לבד על 10 שאלות בפרטיות מלאה. הנה 3 שאלות שיראו לכם איפה כדאי להתחיל הערב:</p>
+            </div>
+            <span class="text-xs font-bold bg-sage-100 text-teal-900 px-3 py-1 rounded-full">אנונימי לגמרי · לא נשמר בשום מקום</span>
+          </div>
+
+          <div class="space-y-5">
+            <!-- Q1 -->
+            <div class="p-4 rounded-2xl bg-cream-50 border border-stone-200">
+              <div class="flex justify-between items-center mb-2">
+                <label for="quiz-q1" class="font-bold text-sm sm:text-base text-teal-950">1. כשמתעורר בינינו מתח או אי-הסכמה, כמה קל לנו לעצור לפני שהשיחה מסלימה?</label>
+                <span id="quiz-q1-val" class="text-xs font-extrabold px-2.5 py-1 rounded-lg bg-teal-800 text-white">3 / 5</span>
+              </div>
+              <input id="quiz-q1" type="range" min="1" max="5" value="3" oninput="updateQuizCalculation()" class="w-full accent-teal-800 cursor-pointer" />
+              <div class="flex justify-between text-[11px] text-stone-500 mt-1">
+                <span>1 — קשה מאוד, נסחפים מהר</span>
+                <span>5 — עוצרים בקלות ומדברים ברכות</span>
+              </div>
+            </div>
+
+            <!-- Q2 -->
+            <div class="p-4 rounded-2xl bg-cream-50 border border-stone-200">
+              <div class="flex justify-between items-center mb-2">
+                <label for="quiz-q2" class="font-bold text-sm sm:text-base text-teal-950">2. בשבוע רגיל ועמוס, כמה זמן אנחנו מקדישים לשיחה שאינה על סידורים, עבודה או מטלות?</label>
+                <span id="quiz-q2-val" class="text-xs font-extrabold px-2.5 py-1 rounded-lg bg-teal-800 text-white">2 / 5</span>
+              </div>
+              <input id="quiz-q2" type="range" min="1" max="5" value="2" oninput="updateQuizCalculation()" class="w-full accent-teal-800 cursor-pointer" />
+              <div class="flex justify-between text-[11px] text-stone-500 mt-1">
+                <span>1 — כמעט אפס, רק לוגיסטיקה</span>
+                <span>5 — יש לנו זמן איכות קבוע ופתוח</span>
+              </div>
+            </div>
+
+            <!-- Q3 -->
+            <div class="p-4 rounded-2xl bg-cream-50 border border-stone-200">
+              <div class="flex justify-between items-center mb-2">
+                <label for="quiz-q3" class="font-bold text-sm sm:text-base text-teal-950">3. כמה נוח לנו לבטא צורך רגשי או פגיעות בלי לחשוש מביקורת או התגוננות?</label>
+                <span id="quiz-q3-val" class="text-xs font-extrabold px-2.5 py-1 rounded-lg bg-teal-800 text-white">3 / 5</span>
+              </div>
+              <input id="quiz-q3" type="range" min="1" max="5" value="3" oninput="updateQuizCalculation()" class="w-full accent-teal-800 cursor-pointer" />
+              <div class="flex justify-between text-[11px] text-stone-500 mt-1">
+                <span>1 — שומרים בבטן כדי לא לריב</span>
+                <span>5 — מרגישים ביטחון מלא לשתף</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Instant Personalized Output Card -->
+          <div id="quiz-result-box" class="p-6 rounded-2xl bg-teal-900 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+            <div class="space-y-1.5">
+              <div class="inline-flex items-center gap-2 text-xs font-bold text-amber-300">
+                <span>המיקוד המומלץ עבורכם להערב:</span>
+                <span id="quiz-score-badge" class="bg-teal-800 px-2 py-0.5 rounded text-cream-100">ציון חוסן: 53%</span>
+              </div>
+              <h4 id="quiz-rec-title" class="font-display font-bold text-lg sm:text-xl text-white">
+                מומלץ להתחיל ב"שיחה מפחיתת לחץ" (15 דקות) + חפיסת "חיבה והערכה"
+              </h4>
+              <p id="quiz-rec-desc" class="text-xs sm:text-sm text-teal-100 max-w-xl">
+                נראה שהשגרה שואבת מכם המון אנרגיה. שיחה מונחית קצרה שבה כל אחד מקבל 5 דקות לשתף על השבוע שלו בלי שמנסים "לפתור" לו את הבעיה תוריד מיד את מפלס העומס.
+              </p>
+            </div>
+            <button type="button" onclick="openDownloadFlow()" class="shrink-0 px-6 py-3.5 rounded-xl bg-terra-500 hover:bg-terra-600 text-white font-bold text-sm shadow-lg transition">
+              הורידו והתחילו מהתרגיל הזה &larr;
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- BENTO GRID: WHAT'S INSIDE + INTERACTIVE 20-MINUTE PAUSE SIMULATOR -->
+  <section id="features" class="py-16 sm:py-24">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+      <div class="text-center max-w-2xl mx-auto mb-12">
+        <span class="text-xs font-bold uppercase tracking-wider text-terra-600 bg-terra-50 px-3 py-1 rounded-full border border-terra-100">
+          ארגז כלים זוגי שלם על המחשב שלכם
+        </span>
+        <h2 class="font-display text-2xl sm:text-4xl font-extrabold text-teal-950 mt-3">
+          לא רק "כרטיסיות שאלות" — מעבדה חיה לשיחה בטוחה
+        </h2>
+        <p class="mt-2.5 text-stone-600 text-sm sm:text-base">
+          כל כלי ב-Couple Lab תוכנן סביב רגעים אמיתיים שכל זוג פוגש: משתיקה מביכה בסוף יום עמוס ועד ויכוח שמתחמם מהר מדי.
+        </p>
+      </div>
+
+      <!-- Asymmetric Bento Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+        
+        <!-- Bento Item 1 (Large 7 cols): Guided Conversations for Hard Moments -->
+        <div class="md:col-span-7 bg-white rounded-3xl p-6 sm:p-8 border border-stone-200/90 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-4">
+              <span class="px-3 py-1 rounded-full bg-sage-100 text-teal-900 text-xs font-bold">ניהול תורות חכם</span>
+              <span class="text-xs text-stone-400 font-medium">מבוסס שיטת דובר-מקשיב של גוטמן</span>
+            </div>
+            <h3 class="font-display text-xl sm:text-2xl font-extrabold text-teal-950">
+              שיחות מונחות לרגעים שבהם קשה לדבר לבד
+            </h3>
+            <p class="mt-2 text-stone-600 text-sm sm:text-base leading-relaxed">
+              במסלולי <strong>"אחרי ריב"</strong> ו-<strong>"שיחה מפחיתת לחץ"</strong>, האפליקציה מחלקת את השיחה לשלבים קטנים וברורים. היא שומרת על התורות שלכם, מציגה משפטים מומלצים ל<strong>פתיחה רכה</strong> (בלי האשמה) ומבקשת מהמקשיב לשקף לפני שהוא מגיב.
+            </p>
+          </div>
+
+          <!-- Visual Mini Flow inside Bento -->
+          <div class="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 pt-5 border-t border-stone-100">
+            <div class="p-3.5 rounded-2xl bg-cream-50 border border-stone-200/80">
+              <div class="text-xs font-bold text-terra-600 mb-1">שלב א׳ · פתיחה רכה</div>
+              <div class="text-xs text-stone-700">"הרגשתי מוצף/ת כש... והייתי צריך/ה ש..."</div>
+            </div>
+            <div class="p-3.5 rounded-2xl bg-cream-50 border border-stone-200/80">
+              <div class="text-xs font-bold text-teal-800 mb-1">שלב ב׳ · שיקוף והבנה</div>
+              <div class="text-xs text-stone-700">"מה שאני שומע/ת שמכאיב לך הוא..."</div>
+            </div>
+            <div class="p-3.5 rounded-2xl bg-cream-50 border border-stone-200/80">
+              <div class="text-xs font-bold text-emerald-700 mb-1">שלב ג׳ · ניסיון תיקון</div>
+              <div class="text-xs text-stone-700">"מה יעזור לנו להרגיש קרובים עכשיו?"</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bento Item 2 (5 cols): Interactive 20-Minute Pause Mechanism -->
+        <div id="pause-simulator" class="md:col-span-5 bg-gradient-to-br from-terra-50 via-white to-terra-100/60 rounded-3xl p-6 sm:p-8 border-2 border-terra-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <span class="inline-block px-3 py-1 rounded-full bg-terra-500 text-white text-xs font-bold mb-3">
+              מנגנון "עצירת הצפה" מובנה
+            </span>
+            <h3 class="font-display text-xl sm:text-2xl font-extrabold text-teal-950">
+              השיחה מתחממת? עוצרים בלחיצה אחת ל-20 דקות.
+            </h3>
+            <p class="mt-2 text-stone-700 text-sm leading-relaxed">
+              מחקרי גוטמן הוכיחו שכשדופק הלב עולה מעל 100 פעימות בדקה ("הצפה רגשית"), היכולת להקשיב באמת יורדת לאפס. כפתור <strong>"אני צריך/ה הפסקה"</strong> עוצר מיד את ההקלטה וקובע חזרה מוסכמת בעוד 20 דקות — כדי שאף אחד לא ירגיש שנטשו אותו.
+            </p>
+          </div>
+
+          <!-- Interactive Pause Widget -->
+          <div class="mt-6 bg-white rounded-2xl p-4 border border-terra-200 shadow-inner text-center">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-bold text-stone-500">סימולטור הרגעה זוגית:</span>
+              <span id="pause-status-pill" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-stone-100 text-stone-700">במהלך שיחה</span>
+            </div>
+            <div id="pause-countdown-box" class="font-mono text-3xl font-black text-teal-950 tracking-wider my-2">
+              20:00
+            </div>
+            <p id="pause-micro-text" class="text-xs text-stone-600 mb-3">
+              לחצו על הכפתור כדי לראות איך האפליקציה מרגיעה רגע סוער:
+            </p>
+            <button type="button" id="pause-sim-btn" onclick="triggerPauseSimulation()" class="w-full py-3 px-4 rounded-xl bg-terra-600 hover:bg-terra-700 text-white font-bold text-sm transition flex items-center justify-center gap-2 shadow-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <span id="pause-sim-btn-label">אני צריך/ה הפסקה של 20 דקות</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Bento Item 3 (4 cols): 17 Curated Question Decks -->
+        <div class="md:col-span-4 bg-white rounded-3xl p-6 border border-stone-200/90 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="w-11 h-11 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-lg mb-4">
+              17
+            </div>
+            <h3 class="font-display text-lg sm:text-xl font-extrabold text-teal-950">
+              17 חפיסות שאלות עומק
+            </h3>
+            <p class="mt-2 text-stone-600 text-sm leading-relaxed">
+              מ"מפות אהבה" והיכרות מחדש אחרי שנים יחד, דרך הערכה יומיומית, תשוקה ואינטימיות, ועד חלומות משותפים.
+            </p>
+          </div>
+          <div class="mt-5 flex flex-wrap gap-1.5 pt-4 border-t border-stone-100 text-xs font-semibold text-teal-900">
+            <span class="px-2.5 py-1 rounded-lg bg-cream-100">חיבה והערכה</span>
+            <span class="px-2.5 py-1 rounded-lg bg-cream-100">להביע צורך</span>
+            <span class="px-2.5 py-1 rounded-lg bg-cream-100">תשוקה</span>
+            <span class="px-2.5 py-1 rounded-lg bg-cream-100">תיקון אחרי ריב</span>
+          </div>
+        </div>
+
+        <!-- Bento Item 4 (4 cols): Stress Before & After + Local Transcription -->
+        <div class="md:col-span-4 bg-white rounded-3xl p-6 border border-stone-200/90 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="w-11 h-11 rounded-2xl bg-sage-100 text-teal-800 flex items-center justify-center mb-4">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+              </svg>
+            </div>
+            <h3 class="font-display text-lg sm:text-xl font-extrabold text-teal-950">
+              תמלול מקומי ומדד לחץ לפני/אחרי
+            </h3>
+            <p class="mt-2 text-stone-600 text-sm leading-relaxed">
+              בהסכמת שניכם, השיחה מתומללת ישירות על המחשב (ללא אינטרנט) כדי שתוכלו לחפש "מה סיכמנו על...", ולראות איך רמת המתח מ-0 עד 10 יורדת בסוף השיחה.
+            </p>
+          </div>
+          <div class="mt-5 pt-4 border-t border-stone-100 flex items-center justify-between text-xs text-stone-500">
+            <span>אפשרות למחיקת הקלטה בלחיצה</span>
+            <span class="font-bold text-emerald-700">100% אופליין</span>
+          </div>
+        </div>
+
+        <!-- Bento Item 5 (4 cols): Printable PDF Summary & Weekly Action Step -->
+        <div class="md:col-span-4 bg-teal-900 text-white rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="w-11 h-11 rounded-2xl bg-teal-800 text-amber-200 flex items-center justify-center mb-4 border border-teal-700">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+            </div>
+            <h3 class="font-display text-lg sm:text-xl font-extrabold text-white">
+              דוח סיכום עדין + צעד אחד לשבוע הקרוב
+            </h3>
+            <p class="mt-2 text-teal-100 text-sm leading-relaxed">
+              בסיום השיחה תקבלו משוב בונה: כמה דיבר כל אחד, אילו רגעי הקשבה והערכה זוהו, וצעד מעשי אחד שתבחרו יחד לשבוע הקרוב (ניתן לשמירה כ-PDF).
+            </p>
+          </div>
+          <div class="mt-5 pt-4 border-t border-teal-800">
+            <button type="button" onclick="openModal('reportModal')" class="w-full py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-amber-200 font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2">
+              <span>פתחו דוח סיכום לדוגמה (נועה ויונתן)</span>
+              <span>&larr;</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- INTERACTIVE 4-STEP VISUAL WALKTHROUGH ("איך זה עובד") -->
+  <section id="how-it-works" class="py-16 sm:py-24 bg-white border-y border-stone-200/80">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+      <div class="text-center max-w-2xl mx-auto mb-12">
+        <span class="text-xs font-bold text-teal-800 bg-sage-100 px-3.5 py-1 rounded-full">
+          תהליך מובנה ופשוט
+        </span>
+        <h2 class="font-display text-2xl sm:text-4xl font-extrabold text-teal-950 mt-3">
+          איך נראית שיחה ב-Couple Lab?
+        </h2>
+        <p class="mt-2 text-stone-600 text-sm sm:text-base">
+          היכרות ראשונית של 5 דקות (פעם אחת בלבד), ואז 15 דקות בשבוע שמשנות את האווירה בבית. לחצו על כל שלב להצצה למסך:
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        <!-- Step Selector Buttons (5 cols) -->
+        <div class="lg:col-span-5 space-y-3" id="walkthrough-steps">
+          <button type="button" onclick="selectWalkthroughStep(0)" class="walkthrough-btn w-full text-right p-4 sm:p-5 rounded-2xl border-2 border-teal-800 bg-cream-50 transition flex items-start gap-4">
+            <div class="w-9 h-9 rounded-xl bg-teal-800 text-white font-display font-bold flex items-center justify-center shrink-0 mt-0.5">1</div>
+            <div>
+              <h3 class="font-display font-bold text-base sm:text-lg text-teal-950">ממלאים את "מפת הקשר" (כל אחד לבד)</h3>
+              <p class="text-xs sm:text-sm text-stone-600 mt-1">10 שאלות קצרות בפרטיות מלאה (התשובות מוסתרות מבן/בת הזוג) שממפות איפה אתם חזקים ומה דורש חיזוק.</p>
+            </div>
+          </button>
+
+          <button type="button" onclick="selectWalkthroughStep(1)" class="walkthrough-btn w-full text-right p-4 sm:p-5 rounded-2xl border border-stone-200 bg-white hover:bg-stone-50 transition flex items-start gap-4">
+            <div class="w-9 h-9 rounded-xl bg-stone-200 text-stone-700 font-display font-bold flex items-center justify-center shrink-0 mt-0.5">2</div>
+            <div>
+              <h3 class="font-display font-bold text-base sm:text-lg text-teal-950">בוחרים שאלה או מסלול שיחה מונחה</h3>
+              <p class="text-xs sm:text-sm text-stone-600 mt-1">האפליקציה ממליצה על תרגיל מותאם אישית (למשל "חיבה והערכה" או "שיחה אחרי ריב"), או שבוחרים חופשי מ-17 חפיסות.</p>
+            </div>
+          </button>
+
+          <button type="button" onclick="selectWalkthroughStep(2)" class="walkthrough-btn w-full text-right p-4 sm:p-5 rounded-2xl border border-stone-200 bg-white hover:bg-stone-50 transition flex items-start gap-4">
+            <div class="w-9 h-9 rounded-xl bg-stone-200 text-stone-700 font-display font-bold flex items-center justify-center shrink-0 mt-0.5">3</div>
+            <div>
+              <h3 class="font-display font-bold text-base sm:text-lg text-teal-950">מדברים בתורות, מקשיבים ומשקפים</h3>
+              <p class="text-xs sm:text-sm text-stone-600 mt-1">אחד מדבר והשני משקף. אם תרצו, השיחה מתומללת מקומית על המחשב ומזהה רגעי אמפתיה ולקיחת אחריות.</p>
+            </div>
+          </button>
+
+          <button type="button" onclick="selectWalkthroughStep(3)" class="walkthrough-btn w-full text-right p-4 sm:p-5 rounded-2xl border border-stone-200 bg-white hover:bg-stone-50 transition flex items-start gap-4">
+            <div class="w-9 h-9 rounded-xl bg-stone-200 text-stone-700 font-display font-bold flex items-center justify-center shrink-0 mt-0.5">4</div>
+            <div>
+              <h3 class="font-display font-bold text-base sm:text-lg text-teal-950">מקבלים סיכום עדין ובוחרים צעד לשבוע הקרוב</h3>
+              <p class="text-xs sm:text-sm text-stone-600 mt-1">רואים את ירידת המתח, קוראים רגעים טובים מהשיחה ושומרים קובץ PDF אישי עם החלטה קטנה אחת לשבוע הקרוב.</p>
+            </div>
+          </button>
+        </div>
+
+        <!-- Dynamic Interactive Application Mockup Window (7 cols) -->
+        <div class="lg:col-span-7">
+          <div class="rounded-3xl bg-teal-950 p-3 sm:p-5 shadow-2xl border border-teal-800">
+            <!-- Window Top Bar -->
+            <div class="flex items-center justify-between px-3 pb-3 border-b border-teal-800/80 text-xs text-teal-200">
+              <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-rose-400/80"></span>
+                <span class="w-3 h-3 rounded-full bg-amber-400/80"></span>
+                <span class="w-3 h-3 rounded-full bg-emerald-400/80"></span>
+                <span class="mr-2 font-mono text-[11px] text-teal-300">Couple-Lab-Windows.exe · מצב אופליין מוגן</span>
+              </div>
+              <span id="mockup-step-badge" class="bg-teal-800 text-amber-200 px-2.5 py-0.5 rounded-md font-semibold">שלב 1 מתוך 4</span>
+            </div>
+
+            <!-- Dynamic Screen Content -->
+            <div id="walkthrough-screen-content" class="bg-cream-50 rounded-2xl p-6 sm:p-8 mt-3 min-h-[340px] flex flex-col justify-between text-teal-950">
+              <!-- Populated dynamically via JS on load & step click -->
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
-  <section id="download">
-    <div class="wrap">
-      <h2>הורדה והפעלה בשתי דקות</h2>
-      <p class="section-lead">אין אשף התקנה. זה קובץ אחד: פותחים ומתחילים.</p>
-      <div class="install">
-        <ol class="numbered">
-          <li><b>מורידים את הקובץ</b> <bdi dir="ltr"><code>Couple-Lab-Windows.exe</code></bdi> מהכפתור.</li>
-          <li><b>פותחים אותו בלחיצה כפולה.</b> אפשר לשמור אותו בכל תיקייה, למשל על שולחן העבודה.</li>
-          <li><b>אם מופיעה ההודעה <bdi dir="ltr">"Windows protected your PC"</bdi></b>, לוחצים על <bdi dir="ltr">More info</bdi> ואז על <bdi dir="ltr">Run anyway</bdi>. ההודעה מופיעה כי הקובץ לא חתום דיגיטלית. זו אזהרה כללית של Windows לכל קובץ לא חתום, ולא סימן שמשהו לא בסדר.</li>
-          <li><b>מאשרים מיקרופון (ומצלמה, אם תרצו).</b> אם תבחרו, האפליקציה לומדת להכיר את הקול והפנים של כל אחד מכם. אפשר גם לדלג. מכאן מתחילים שיחה ראשונה.</li>
-        </ol>
-        <div class="req">
-          <h3>מה צריך</h3>
-          <ul>
-            <li>מחשב עם Windows 10 או 11</li>
-            <li>מיקרופון, ואם רוצים גם מצלמה (המובנים במחשב נייד מספיקים)</li>
-            <li>כ־175MB להורדה</li>
-          </ul>
-          <a class="btn" href="https://github.com/agmonp/couple-lab/releases/latest/download/Couple-Lab-Windows.exe"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-download"/></svg>הורדה חינם</a>
+  <!-- PRIVACY & EMOTIONAL SAFETY SECTION -->
+  <section id="privacy" class="py-16 sm:py-24 bg-teal-950 text-cream-50">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+        <div class="lg:col-span-6 space-y-5">
+          <span class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-teal-900 border border-teal-700 text-amber-200 text-xs font-bold">
+            <svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+            ארכיטקטורת פרטיות מוחלטת (Zero-Cloud)
+          </span>
+          <h2 class="font-display text-2xl sm:text-4xl font-extrabold text-white leading-tight">
+            מה שנאמר ביניכם בסלון — <br>נשאר אך ורק על המחשב שלכם.
+          </h2>
+          <p class="text-teal-100 text-sm sm:text-base leading-relaxed">
+            שיחה זוגית היא הדבר הכי אינטימי שיש. לכן בנינו את Couple Lab בלי שרתים, בלי הרשמה ובלי איסוף מידע. אתם יכולים לכבות את ה-Wi-Fi במחשב לגמרי — והאפליקציה, כולל התמלול וזיהוי הדוברים, תמשיך לעבוד באופן מלא.
+          </p>
+
+          <!-- Why is it free box -->
+          <div class="p-5 rounded-2xl bg-teal-900/90 border border-teal-800 space-y-2">
+            <div class="font-display font-bold text-amber-200 text-sm sm:text-base">למה זה חינם לגמרי ובלי פרסומות?</div>
+            <p class="text-xs sm:text-sm text-teal-100 leading-relaxed">
+              Couple Lab נבנתה כפרויקט אישי ופתוח לקהילה (Open Source ברישיון MIT), ללא מטרות רווח, כדי לתת לכל זוג גישה לכלי תרגול זוגי איכותי ופרטי. אין מנוי נסתר ואין שום מידע למכור.
+            </p>
+          </div>
+
+          <!-- Expandable Technical Details Drawer for Tech-Savvy Users -->
+          <div class="border border-teal-800 rounded-2xl overflow-hidden bg-teal-900/40">
+            <button type="button" onclick="toggleTechPrivacy()" class="w-full px-5 py-3.5 text-right text-xs sm:text-sm font-bold text-teal-200 hover:text-white flex items-center justify-between transition">
+              <span>למשתמשים טכנולוגיים: איך עובדת ההצפנה המקומית וחיבור מודלים מקומיים?</span>
+              <span id="tech-privacy-arrow" class="transition-transform">▼</span>
+            </button>
+            <div id="tech-privacy-drawer" class="hidden px-5 pb-4 pt-1 text-xs text-teal-200 space-y-2 border-t border-teal-800/70 leading-relaxed">
+              <p>• <strong>זיהוי דוברים ללא שמירת תמונות:</strong> אם תבחרו שהאפליקציה תזהה מי מדבר, דגימות הקול והתמונה נמחקות מיד לאחר הלמידה, ונשמר רק וקטור מספרי המוצפן בהצפנת המשתמש של Windows (DPAPI).</p>
+              <p>• <strong>שדרוג תמלול ומודלים מקומיים (אופציונלי):</strong> התמלול המובנה פועל אופליין על המעבד המקומי. משתמשים מתקדמים שמותקן אצלם <a href="https://ollama.com/" target="_blank" rel="noopener noreferrer" class="underline text-amber-300">Ollama</a> יכולים להפעיל תיקוני כתיב ופיסוק מקומיים, או לחבר מפתח API אישי בהגדרות (כבוי כברירת מחדל).</p>
+              <p>• <strong>שקיפות קוד מלאה:</strong> ניתן לבדוק כל שורת קוד במאגר הרשמי ב-<a href="https://github.com/agmonp/couple-lab" target="_blank" rel="noopener noreferrer" class="underline text-amber-300">GitHub</a>.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4 Core Privacy Pillars (6 cols) -->
+        <div class="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="p-6 rounded-2xl bg-teal-900/80 border border-teal-800">
+            <div class="w-10 h-10 rounded-xl bg-teal-800 text-amber-200 flex items-center justify-center font-bold mb-3">01</div>
+            <h3 class="font-display font-bold text-base sm:text-lg text-white">בלי חשבון, מייל או סיסמה</h3>
+            <p class="mt-1.5 text-xs sm:text-sm text-teal-100 leading-relaxed">מורידים קובץ יחיד, לוחצים פעמיים ומתחילים. אף שרת בעולם לא יודע שהורדתם או פתחתם את האפליקציה.</p>
+          </div>
+
+          <div class="p-6 rounded-2xl bg-teal-900/80 border border-teal-800">
+            <div class="w-10 h-10 rounded-xl bg-teal-800 text-amber-200 flex items-center justify-center font-bold mb-3">02</div>
+            <h3 class="font-display font-bold text-base sm:text-lg text-white">שליטה מלאה במחיקה</h3>
+            <p class="mt-1.5 text-xs sm:text-sm text-teal-100 leading-relaxed">אפשר למחוק את קובץ השמע בסוף כל שיחה (ולהשאיר רק סיכום כתוב), או לאפס את הפרופיל הזוגי בלחיצה.</p>
+          </div>
+
+          <div class="p-6 rounded-2xl bg-teal-900/80 border border-teal-800">
+            <div class="w-10 h-10 rounded-xl bg-teal-800 text-amber-200 flex items-center justify-center font-bold mb-3">03</div>
+            <h3 class="font-display font-bold text-base sm:text-lg text-white">הסכמה כפולה לכל הקלטה</h3>
+            <p class="mt-1.5 text-xs sm:text-sm text-teal-100 leading-relaxed">שום שיחה לא מוקלטת בלי ששני בני הזוג אישרו זאת יחד על המסך לפני תחילת התרגיל.</p>
+          </div>
+
+          <div class="p-6 rounded-2xl bg-teal-900/80 border border-teal-800">
+            <div class="w-10 h-10 rounded-xl bg-teal-800 text-amber-200 flex items-center justify-center font-bold mb-3">04</div>
+            <h3 class="font-display font-bold text-base sm:text-lg text-white">פרטיות גם בתוך הזוגיות</h3>
+            <p class="mt-1.5 text-xs sm:text-sm text-teal-100 leading-relaxed">תשובות לשאלון "מפת הקשר" מוסתרות מבן או בת הזוג — מוצג רק המיפוי המשותף שמראה במה כדאי להתמקד.</p>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="alt" id="faq">
-    <div class="wrap">
-      <h2>שאלות נפוצות</h2>
-      <div class="faq">
-        <details><summary>צריך חיבור לאינטרנט?</summary><p>רק כדי להוריד את הקובץ. אחרי זה הכול עובד גם בלי חיבור.</p></details>
-        <details><summary>כמה זה עולה?</summary><p>כלום. Couple Lab היא פרויקט אישי בלי מטרת רווח: בלי פרסומות, בלי מנוי ובלי איסוף מידע.</p></details>
-        <details><summary>מישהו יכול לראות את השיחות שלנו?</summary><p>לא. השיחות נשמרות רק על המחשב שלכם. מי שיכול לפתוח אותן הוא מי שיש לו גישה למחשב הזה, לכן כדאי לנעול אותו בסיסמה.</p></details>
-        <details><summary>זה מחליף טיפול זוגי?</summary><p>לא. זה כלי לתרגול בבית. הוא לא שופט מי צודק ולא קובע מה מישהו מרגיש. הוא יכול להשתלב יפה עם טיפול, אבל לא להחליף אותו.</p></details>
-        <details><summary>מה אם יש אצלנו פחד או אלימות?</summary><p>Couple Lab לא מתאימה למצב כזה. בבדיקת הבטיחות הקצרה, סימון של פחד, איומים או אלימות מוביל להמלצה לפנות לאיש מקצוע לפני כל תרגול.</p></details>
-        <details><summary>יש גרסה למק או לטלפון?</summary><p>כרגע רק ל־Windows.</p></details>
-        <details><summary>התמלול לא מדויק מספיק. אפשר לשפר?</summary><p>התמלול המובנה קטן ומהיר, ובעברית הוא בסיסי. מי שמותקן אצלו <a href="https://ollama.com/">Ollama</a> יכול להפעיל מודל מקומי שמציע תיקוני כתיב ופיסוק, ואתם מאשרים כל תיקון. מי שמרגיש בנוח עם שורת פקודה יכול להריץ גרסה עם מנוע עברית מדויק יותר, <a href="https://github.com/agmonp/couple-lab#more-accurate-hebrew-transcription">לפי ההוראות כאן</a>.</p></details>
+  <!-- SOCIAL PROOF, WHO IT'S FOR & GOTTMAN FOUNDATION -->
+  <section id="social-proof" class="py-16 sm:py-24">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 space-y-14">
+      <div class="text-center max-w-2xl mx-auto">
+        <span class="text-xs font-bold text-terra-600 bg-terra-50 px-3.5 py-1 rounded-full border border-terra-100">
+          למי זה מתאים
+        </span>
+        <h2 class="font-display text-2xl sm:text-4xl font-extrabold text-teal-950 mt-3">
+          "לא צריך לחכות למשבר כדי להתחיל לדבר באמת"
+        </h2>
+        <p class="mt-2 text-stone-600 text-sm sm:text-base">
+          זוגות שמתרגלים הקשבה כשטוב, מתמודדים הרבה יותר טוב כשקשה. שלושה רגעים טיפוסיים שבשבילם בנינו את Couple Lab:
+        </p>
+        <p class="mt-1 text-xs text-stone-500">הציטוטים הם תרחישים לדוגמה, לא ביקורות של משתמשים.</p>
+      </div>
+
+      <!-- 3 Experience Cards / Scenarios -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white rounded-3xl p-6 sm:p-7 border border-stone-200 shadow-sm flex flex-col justify-between">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold bg-sage-100 text-teal-900 px-3 py-1 rounded-full">ערב זוגי קבוע</span>
+            </div>
+            <p class="text-stone-700 text-sm sm:text-base leading-relaxed italic">
+              "אחרי שהילדים נרדמים היינו פשוט גוללים בטלפון אחד ליד השנייה. התחלנו לפתוח את Couple Lab פעם בשבוע ל-15 דקות עם כוס תה, וגילינו דברים שלא דיברנו עליהם שנים."
+            </p>
+          </div>
+          <div class="pt-4 mt-4 border-t border-stone-100 text-xs font-bold text-teal-950">
+            לזוגות שרוצים זמן איכות אמיתי במקום עוד שיחת לוגיסטיקה
+          </div>
+        </div>
+
+        <div class="bg-white rounded-3xl p-6 sm:p-7 border border-stone-200 shadow-sm flex flex-col justify-between">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold bg-terra-100 text-terra-700 px-3 py-1 rounded-full">גשר אחרי ויכוח</span>
+            </div>
+            <p class="text-stone-700 text-sm sm:text-base leading-relaxed italic">
+              "תמיד אחרי ריב הייתה בינינו שתיקה מעיקה כי אף אחד לא ידע איך להתחיל לדבר בלי להצית הכל מחדש. המסלול של 'אחרי ריב' וניהול התורות באפליקציה פשוט עושה סדר ומרגיע."
+            </p>
+          </div>
+          <div class="pt-4 mt-4 border-t border-stone-100 text-xs font-bold text-teal-950">
+            לרגעים שבהם רוצים להתפייס אבל לא יודעים איך לפתוח את השיחה
+          </div>
+        </div>
+
+        <div class="bg-white rounded-3xl p-6 sm:p-7 border border-stone-200 shadow-sm flex flex-col justify-between">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold bg-amber-100 text-amber-900 px-3 py-1 rounded-full">תרגול בין מפגשי טיפול</span>
+            </div>
+            <p class="text-stone-700 text-sm sm:text-base leading-relaxed italic">
+              "אנחנו בטיפול זוגי וכבר מכירים את המושגים של 'פתיחה רכה' ו'שיקוף', אבל בבית ברגע האמת היינו שוכחים. האפליקציה נותנת מסגרת קלה ובטוחה לתרגל בין הפגישות."
+            </p>
+          </div>
+          <div class="pt-4 mt-4 border-t border-stone-100 text-xs font-bold text-teal-950">
+            לזוגות בטיפול זוגי שרוצים כלי מעשי לתרגול ביתי
+          </div>
+        </div>
+      </div>
+
+      <!-- Calm, Respectful Clinical & Safety Note -->
+      <div class="bg-cream-100 border border-stone-300/80 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs sm:text-sm text-stone-700">
+        <div class="space-y-1">
+          <div class="font-bold text-teal-950 flex items-center gap-2">
+            <svg class="w-4 h-4 text-teal-800 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+            <span>גבולות בטוחים ואחריות מקצועית</span>
+          </div>
+          <p class="text-stone-600 leading-relaxed">
+            Couple Lab היא כלי לתרגול והעשרה זוגית בהשראת מחקרי גוטמן (אינה קשורה רשמית למכון גוטמן ואינה מחליפה טיפול זוגי או אבחון). בתחילת השימוש קיימת בדיקת בטיחות קצרה — במקרים של פחד, איומים או אלימות, האפליקציה עוצרת את התרגול ומפנה לסיוע מקצועי.
+          </p>
+        </div>
       </div>
     </div>
   </section>
 
-  <section class="final">
-    <div class="wrap">
-      <div class="final-art"><img src="hero.webp" alt="איור: בני זוג משוחחים בסלון, ומיקרופון קטן על השולחן ביניהם" width="1400" height="788" loading="lazy"></div>
-      <h2>עשר דקות יחד יכולות לשנות שבוע</h2>
-      <p class="section-lead">הורידו, שבו יחד, ובחרו שאלה ראשונה.</p>
-      <a class="btn" href="https://github.com/agmonp/couple-lab/releases/latest/download/Couple-Lab-Windows.exe"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-download"/></svg>הורדה חינם ל־Windows</a>
-      <p class="cta-note">הורדה מיידית · חינם לגמרי · בלי הרשמה</p>
+  <!-- 2-MINUTE SMOOTH SETUP & FAQ SECTION -->
+  <section id="faq" class="py-16 sm:py-24 bg-white border-t border-stone-200">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        
+        <!-- Quick 3-Step Launch Box (5 cols) -->
+        <div class="lg:col-span-5 bg-cream-100/90 rounded-3xl p-6 sm:p-8 border border-stone-200/90 flex flex-col justify-between">
+          <div class="space-y-5">
+            <span class="text-xs font-bold bg-teal-800 text-white px-3 py-1 rounded-full">הפעלה מיידית ב-Windows</span>
+            <h3 class="font-display text-2xl font-extrabold text-teal-950">
+              בלי אשף התקנה מסובך — קובץ אחד ומתחילים
+            </h3>
+            <ol class="space-y-4 text-sm text-stone-700">
+              <li class="flex items-start gap-3">
+                <span class="w-6 h-6 rounded-full bg-teal-800 text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">1</span>
+                <span>מורידים את הקובץ <code class="bg-white px-1.5 py-0.5 rounded border border-stone-200 text-xs">Couple-Lab-Windows.exe</code> (כ-175MB, מתאים ל-Windows 10 ו-11).</span>
+              </li>
+              <li class="flex items-start gap-3">
+                <span class="w-6 h-6 rounded-full bg-teal-800 text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">2</span>
+                <span>פותחים בלחיצה כפולה. <em>(בגלל שזה פרויקט קוד פתוח עצמאי וללא מטרות רווח, אם Windows מציג חלונית מידע כחולה, לוחצים על <strong>More info</strong> ואז על <strong>Run anyway</strong>).</em></span>
+              </li>
+              <li class="flex items-start gap-3">
+                <span class="w-6 h-6 rounded-full bg-teal-800 text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">3</span>
+                <span>מוזגים שתי כוסות שתייה חמה, בוחרים שאלה ראשונה ומתחילים לדבר.</span>
+              </li>
+            </ol>
+          </div>
+
+          <div class="mt-8 pt-5 border-t border-stone-200 space-y-3">
+            <button type="button" onclick="openDownloadFlow()" class="w-full py-3.5 px-5 rounded-2xl bg-teal-800 hover:bg-teal-900 text-white font-bold text-sm sm:text-base shadow-md transition flex items-center justify-center gap-2">
+              <svg class="w-5 h-5 text-amber-200" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"/>
+              </svg>
+              <span>הורדת Couple Lab ל-Windows</span>
+            </button>
+            <div class="text-center text-xs text-stone-500">
+              גרסה אחרונה זמינה גם ב-<a href="https://github.com/agmonp/couple-lab/releases" target="_blank" rel="noopener noreferrer" class="underline hover:text-teal-900">עמוד הגרסאות הרשמי ב-GitHub</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- FAQ Accordion (7 cols) -->
+        <div class="lg:col-span-7 space-y-4">
+          <h3 class="font-display text-2xl sm:text-3xl font-extrabold text-teal-950 mb-4">
+            שאלות נפוצות
+          </h3>
+
+          <div class="space-y-3" id="faq-container">
+            <div class="border border-stone-200 rounded-2xl overflow-hidden bg-cream-50/50">
+              <button type="button" onclick="toggleFaq(0)" class="w-full p-5 text-right font-display font-bold text-base text-teal-950 flex items-center justify-between gap-4 hover:bg-cream-100/60 transition">
+                <span>כמה זה עולה? האם יש מנוי או תשלום נסתר?</span>
+                <span id="faq-icon-0" class="text-teal-800 font-bold text-xl">−</span>
+              </button>
+              <div id="faq-body-0" class="px-5 pb-5 text-sm text-stone-600 leading-relaxed">
+                חינם לגמרי (0 ₪). Couple Lab נבנתה כפרויקט אישי בקוד פתוח בלי מטרת רווח: אין פרסומות, אין גרסת פרימיום בתשלום ואין איסוף מידע.
+              </div>
+            </div>
+
+            <div class="border border-stone-200 rounded-2xl overflow-hidden bg-cream-50/50">
+              <button type="button" onclick="toggleFaq(1)" class="w-full p-5 text-right font-display font-bold text-base text-teal-950 flex items-center justify-between gap-4 hover:bg-cream-100/60 transition">
+                <span>האם מישהו יכול לשמוע או לראות את השיחות שלנו?</span>
+                <span id="faq-icon-1" class="text-teal-800 font-bold text-xl">+</span>
+              </button>
+              <div id="faq-body-1" class="hidden px-5 pb-5 text-sm text-stone-600 leading-relaxed">
+                בשום אופן לא. ל-Couple Lab אין שרתים בענן. כל ההקלטות, התמלולים והסיכומים נשמרים אך ורק בתיקייה מקומית על המחשב שלכם. רק למי שיש גישה פיזית למחשב שלכם יש גישה אליהם, ולכן מומלץ להשתמש בסיסמת כניסה למחשב.
+              </div>
+            </div>
+
+            <div class="border border-stone-200 rounded-2xl overflow-hidden bg-cream-50/50">
+              <button type="button" onclick="toggleFaq(2)" class="w-full p-5 text-right font-display font-bold text-base text-teal-950 flex items-center justify-between gap-4 hover:bg-cream-100/60 transition">
+                <span>חייבים להקליט או להפעיל מצלמה כדי להשתמש באפליקציה?</span>
+                <span id="faq-icon-2" class="text-teal-800 font-bold text-xl">+</span>
+              </button>
+              <div id="faq-body-2" class="hidden px-5 pb-5 text-sm text-stone-600 leading-relaxed">
+                ממש לא. המצלמה היא רשות בלבד, וגם הקלטת הקול פועלת רק אם שניכם בוחרים לאשר אותה כדי לקבל תמלול וניתוח זמני דיבור. אפשר לנהל את כל השיחות המונחות וחפיסות השאלות גם ללא הקלטה כלל.
+              </div>
+            </div>
+
+            <div class="border border-stone-200 rounded-2xl overflow-hidden bg-cream-50/50">
+              <button type="button" onclick="toggleFaq(3)" class="w-full p-5 text-right font-display font-bold text-base text-teal-950 flex items-center justify-between gap-4 hover:bg-cream-100/60 transition">
+                <span>אני גולש/ת עכשיו מהאייפון או מהאנדרואיד — מה לעשות?</span>
+                <span id="faq-icon-3" class="text-teal-800 font-bold text-xl">+</span>
+              </button>
+              <div id="faq-body-3" class="hidden px-5 pb-5 text-sm text-stone-600 leading-relaxed">
+                האפליקציה המלאה מותאמת למחשבי Windows 10 ו-11 (כדי לאפשר עיבוד קול מקומי בפרטיות מלאה וללא מסך טלפון שמפריע לקשר העין). לחצו על כפתור <strong>"שלחו לבן/בת הזוג"</strong> בראש העמוד כדי לשלוח לעצמכם קישור לוואטסאפ או תזכורת ביומן לערב כשתהיו מול המחשב.
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
     </div>
   </section>
-</main>
 
-<footer>
-  <div class="wrap">
-    <span>Couple Lab · פרויקט אישי וחינמי</span>
-    <span><a href="https://github.com/agmonp/couple-lab">קוד המקור (MIT)</a> · <a href="https://github.com/agmonp/couple-lab/issues">דיווח על בעיה</a> · <a href="https://github.com/agmonp/couple-lab/releases">כל הגרסאות</a></span>
+  <!-- FINAL EMOTIONAL CTA & FOOTER -->
+  <footer class="bg-teal-950 text-cream-50 pt-16 pb-12 border-t border-teal-900">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 text-center space-y-6">
+      <span class="inline-block px-3.5 py-1 rounded-full bg-teal-900 text-amber-200 text-xs font-bold border border-teal-800">
+        עשר דקות יחד יכולות לשנות שבוע שלם
+      </span>
+      <h2 class="font-display text-3xl sm:text-5xl font-extrabold text-white leading-tight">
+        קבעו לעצמכם דייט ביתי קצר הערב.
+      </h2>
+      <p class="text-teal-200 text-base sm:text-lg max-w-xl mx-auto">
+        הורידו את Couple Lab למחשב, שבו יחד בלי טלפונים, ובחרו שאלה ראשונה.
+      </p>
+
+      <div class="pt-2 flex flex-col sm:flex-row items-center justify-center gap-4">
+        <button type="button" onclick="openDownloadFlow()" class="w-full sm:w-auto px-8 py-4 rounded-2xl bg-terra-500 hover:bg-terra-600 text-white font-bold text-base sm:text-lg shadow-xl transition flex items-center justify-center gap-2.5">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"/>
+          </svg>
+          <span>הורדה חינם ל-Windows</span>
+        </button>
+        <button type="button" onclick="openModal('partnerModal')" class="w-full sm:w-auto px-6 py-4 rounded-2xl bg-teal-900 hover:bg-teal-800 text-cream-100 border border-teal-700 font-semibold text-sm sm:text-base transition">
+          שליחת הזמנה זוגית לוואטסאפ לערב
+        </button>
+      </div>
+
+      <div class="pt-12 mt-12 border-t border-teal-900 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-teal-300">
+        <div>
+          <strong>Couple Lab</strong> · פרויקט אישי, חינמי ופתוח לקהילה (ללא מטרות רווח)
+        </div>
+        <div class="flex flex-wrap items-center gap-5">
+          <a href="https://github.com/agmonp/couple-lab" target="_blank" rel="noopener noreferrer" class="hover:text-white underline">קוד המקור (MIT)</a>
+          <a href="https://github.com/agmonp/couple-lab/issues" target="_blank" rel="noopener noreferrer" class="hover:text-white underline">דיווח על תקלה</a>
+          <a href="https://github.com/agmonp/couple-lab/releases" target="_blank" rel="noopener noreferrer" class="hover:text-white underline">כל הגרסאות</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ==========================================
+       MODAL 1: SAMPLE PDF REPORT (NOAH & YONATAN)
+       ========================================== -->
+  <div id="reportModal" class="fixed inset-0 z-50 hidden bg-teal-950/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-stone-200 my-8 relative">
+      <div class="flex items-center justify-between pb-4 border-b border-stone-200">
+        <div>
+          <span class="text-xs font-bold text-teal-800 bg-sage-100 px-2.5 py-0.5 rounded-full">דוגמה לתוצר בסיום שיחה</span>
+          <h3 class="font-display text-xl sm:text-2xl font-extrabold text-teal-950 mt-1">דוח סיכום שיחה · נועה ויונתן</h3>
+        </div>
+        <button type="button" onclick="closeModal('reportModal')" class="w-9 h-9 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold flex items-center justify-center" aria-label="סגירה">✕</button>
+      </div>
+
+      <div class="py-5 space-y-5 text-right text-sm">
+        <!-- Metrics Row -->
+        <div class="grid grid-cols-3 gap-3 text-center">
+          <div class="p-3.5 rounded-2xl bg-cream-50 border border-stone-200">
+            <div class="text-xs text-stone-500">איזון הקשבה ודיבור</div>
+            <div class="font-display font-extrabold text-lg text-teal-950 mt-1">52% / 48%</div>
+            <div class="text-[11px] text-emerald-700 font-semibold">שיחה מאוזנת מאוד</div>
+          </div>
+          <div class="p-3.5 rounded-2xl bg-cream-50 border border-stone-200">
+            <div class="text-xs text-stone-500">מדד מתח (לפני ← אחרי)</div>
+            <div class="font-display font-extrabold text-lg text-teal-950 mt-1">7.5 ← 2.5</div>
+            <div class="text-[11px] text-emerald-700 font-semibold">ירידה משמעותית בעומס</div>
+          </div>
+          <div class="p-3.5 rounded-2xl bg-cream-50 border border-stone-200">
+            <div class="text-xs text-stone-500">רגעי תיקון ואמפתיה</div>
+            <div class="font-display font-extrabold text-lg text-teal-950 mt-1">4 רגעים</div>
+            <div class="text-[11px] text-terra-600 font-semibold">פתיחה רכה + שיקוף</div>
+          </div>
+        </div>
+
+        <!-- Highlighted Moments -->
+        <div class="p-4 rounded-2xl bg-sage-100/60 border border-sage-200 space-y-2">
+          <div class="font-bold text-teal-950">✨ רגעים טובים שזוהו בשיחה שלכם:</div>
+          <p class="text-xs sm:text-sm text-stone-700">• <strong>נועה (דקה 04:12):</strong> פתחה בתיאור הרגש שלה ("הרגשתי לבד מול העומס") במקום בביקורת.</p>
+          <p class="text-xs sm:text-sm text-stone-700">• <strong>יונתן (דקה 06:40):</strong> שיקף במדויק את הדברים של נועה לפני שהציג את הצד שלו ("אני שומע שמה שהכי הכביד עלייך היה...").</p>
+        </div>
+
+        <!-- Weekly Action Step -->
+        <div class="p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-1">
+          <div class="font-bold text-amber-950">🌱 הצעד הקטן שבחרנו לשבוע הקרוב:</div>
+          <p class="text-xs sm:text-sm text-stone-700">
+            "בימי שלישי וחמישי ב-21:00 אנחנו שמים את הטלפונים בחדר השני ל-15 דקות של תה ושיחה על היום שהיה."
+          </p>
+        </div>
+      </div>
+
+      <div class="pt-4 border-t border-stone-200 flex flex-wrap items-center justify-between gap-3">
+        <span class="text-xs text-stone-500">באפליקציה ניתן לשמור כל סיכום כקובץ PDF פרטי על המחשב.</span>
+        <button type="button" onclick="closeModal('reportModal'); openDownloadFlow();" class="px-5 py-2.5 rounded-xl bg-teal-800 hover:bg-teal-900 text-white font-bold text-xs sm:text-sm transition">
+          הורידו את האפליקציה וצרו סיכום משלכם &larr;
+        </button>
+      </div>
+    </div>
   </div>
-</footer>
+
+  <!-- ==========================================
+       MODAL 2: MOBILE-TO-DESKTOP PARTNER BRIDGE
+       ========================================== -->
+  <div id="partnerModal" class="fixed inset-0 z-50 hidden bg-teal-950/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative">
+      <div class="flex items-center justify-between pb-4 border-b border-stone-200">
+        <div>
+          <span class="text-xs font-bold text-terra-600 bg-terra-50 px-2.5 py-0.5 rounded-full">גשר מהנייד למחשב הביתי</span>
+          <h3 class="font-display text-xl font-extrabold text-teal-950 mt-1">קבעו דייט ביתי לערב</h3>
+        </div>
+        <button type="button" onclick="closeModal('partnerModal')" class="w-9 h-9 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold flex items-center justify-center" aria-label="סגירה">✕</button>
+      </div>
+
+      <div class="py-5 space-y-4 text-right">
+        <p class="text-xs sm:text-sm text-stone-600 leading-relaxed">
+          מאחר ש-Couple Lab פועלת על מחשב Windows (בפרטיות מלאה וללא ענן), שלחו עכשיו הודעה לבן/בת הזוג או לעצמכם כדי שתפתחו אותה יחד הערב בסלון:
+        </p>
+
+        <div>
+          <label for="partner-message-box" class="block text-xs font-bold text-teal-950 mb-1.5">הודעה מוכנה לשליחה (ניתן לערוך):</label>
+          <textarea id="partner-message-box" rows="3" class="w-full rounded-2xl border border-stone-300 p-3.5 text-xs sm:text-sm text-stone-800 focus:outline-none focus:border-teal-800">היי אהוב/ה, מצאתי אפליקציה חינמית ופרטית לגמרי למחשב עם שאלות ושיחות זוגיות מונחות (בהשראת גוטמן). בוא/י נוריד אותה הערב למחשב ל-15 דקות יחד עם כוס תה: https://agmonp.github.io/couple-lab/</textarea>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <button type="button" onclick="sendWhatsAppInvite()" class="py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2">
+            <span>שליחה בוואטסאפ</span>
+          </button>
+          <button type="button" onclick="copyInviteText()" class="py-3 px-4 rounded-xl bg-stone-100 hover:bg-stone-200 text-teal-950 font-bold text-xs sm:text-sm transition">
+            <span id="copy-invite-label">העתקת הטקסט והקישור</span>
+          </button>
+        </div>
+
+        <div class="pt-3 border-t border-stone-200">
+          <button type="button" onclick="downloadCalendarReminder()" class="w-full py-2.5 px-4 rounded-xl border border-teal-800/30 bg-sage-100/50 hover:bg-sage-100 text-teal-900 font-semibold text-xs sm:text-sm transition">
+            📅 הורדת תזכורת ליומן להערב ב-21:00 (.ics)
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MODAL 3: DOWNLOAD & SMARTSCREEN HELPER
+       ========================================== -->
+  <div id="downloadModal" class="fixed inset-0 z-50 hidden bg-teal-950/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative text-right">
+      <div class="flex items-center justify-between pb-4 border-b border-stone-200">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">✓</div>
+          <div>
+            <h3 class="font-display text-lg sm:text-xl font-extrabold text-teal-950">הורדת Couple Lab ל-Windows</h3>
+            <p class="text-xs text-stone-500">קובץ הפעלה עצמאי · כ-175MB · ללא צורך בהתקנה</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeModal('downloadModal')" class="w-9 h-9 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold flex items-center justify-center" aria-label="סגירה">✕</button>
+      </div>
+
+      <div class="py-5 space-y-4">
+        <div id="download-mobile-note" class="hidden p-4 rounded-2xl bg-terra-50 border border-terra-200 text-xs sm:text-sm text-stone-700 space-y-2">
+          <div class="font-bold text-terra-700">נראה שאתם בנייד 📱</div>
+          <p>Couple Lab רצה על מחשב Windows. שלחו לעצמכם או לבן/בת הזוג קישור לערב, והורידו מהמחשב.</p>
+          <button type="button" onclick="closeModal('downloadModal'); openModal('partnerModal');" class="w-full py-2.5 px-4 rounded-xl bg-terra-500 hover:bg-terra-600 text-white font-bold transition">שלחו קישור לערב במחשב &larr;</button>
+        </div>
+        <p class="text-xs text-stone-500 text-center">ההורדה לא התחילה? לחצו כאן:</p>
+        <a href="https://github.com/agmonp/couple-lab/releases/latest/download/Couple-Lab-Windows.exe" class="w-full py-4 px-6 rounded-2xl bg-teal-800 hover:bg-teal-900 text-white font-bold text-base shadow-lg transition flex items-center justify-center gap-2.5">
+          <svg class="w-5 h-5 text-amber-200" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"/>
+          </svg>
+          <span>לחצו כאן להורדה ישירה (Couple-Lab-Windows.exe)</span>
+        </a>
+
+        <div class="p-4 rounded-2xl bg-cream-100 border border-stone-200 space-y-2 text-xs sm:text-sm text-stone-700">
+          <div class="font-bold text-teal-950">💡 טיפ קטן להפעלה הראשונה (תוך 5 שניות):</div>
+          <p class="leading-relaxed">
+            מאחר שמדובר בפרויקט קוד פתוח חינמי שאינו שייך לתאגיד מסחרי, בהפעלה הראשונה Windows עשוי להציג חלונית כחולה (<code class="font-mono text-xs">Windows protected your PC</code>).
+          </p>
+          <p class="font-semibold text-teal-900">
+            פשוט לחצו על <u>More info</u> (מידע נוסף) ← ואז על כפתור <u>Run anyway</u> (הפעל בכל זאת).
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast-box" class="fixed bottom-5 left-5 z-50 hidden bg-teal-950 text-white px-4 py-3 rounded-2xl shadow-xl border border-teal-700 text-xs sm:text-sm font-semibold flex items-center gap-2">
+    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+    <span id="toast-message">הפעולה בוצעה בהצלחה</span>
+  </div>
+
+  <!-- Interactive Application Logic -->
+  <script>
+    // 1. Curated Card Decks Data (Inspired by Gottman Principles)
+    const DECK_DATA = {
+      appreciation: {
+        title: 'חפיסת חיבה והערכה',
+        principle: 'עקרון גוטמן: טיפוח תרבות של הערכה ומפות אהבה',
+        cards: [
+          {
+            q: '"מהו דבר אחד שעשיתי החודש — אפילו קטן מאוד — שגרם לך להרגיש שאנחנו צוות?"',
+            guide: 'דובר/ת: תנו דוגמה ספציפית מהיום-יום. מקשיב/ה: שיקפו במשפט אחד מה שמעתם ואיך זה גורם לכם להרגיש לפני שתענו.'
+          },
+          {
+            q: '"איזו תכונה שלי הכי עזרה לנו לעבור תקופה עמוסה או מאתגרת לאחרונה?"',
+            guide: 'דובר/ת: התמקדו בכוונה ובמאמץ של הצד השני. מקשיב/ה: קבלו את המחמאה בנשימה עמוקה בלי להקטין אותה.'
+          },
+          {
+            q: '"מתי בשבוע האחרון הרגשת הכי קרוב/ה אליי, ומה יצר את הרגע הזה?"',
+            guide: 'דובר/ת: תארו את הרגע כמו סצנה קצרה. מקשיב/ה: שאלו שאלת המשך סקרנית אחת.'
+          }
+        ]
+      },
+      after_fight: {
+        title: 'מסלול אחרי ויכוח או מתח',
+        principle: 'עקרון גוטמן: פתיחה רכה, לקיחת אחריות וניסיונות תיקון',
+        cards: [
+          {
+            q: '"כשנסתכל אחורה על הוויכוח האחרון שלנו — מה היה הרגש השקט מתחת לכעס (למשל פחד, עייפות או בדידות)?"',
+            guide: 'דובר/ת: השתמשו בשפה של "אני הרגשתי" ולא "את/ה עשית". מקשיב/ה: אל תתגוננו — רק שיקפו את הרגש ששמעתם.'
+          },
+          {
+            q: '"על איזה חלק קטן בשיחה הקודמת הייתי רוצה לקחת אחריות או לנסח אחרת עכשיו?"',
+            guide: 'דובר/ת: מספיק לקחת אחריות על 10% מהאירוע כדי לפתוח דלת לקרבה. מקשיב/ה: הודו לצד השני על הפתיחות.'
+          },
+          {
+            q: '"איזה משפט או מחווה קטנה ממך באמצע ויכוח הכי עוזרים לי להירגע ולזכור שאנחנו באותו צד?"',
+            guide: 'דובר/ת: הגדירו "קוד הרגעה" ברור לעתיד. מקשיב/ה: בדקו שאתם מרגישים בנוח לאמץ את המחווה הזו.'
+          }
+        ]
+      },
+      intimacy: {
+        title: 'חפיסת תשוקה ואינטימיות',
+        principle: 'עקרון גוטמן: היענות לפניות לקרבה ושיח פתוח על אינטימיות',
+        cards: [
+          {
+            q: '"מהו סוג המגע היומיומי (לאו דווקא מיני) שהכי מרגיע אותך וגורם לך להרגיש אהוב/ה?"',
+            guide: 'דובר/ת: שתפו בכנות ובפשטות. מקשיב/ה: שאלו "מתי במהלך היום זה הכי נעים לך?".'
+          },
+          {
+            q: '"מה עוזר לך לעבור ממצב של \'עבודה וסידורים\' למצב של נוכחות, רוך וחשק בערב?"',
+            guide: 'דובר/ת: תארו את תנאי המעבר שהגוף והראש שלכם צריכים. מקשיב/ה: חשבו יחד איך ליצור גשר כזה השבוע.'
+          },
+          {
+            q: '"איזה זיכרון רומנטי או אינטימי שלנו יחד תמיד מעלה לך חיוך כשאת/ה נזכר/ת בו?"',
+            guide: 'דובר/ת: שתפו מה הפך את הרגע ההוא למיוחד. מקשיב/ה: שתפו איך הזיכרון הזה נחווה מהצד שלכם.'
+          }
+        ]
+      },
+      dreams: {
+        title: 'חפיסת חלומות ועולם פנימי',
+        principle: 'עקרון גוטמן: כיבוד חלומות החיים ויצירת משמעות משותפת',
+        cards: [
+          {
+            q: '"אם היינו יכולים לפנות לעצמנו יום אחד בחודש הקרוב שאין בו שום מטלות — איך היית חולם/ת שנבלה אותו יחד?"',
+            guide: 'דובר/ת: תנו לדמיון לעוף בלי לחשב אילוצים כרגע. מקשיב/ה: גלו סקרנות לחלום שמאחורי הבחירה.'
+          },
+          {
+            q: '"איזה שינוי שקרה בך בשנה האחרונה היית רוצה שאכיר ואבין לעומק יותר?"',
+            guide: 'דובר/ת: גם אחרי שנים יחד, העולם הפנימי שלנו משתנה. מקשיב/ה: הקשיבו כאילו אתם בדייט ראשון.'
+          },
+          {
+            q: '"מהו הרגל זוגי אחד שהיית רוצה שנבנה יחד בשנה הקרובה כדי שהבית שלנו ירגיש עוד יותר רגוע?"',
+            guide: 'דובר/ת: התמקדו בהרגל חיובי וקטן. מקשיב/ה: הציעו דרך פשוטה להתחיל אותו כבר השבוע.'
+          }
+        ]
+      }
+    };
+
+    let currentCategory = 'appreciation';
+    let currentCardIndex = 0;
+    let turnTimerInterval = null;
+    let turnSecondsLeft = 120;
+    let pauseTimerInterval = null;
+    let pauseSecondsLeft = 1200;
+
+    function selectDeckCategory(cat) {
+      if (!DECK_DATA[cat]) return;
+      currentCategory = cat;
+      currentCardIndex = 0;
+      const buttons = document.querySelectorAll('.deck-cat-btn');
+      buttons.forEach(btn => {
+        if (btn.getAttribute('data-cat') === cat) {
+          btn.className = 'deck-cat-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-teal-800 text-white transition';
+        } else {
+          btn.className = 'deck-cat-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-stone-100 text-stone-700 hover:bg-stone-200 transition';
+        }
+      });
+      renderActiveCard();
+    }
+
+    function drawNextCard() {
+      const deck = DECK_DATA[currentCategory];
+      currentCardIndex = (currentCardIndex + 1) % deck.cards.length;
+      renderActiveCard();
+    }
+
+    function renderActiveCard() {
+      const deck = DECK_DATA[currentCategory];
+      const item = deck.cards[currentCardIndex];
+      const cardEl = document.getElementById('live-question-card');
+      cardEl.classList.remove('card-flip-enter');
+      void cardEl.offsetWidth;
+      cardEl.classList.add('card-flip-enter');
+
+      document.getElementById('card-deck-badge').textContent =
+        deck.title + ' · קלף ' + (currentCardIndex + 1) + ' מתוך ' + deck.cards.length;
+      document.getElementById('card-question-text').textContent = item.q;
+      document.getElementById('card-guidance-text').textContent = item.guide;
+    }
+
+    function switchDemoTab(tab) {
+      const cardsPanel = document.getElementById('demo-cards-panel');
+      const quizPanel = document.getElementById('demo-quiz-panel');
+      const cardsBtn = document.getElementById('tab-cards-btn');
+      const quizBtn = document.getElementById('tab-quiz-btn');
+
+      if (tab === 'cards') {
+        cardsPanel.classList.remove('hidden');
+        quizPanel.classList.add('hidden');
+        cardsBtn.className = 'px-5 py-2.5 rounded-xl text-sm font-bold transition bg-teal-800 text-white shadow-sm';
+        quizBtn.className = 'px-5 py-2.5 rounded-xl text-sm font-bold transition text-stone-700 hover:text-teal-900';
+      } else {
+        cardsPanel.classList.add('hidden');
+        quizPanel.classList.remove('hidden');
+        quizBtn.className = 'px-5 py-2.5 rounded-xl text-sm font-bold transition bg-teal-800 text-white shadow-sm';
+        cardsBtn.className = 'px-5 py-2.5 rounded-xl text-sm font-bold transition text-stone-700 hover:text-teal-900';
+        updateQuizCalculation();
+      }
+    }
+
+    function toggleTurnTimer() {
+      const btn = document.getElementById('turn-timer-btn');
+      const display = document.getElementById('turn-timer-display');
+      if (turnTimerInterval) {
+        clearInterval(turnTimerInterval);
+        turnTimerInterval = null;
+        turnSecondsLeft = 120;
+        display.textContent = '02:00';
+        btn.textContent = 'הפעילו טיימר הקשבה (2:00)';
+        return;
+      }
+      btn.textContent = 'איפוס טיימר';
+      turnTimerInterval = setInterval(() => {
+        if (turnSecondsLeft > 0) {
+          turnSecondsLeft--;
+          const mins = String(Math.floor(turnSecondsLeft / 60)).padStart(2, '0');
+          const secs = String(turnSecondsLeft % 60).padStart(2, '0');
+          display.textContent = mins + ':' + secs;
+        } else {
+          clearInterval(turnTimerInterval);
+          turnTimerInterval = null;
+          btn.textContent = 'התור הסתיים! החליפו דובר/ת';
+          showToast('2 דקות הסתיימו — עכשיו תור המקשיב/ה לשקף בעדינות');
+        }
+      }, 1000);
+    }
+
+    function shareCurrentCardWhatsApp() {
+      const q = document.getElementById('card-question-text').textContent;
+      const msg = 'שלפתי לנו שאלה זוגית לערב מתוך Couple Lab:\n' + q + '\n\nבוא/י נוריד את האפליקציה למחשב וננסה 15 דקות יחד: https://agmonp.github.io/couple-lab/';
+      window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank', 'noopener,noreferrer');
+    }
+
+    // 2. Relationship Map Mini-Diagnostic Calculator
+    function updateQuizCalculation() {
+      const q1 = parseInt(document.getElementById('quiz-q1').value, 10) || 3;
+      const q2 = parseInt(document.getElementById('quiz-q2').value, 10) || 2;
+      const q3 = parseInt(document.getElementById('quiz-q3').value, 10) || 3;
+
+      document.getElementById('quiz-q1-val').textContent = q1 + ' / 5';
+      document.getElementById('quiz-q2-val').textContent = q2 + ' / 5';
+      document.getElementById('quiz-q3-val').textContent = q3 + ' / 5';
+
+      const pct = Math.round(((q1 + q2 + q3) / 15) * 100);
+      document.getElementById('quiz-score-badge').textContent = 'מדד חיבור נוכחי: ' + pct + '%';
+
+      const titleEl = document.getElementById('quiz-rec-title');
+      const descEl = document.getElementById('quiz-rec-desc');
+
+      if (q1 <= 2) {
+        titleEl.textContent = 'מומלץ להתחיל במסלול "אחרי ויכוח" + היכרות עם כפתור ההפסקה (20 דק׳)';
+        descEl.textContent = 'כשקל להסלים, הדבר הכי חשוב הוא ביטחון וניהול תורות. האפליקציה תשמור שכל אחד ידבר בתורו עם פתיחה רכה ובלי הצפה.';
+      } else if (q2 <= 2) {
+        titleEl.textContent = 'מומלץ להתחיל ב"שיחה מפחיתת לחץ" (15 דקות) + חפיסת "חיבה והערכה"';
+        descEl.textContent = 'נראה שהשגרה והלוגיסטיקה שואבות מכם המון אנרגיה. 15 דקות מונחות בערב יעזרו לכם לעבור ממצב של "שותפים לניהול הבית" לזוג קרוב.';
+      } else {
+        titleEl.textContent = 'מומלץ להתחיל בחפיסת "תשוקה ואינטימיות" או "חלומות משותפים"';
+        descEl.textContent = 'יש לכם בסיס תקשורת נפלא! זה הזמן להעמיק לשאלות של תשוקה, משמעות והיכרות מחודשת שלא יוצא לשאול ביום-יום.';
+      }
+    }
+
+    // 3. Interactive 20-Minute Pause Simulator
+    function triggerPauseSimulation() {
+      const statusPill = document.getElementById('pause-status-pill');
+      const box = document.getElementById('pause-countdown-box');
+      const text = document.getElementById('pause-micro-text');
+      const btnLabel = document.getElementById('pause-sim-btn-label');
+
+      if (pauseTimerInterval) {
+        clearInterval(pauseTimerInterval);
+        pauseTimerInterval = null;
+        pauseSecondsLeft = 1200;
+        box.textContent = '20:00';
+        statusPill.textContent = 'במהלך שיחה';
+        statusPill.className = 'text-xs font-semibold px-2.5 py-0.5 rounded-full bg-stone-100 text-stone-700';
+        text.textContent = 'לחצו על הכפתור כדי לראות איך האפליקציה מרגיעה רגע סוער:';
+        btnLabel.textContent = 'אני צריך/ה הפסקה של 20 דקות';
+        return;
+      }
+
+      statusPill.textContent = 'הפסקה מוסכמת פעילה · ההקלטה נעצרה';
+      statusPill.className = 'text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800';
+      text.textContent = 'נושמים עמוק, שותים מים ולא מנתחים את הריב בראש. האפליקציה תזמין אתכם לחזור בעדינות בעוד:';
+      btnLabel.textContent = 'סיום הפסקה וחזרה לשיחה';
+
+      pauseTimerInterval = setInterval(() => {
+        if (pauseSecondsLeft > 0) {
+          pauseSecondsLeft--;
+          const m = String(Math.floor(pauseSecondsLeft / 60)).padStart(2, '0');
+          const s = String(pauseSecondsLeft % 60).padStart(2, '0');
+          box.textContent = m + ':' + s;
+        }
+      }, 1000);
+    }
+
+    // 4. Interactive 4-Step Walkthrough Screens
+    const WALKTHROUGH_SCREENS = [
+      {
+        badge: 'שלב 1 מתוך 4 · שאלון מפת הקשר (פרטי לכל בן זוג)',
+        html: `
+          <div class="space-y-4">
+            <div class="flex items-center justify-between border-b border-stone-200 pb-3">
+              <div>
+                <span class="text-xs font-bold text-terra-600">פרטי לגמרי · התשובות שלך מוסתרות מבן/בת הזוג</span>
+                <h4 class="font-display font-extrabold text-xl text-teal-950">מפת הקשר שלכם · שאלה 4 מתוך 10</h4>
+              </div>
+              <span class="text-xs bg-sage-100 text-teal-900 font-bold px-3 py-1 rounded-full">תחום: התאוששות מהצפה</span>
+            </div>
+            <p class="font-display font-bold text-lg text-teal-950 py-2">
+              "כששיחה בינינו הופכת מתוחה, כמה בטוח/ה את/ה מרגיש/ה לבקש הפסקה קצרה בלי שהצד השני יחווה זאת כנטישה?"
+            </p>
+            <div class="grid grid-cols-5 gap-2 text-center text-xs font-bold">
+              <div class="p-3 rounded-xl bg-white border border-stone-200">1 · בכלל לא</div>
+              <div class="p-3 rounded-xl bg-white border border-stone-200">2 · מעט</div>
+              <div class="p-3 rounded-xl bg-teal-800 text-white shadow-sm">3 · במידה בינונית</div>
+              <div class="p-3 rounded-xl bg-white border border-stone-200">4 · לרוב כן</div>
+              <div class="p-3 rounded-xl bg-white border border-stone-200">5 · בטוח/ה לגמרי</div>
+            </div>
+          </div>
+          <div class="pt-4 mt-4 border-t border-stone-200 flex items-center justify-between text-xs text-stone-500">
+            <span>לאחר ששניכם מסיימים, האפליקציה מצליבה רק את הממוצע המשותף.</span>
+            <span class="font-bold text-teal-800">שמור מקומית ומוצפן</span>
+          </div>
+        `
+      },
+      {
+        badge: 'שלב 2 מתוך 4 · המדריך לתרגול הבא שלכם',
+        html: `
+          <div class="space-y-4">
+            <div class="flex items-center justify-between border-b border-stone-200 pb-3">
+              <div>
+                <span class="text-xs font-bold text-emerald-700">המלצה מותאמת אישית לפי מפת הקשר שלכם</span>
+                <h4 class="font-display font-extrabold text-xl text-teal-950">על מה נרצה לדבר הערב?</h4>
+              </div>
+              <span class="text-xs bg-amber-100 text-amber-900 font-bold px-3 py-1 rounded-full">17 חפיסות פתוחות</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div class="p-4 rounded-2xl bg-white border-2 border-teal-800 shadow-sm">
+                <div class="text-xs font-bold text-terra-600 mb-1">מומלץ עבורכם היום · 15 דק׳</div>
+                <div class="font-display font-bold text-base text-teal-950">שיחה מפחיתת לחץ</div>
+                <p class="text-xs text-stone-600 mt-1">כל אחד משתף בתורו על עומס מהשבוע, והשני מתרגל הקשבה ואמפתיה בלי לתת עצות.</p>
+              </div>
+              <div class="p-4 rounded-2xl bg-white border border-stone-200">
+                <div class="text-xs font-bold text-teal-800 mb-1">חפיסת קלפים · 10 דק׳</div>
+                <div class="font-display font-bold text-base text-teal-950">חיבה והערכה</div>
+                <p class="text-xs text-stone-600 mt-1">שאלות קטנות שמזכירות למה בחרנו זה בזה ומה אנחנו מעריכים השבוע.</p>
+              </div>
+            </div>
+          </div>
+          <div class="pt-4 mt-4 border-t border-stone-200 flex items-center justify-between text-xs text-stone-500">
+            <span>לפני שמתחילים: כל אחד מסמן מ-0 עד 10 כמה הוא לחוץ כרגע.</span>
+            <span class="font-bold text-teal-800">מוכנים להתחיל &larr;</span>
+          </div>
+        `
+      },
+      {
+        badge: 'שלב 3 מתוך 4 · שיחה מונחית בתורות + תמלול מקומי',
+        html: `
+          <div class="space-y-4">
+            <div class="flex items-center justify-between border-b border-stone-200 pb-3">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span class="font-display font-bold text-base text-teal-950">תור הדוברת: נועה · תור המקשיב: יונתן</span>
+              </div>
+              <span class="text-xs font-bold bg-terra-100 text-terra-700 px-3 py-1 rounded-full">כפתור הפסקה 20:00 זמין</span>
+            </div>
+            <div class="p-4 rounded-2xl bg-white border border-stone-200 space-y-2 text-xs sm:text-sm">
+              <div class="flex items-center justify-between text-xs text-stone-500">
+                <span>תמלול חי (אופליין על המחשב):</span>
+                <span class="text-emerald-700 font-bold">✓ זיהוי פתיחה רכה</span>
+              </div>
+              <p class="text-teal-950 font-medium">"הרגשתי השבוע שאני רצה ממשימה למשימה, והיה לי ממש חסר שנשב אפילו עשר דקות בערב רק שנינו..."</p>
+            </div>
+            <div class="p-3.5 rounded-xl bg-sage-100/80 border border-sage-200 text-xs text-teal-950">
+              <strong>הנחיה ליונתן (מקשיב):</strong> לפני שתספר איך השבוע נחווה מהצד שלך, נסה לשקף לנועה מה שמעת שהיה לה הכי קשה השבוע.
+            </div>
+          </div>
+          <div class="pt-4 mt-4 border-t border-stone-200 flex items-center justify-between text-xs text-stone-500">
+            <span>התמלול נשמר רק בתיקייה המקומית שלכם.</span>
+            <span class="font-bold text-teal-800">החלפת תור דובר/מקשיב</span>
+          </div>
+        `
+      },
+      {
+        badge: 'שלב 4 מתוך 4 · דוח סיכום וצעד קטן לשבוע הקרוב',
+        html: `
+          <div class="space-y-4">
+            <div class="flex items-center justify-between border-b border-stone-200 pb-3">
+              <div>
+                <span class="text-xs font-bold text-emerald-700">השיחה הסתיימה בהצלחה!</span>
+                <h4 class="font-display font-extrabold text-xl text-teal-950">סיכום השיחה של נועה ויונתן</h4>
+              </div>
+              <button type="button" onclick="openModal('reportModal')" class="text-xs bg-teal-800 text-white font-bold px-3 py-1.5 rounded-xl">פתיחת דוח PDF המלא</button>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="p-3.5 rounded-2xl bg-white border border-stone-200">
+                <div class="text-xs text-stone-500">שינוי ברמת הלחץ</div>
+                <div class="font-display font-extrabold text-lg text-emerald-700 mt-0.5">ירד מ-7.5 ל-2.5</div>
+              </div>
+              <div class="p-3.5 rounded-2xl bg-white border border-stone-200">
+                <div class="text-xs text-stone-500">הצעד שבחרנו לשבוע הקרוב</div>
+                <div class="font-display font-bold text-xs sm:text-sm text-teal-950 mt-0.5">15 דק׳ תה בלי טלפונים בשלישי בערב</div>
+              </div>
+            </div>
+          </div>
+          <div class="pt-4 mt-4 border-t border-stone-200 flex items-center justify-between text-xs text-stone-500">
+            <span>ניתן למחוק את קובץ ההקלטה ולהשאיר רק את סיכום הטקסט.</span>
+            <span class="font-bold text-teal-800">שמירה כ-PDF במחשב</span>
+          </div>
+        `
+      }
+    ];
+
+    function selectWalkthroughStep(idx) {
+      const item = WALKTHROUGH_SCREENS[idx];
+      if (!item) return;
+      document.getElementById('mockup-step-badge').textContent = item.badge;
+      document.getElementById('walkthrough-screen-content').innerHTML = item.html;
+
+      const btns = document.querySelectorAll('.walkthrough-btn');
+      btns.forEach((btn, i) => {
+        const badgeCircle = btn.querySelector('div');
+        if (i === idx) {
+          btn.className = 'walkthrough-btn w-full text-right p-4 sm:p-5 rounded-2xl border-2 border-teal-800 bg-cream-50 transition flex items-start gap-4';
+          badgeCircle.className = 'w-9 h-9 rounded-xl bg-teal-800 text-white font-display font-bold flex items-center justify-center shrink-0 mt-0.5';
+        } else {
+          btn.className = 'walkthrough-btn w-full text-right p-4 sm:p-5 rounded-2xl border border-stone-200 bg-white hover:bg-stone-50 transition flex items-start gap-4';
+          badgeCircle.className = 'w-9 h-9 rounded-xl bg-stone-200 text-stone-700 font-display font-bold flex items-center justify-center shrink-0 mt-0.5';
+        }
+      });
+    }
+
+    // 5. Privacy Technical Drawer & FAQ Accordion
+    function toggleTechPrivacy() {
+      const drawer = document.getElementById('tech-privacy-drawer');
+      const arrow = document.getElementById('tech-privacy-arrow');
+      if (drawer.classList.contains('hidden')) {
+        drawer.classList.remove('hidden');
+        arrow.style.transform = 'rotate(180deg)';
+      } else {
+        drawer.classList.add('hidden');
+        arrow.style.transform = 'rotate(0deg)';
+      }
+    }
+
+    function toggleFaq(idx) {
+      const body = document.getElementById('faq-body-' + idx);
+      const icon = document.getElementById('faq-icon-' + idx);
+      if (body.classList.contains('hidden')) {
+        body.classList.remove('hidden');
+        icon.textContent = '−';
+      } else {
+        body.classList.add('hidden');
+        icon.textContent = '+';
+      }
+    }
+
+    // 6. Modals, Clipboard, Calendar .ics & Download Flow
+    function openModal(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('hidden');
+    }
+
+    function closeModal(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('hidden');
+    }
+
+    const DOWNLOAD_URL = 'https://github.com/agmonp/couple-lab/releases/latest/download/Couple-Lab-Windows.exe';
+    const IS_MOBILE = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+
+    // On a PC the download starts right away and the modal explains SmartScreen.
+    // On a phone a 175MB .exe is useless, so the modal points to the "send to the PC" bridge instead.
+    function openDownloadFlow() {
+      document.getElementById('download-mobile-note').classList.toggle('hidden', !IS_MOBILE);
+      if (!IS_MOBILE) {
+        const link = document.createElement('a');
+        link.href = DOWNLOAD_URL;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+      openModal('downloadModal');
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') ['reportModal', 'partnerModal', 'downloadModal'].forEach(closeModal);
+    });
+    ['reportModal', 'partnerModal', 'downloadModal'].forEach((id) => {
+      document.getElementById(id).addEventListener('click', (e) => {
+        if (e.target.id === id) closeModal(id);
+      });
+    });
+
+    function scrollToSection(id) {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function sendWhatsAppInvite() {
+      const msg = document.getElementById('partner-message-box').value;
+      window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank', 'noopener,noreferrer');
+    }
+
+    function copyTextSafe(text, callback) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(callback).catch(() => fallbackCopy(text, callback));
+      } else {
+        fallbackCopy(text, callback);
+      }
+    }
+
+    function fallbackCopy(text, callback) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        if (callback) callback();
+      } catch (e) {}
+      document.body.removeChild(ta);
+    }
+
+    function copyInviteText() {
+      const msg = document.getElementById('partner-message-box').value;
+      copyTextSafe(msg, () => {
+        document.getElementById('copy-invite-label').textContent = '✓ הועתק ללוח!';
+        showToast('ההודעה והקישור הועתקו ללוח');
+        setTimeout(() => {
+          document.getElementById('copy-invite-label').textContent = 'העתקת הטקסט והקישור';
+        }, 2500);
+      });
+    }
+
+    function downloadCalendarReminder() {
+      const now = new Date();
+      // Past 21:00 already? Then tomorrow evening.
+      const dayOffset = now.getHours() >= 21 ? 1 : 0;
+      const tonight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + dayOffset, 21, 0, 0);
+      const endTonight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + dayOffset, 21, 20, 0);
+      const fmt = (d) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+
+      const icsContent = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//Couple Lab//Date Night//HE',
+        'BEGIN:VEVENT',
+        'UID:' + now.getTime() + '@couple-lab',
+        'DTSTAMP:' + fmt(now),
+        'DTSTART:' + fmt(tonight),
+        'DTEND:' + fmt(endTonight),
+        'SUMMARY:דייט ביתי קצר (15 דקות) ב-Couple Lab',
+        'DESCRIPTION:להוריד למחשב ולבחור שאלה ראשונה יחד: https://agmonp.github.io/couple-lab/',
+        'URL:https://agmonp.github.io/couple-lab/',
+        'BEGIN:VALARM',
+        'TRIGGER:-PT15M',
+        'ACTION:DISPLAY',
+        'DESCRIPTION:עוד רבע שעה: דייט ביתי ב-Couple Lab',
+        'END:VALARM',
+        'END:VEVENT',
+        'END:VCALENDAR'
+      ].join('\r\n');
+
+      const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'couple-lab-date-night.ics';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('קובץ תזכורת ליומן ירד למכשירכם');
+    }
+
+    function showToast(msg) {
+      const box = document.getElementById('toast-box');
+      document.getElementById('toast-message').textContent = msg;
+      box.classList.remove('hidden');
+      setTimeout(() => {
+        box.classList.add('hidden');
+      }, 3200);
+    }
+
+    // Initialize default views on load
+    window.addEventListener('DOMContentLoaded', () => {
+      selectWalkthroughStep(0);
+      updateQuizCalculation();
+    });
+  </script>
 </body>
 </html>
