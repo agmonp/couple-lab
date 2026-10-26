@@ -6,7 +6,7 @@
   <title>Couple Lab | הדייט הביתי הכי קרוב שלכם — שיחות זוגיות מונחות בפרטיות מלאה</title>
   <meta name="description" content="אפליקציה חינמית בקוד פתוח ל-Windows: שאלות שפותחות שיחה, שיחות מונחות לרגעים הקשים וסיכום עדין, בהשראת מחקרי גוטמן. הכול נשאר על המחשב שלכם, בלי חשבון ובלי ענן.">
   <meta property="og:title" content="Couple Lab — להפוך 15 דקות בסלון לשיחה הכי קרובה שהייתה לכם השנה">
-  <meta property="og:description" content="שיחות זוגיות מונחות בהשראת גוטמן. חינם, קוד פתוח, 100% אופליין על המחשב שלכם.">
+  <meta property="og:description" content="שיחות זוגיות מונחות לערב בבית. חינם, קוד פתוח, 100% אופליין על המחשב שלכם.">
   <meta property="og:image" content="https://agmonp.github.io/couple-lab/hero-evening.jpg">
   <meta name="theme-color" content="#103537">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -103,7 +103,7 @@
         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
         100% חינם, קוד פתוח וללא שרתים — כל מילה שנאמרת נשארת רק על המחשב שלכם
       </span>
-      <button type="button" onclick="openModal('reportModal')" class="underline decoration-terra-500 underline-offset-4 font-semibold text-amber-200 hover:text-white transition mr-2">
+      <button type="button" onclick="openModal('reportModal')" class="underline decoration-terra-500 underline-offset-4 font-semibold text-amber-200 hover:text-white transition mr-2 py-2">
         צפו בדוח סיכום שיחה לדוגמה &larr;
       </button>
     </div>
@@ -175,7 +175,7 @@
           </h1>
 
           <p class="text-base sm:text-xl text-stone-700 leading-relaxed max-w-2xl">
-            בלי מסכים שמסיחים את הדעת ובלי לדבר רק על סידורים ולוגיסטיקה. <strong>Couple Lab</strong> מנחה אתכם צעד-אחר-צעד בשיחות עומק, הערכה ופתרון קונפליקטים — כשכל מילה נשמרת <strong>אך ורק על המחשב האישי שלכם</strong>.
+            שיחה אחת בשבוע שמחזירה את התחושה שאתם באותו צד: פחות ויכוחים שמתפוצצים, יותר רגעים שבהם מרגישים שמקשיבים לכם. <strong>Couple Lab</strong> מנחה אתכם שלב אחר שלב בשיחות עומק, הערכה ותיקון אחרי ריב, וכל מה שנאמר נשאר <strong>על המחשב שלכם</strong>.
           </p>
 
           <!-- Primary & Secondary Conversion Buttons -->
@@ -200,15 +200,15 @@
           <div class="pt-1 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs sm:text-sm text-stone-600 font-medium">
             <span class="flex items-center gap-1.5">
               <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-              בלי הרשמה ובלי חשבון
+              יושבים לשיחה ראשונה כבר הערב
             </span>
             <span class="flex items-center gap-1.5">
               <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-              עובד גם בניתוק מלא מאינטרנט
+              יודעים מה לשאול, ומתי כדאי לעצור
             </span>
             <span class="flex items-center gap-1.5">
               <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-              דוח סיכום PDF אישי בסוף כל שיחה
+              יוצאים מכל שיחה עם צעד קטן אחד לשבוע
             </span>
           </div>
 
@@ -250,7 +250,7 @@
                   </div>
                   <span>מזהה הקשבה ושיקוף אמפתי...</span>
                 </div>
-                <button type="button" onclick="openModal('reportModal')" class="font-bold text-teal-800 hover:underline">
+                <button type="button" onclick="openModal('reportModal')" class="font-bold text-teal-800 hover:underline py-2 px-1">
                   צפו בסיכום &larr;
                 </button>
               </div>
@@ -340,9 +340,9 @@
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 pt-6 items-center">
           <div class="lg:col-span-7">
             <div id="live-question-card" class="rounded-2xl bg-gradient-to-br from-cream-50 to-cream-200/70 border-2 border-stone-200 p-6 sm:p-8 relative shadow-inner">
-              <div class="flex items-center justify-between text-xs font-bold text-teal-800 mb-3">
+              <div class="flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-teal-800 mb-3">
                 <span id="card-deck-badge" class="px-3 py-1 rounded-full bg-white border border-stone-200 shadow-sm">חפיסת חיבה והערכה · קלף 1 מתוך 3</span>
-                <span class="text-stone-500">עקרון גוטמן: מפות אהבה והערכה</span>
+                <span id="card-principle" class="text-stone-500">עיקרון: הערכה יומיומית והיכרות מתמשכת</span>
               </div>
 
               <blockquote id="card-question-text" class="font-display text-xl sm:text-2xl font-bold text-teal-950 leading-relaxed my-4">
@@ -374,7 +374,7 @@
             </div>
 
             <p class="text-xs sm:text-sm text-teal-100 leading-relaxed">
-              באפליקציה המלאה, Couple Lab מנהלת את התורות עבורכם, מתמללת אופליין (אם תבחרו) ומזהה רגעי אמפתיה ולקיחת אחריות.
+              כשכל אחד יודע שיש לו 2 דקות בלי שיפריעו לו, הרבה יותר קל להקשיב עד הסוף. באפליקציה המלאה התורות מתחלפות לבד.
             </p>
 
             <div class="flex flex-wrap gap-2">
@@ -388,7 +388,7 @@
 
             <div class="pt-3 border-t border-teal-800/80 flex items-center justify-between gap-2">
               <span class="text-xs text-teal-200">אהבתם את השאלה? באפליקציה מחכות עוד 17 חפיסות שלמות.</span>
-              <button type="button" onclick="openDownloadFlow()" class="shrink-0 text-xs font-bold text-amber-300 hover:text-amber-200 underline">
+              <button type="button" onclick="openDownloadFlow()" class="shrink-0 text-xs font-bold text-amber-300 hover:text-amber-200 underline py-2">
                 להורדה למחשב &larr;
               </button>
             </div>
@@ -480,7 +480,7 @@
           ארגז כלים זוגי שלם על המחשב שלכם
         </span>
         <h2 class="font-display text-2xl sm:text-4xl font-extrabold text-teal-950 mt-3">
-          לא רק "כרטיסיות שאלות" — מעבדה חיה לשיחה בטוחה
+          מה משתנה בבית אחרי כמה שיחות כאלה
         </h2>
         <p class="mt-2.5 text-stone-600 text-sm sm:text-base">
           כל כלי ב-Couple Lab תוכנן סביב רגעים אמיתיים שכל זוג פוגש: משתיקה מביכה בסוף יום עמוס ועד ויכוח שמתחמם מהר מדי.
@@ -488,17 +488,17 @@
       </div>
 
       <!-- Asymmetric Bento Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-6">
         
         <!-- Bento Item 1 (Large 7 cols): Guided Conversations for Hard Moments -->
-        <div class="md:col-span-7 bg-white rounded-3xl p-6 sm:p-8 border border-stone-200/90 shadow-sm flex flex-col justify-between">
+        <div class="sm:col-span-2 lg:col-span-7 bg-white rounded-3xl p-6 sm:p-8 border border-stone-200/90 shadow-sm flex flex-col justify-between">
           <div>
             <div class="flex items-center justify-between gap-2 mb-4">
               <span class="px-3 py-1 rounded-full bg-sage-100 text-teal-900 text-xs font-bold">ניהול תורות חכם</span>
-              <span class="text-xs text-stone-400 font-medium">מבוסס שיטת דובר-מקשיב של גוטמן</span>
+              <span class="text-xs text-stone-400 font-medium">כל אחד בתורו: אחד מדבר, השני מקשיב</span>
             </div>
             <h3 class="font-display text-xl sm:text-2xl font-extrabold text-teal-950">
-              שיחות מונחות לרגעים שבהם קשה לדבר לבד
+              לצאת מריב בלי יומיים של שתיקה
             </h3>
             <p class="mt-2 text-stone-600 text-sm sm:text-base leading-relaxed">
               במסלולי <strong>"אחרי ריב"</strong> ו-<strong>"שיחה מפחיתת לחץ"</strong>, האפליקציה מחלקת את השיחה לשלבים קטנים וברורים. היא שומרת על התורות שלכם, מציגה משפטים מומלצים ל<strong>פתיחה רכה</strong> (בלי האשמה) ומבקשת מהמקשיב לשקף לפני שהוא מגיב.
@@ -523,16 +523,16 @@
         </div>
 
         <!-- Bento Item 2 (5 cols): Interactive 20-Minute Pause Mechanism -->
-        <div id="pause-simulator" class="md:col-span-5 bg-gradient-to-br from-terra-50 via-white to-terra-100/60 rounded-3xl p-6 sm:p-8 border-2 border-terra-200 shadow-sm flex flex-col justify-between">
+        <div id="pause-simulator" class="sm:col-span-2 lg:col-span-5 bg-gradient-to-br from-terra-50 via-white to-terra-100/60 rounded-3xl p-6 sm:p-8 border-2 border-terra-200 shadow-sm flex flex-col justify-between">
           <div>
             <span class="inline-block px-3 py-1 rounded-full bg-terra-500 text-white text-xs font-bold mb-3">
-              מנגנון "עצירת הצפה" מובנה
+              השיחה מתחממת? עוצרים ל-20 דקות
             </span>
             <h3 class="font-display text-xl sm:text-2xl font-extrabold text-teal-950">
-              השיחה מתחממת? עוצרים בלחיצה אחת ל-20 דקות.
+              ויכוח שמתחמם לא חייב להתפוצץ
             </h3>
             <p class="mt-2 text-stone-700 text-sm leading-relaxed">
-              מחקרי גוטמן הוכיחו שכשדופק הלב עולה מעל 100 פעימות בדקה ("הצפה רגשית"), היכולת להקשיב באמת יורדת לאפס. כפתור <strong>"אני צריך/ה הפסקה"</strong> עוצר מיד את ההקלטה וקובע חזרה מוסכמת בעוד 20 דקות — כדי שאף אחד לא ירגיש שנטשו אותו.
+              כשהגוף מוצף, קשה מאוד להקשיב באמת. הפסקה קצרה ומוסכמת מחזירה את היכולת לדבר: כפתור <strong>"אני צריך/ה הפסקה"</strong> עוצר מיד את ההקלטה וקובע חזרה בעוד 20 דקות, כדי שאף אחד לא ירגיש שנטשו אותו.
             </p>
           </div>
 
@@ -558,16 +558,16 @@
         </div>
 
         <!-- Bento Item 3 (4 cols): 17 Curated Question Decks -->
-        <div class="md:col-span-4 bg-white rounded-3xl p-6 border border-stone-200/90 shadow-sm flex flex-col justify-between">
+        <div class="lg:col-span-4 bg-white rounded-3xl p-6 border border-stone-200/90 shadow-sm flex flex-col justify-between">
           <div>
             <div class="w-11 h-11 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-lg mb-4">
               17
             </div>
             <h3 class="font-display text-lg sm:text-xl font-extrabold text-teal-950">
-              17 חפיסות שאלות עומק
+              לגלות דברים חדשים גם אחרי שנים יחד
             </h3>
             <p class="mt-2 text-stone-600 text-sm leading-relaxed">
-              מ"מפות אהבה" והיכרות מחדש אחרי שנים יחד, דרך הערכה יומיומית, תשוקה ואינטימיות, ועד חלומות משותפים.
+              17 חפיסות שאלות: מהיכרות מחדש אחרי שנים יחד, דרך הערכה יומיומית, תשוקה ואינטימיות, ועד חלומות משותפים.
             </p>
           </div>
           <div class="mt-5 flex flex-wrap gap-1.5 pt-4 border-t border-stone-100 text-xs font-semibold text-teal-900">
@@ -579,7 +579,7 @@
         </div>
 
         <!-- Bento Item 4 (4 cols): Stress Before & After + Local Transcription -->
-        <div class="md:col-span-4 bg-white rounded-3xl p-6 border border-stone-200/90 shadow-sm flex flex-col justify-between">
+        <div class="lg:col-span-4 bg-white rounded-3xl p-6 border border-stone-200/90 shadow-sm flex flex-col justify-between">
           <div>
             <div class="w-11 h-11 rounded-2xl bg-sage-100 text-teal-800 flex items-center justify-center mb-4">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -587,7 +587,7 @@
               </svg>
             </div>
             <h3 class="font-display text-lg sm:text-xl font-extrabold text-teal-950">
-              תמלול מקומי ומדד לחץ לפני/אחרי
+              לראות שהשיחה באמת הרגיעה
             </h3>
             <p class="mt-2 text-stone-600 text-sm leading-relaxed">
               בהסכמת שניכם, השיחה מתומללת ישירות על המחשב (ללא אינטרנט) כדי שתוכלו לחפש "מה סיכמנו על...", ולראות איך רמת המתח מ-0 עד 10 יורדת בסוף השיחה.
@@ -600,7 +600,7 @@
         </div>
 
         <!-- Bento Item 5 (4 cols): Printable PDF Summary & Weekly Action Step -->
-        <div class="md:col-span-4 bg-teal-900 text-white rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+        <div class="sm:col-span-2 lg:col-span-4 bg-teal-900 text-white rounded-3xl p-6 shadow-sm flex flex-col justify-between">
           <div>
             <div class="w-11 h-11 rounded-2xl bg-teal-800 text-amber-200 flex items-center justify-center mb-4 border border-teal-700">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -608,7 +608,7 @@
               </svg>
             </div>
             <h3 class="font-display text-lg sm:text-xl font-extrabold text-white">
-              דוח סיכום עדין + צעד אחד לשבוע הקרוב
+              לא לשכוח מה סיכמתם
             </h3>
             <p class="mt-2 text-teal-100 text-sm leading-relaxed">
               בסיום השיחה תקבלו משוב בונה: כמה דיבר כל אחד, אילו רגעי הקשבה והערכה זוהו, וצעד מעשי אחד שתבחרו יחד לשבוע הקרוב (ניתן לשמירה כ-PDF).
@@ -644,41 +644,45 @@
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
         <!-- Step Selector Buttons (5 cols) -->
         <div class="lg:col-span-5 space-y-3" id="walkthrough-steps">
-          <button type="button" onclick="selectWalkthroughStep(0)" class="walkthrough-btn w-full text-right p-4 sm:p-5 rounded-2xl border-2 border-teal-800 bg-cream-50 transition flex items-start gap-4">
+          <button type="button" onclick="selectWalkthroughStep(0, true)" class="walkthrough-btn w-full text-right p-4 sm:p-5 rounded-2xl border-2 border-teal-800 bg-cream-50 transition flex items-start gap-4">
             <div class="w-9 h-9 rounded-xl bg-teal-800 text-white font-display font-bold flex items-center justify-center shrink-0 mt-0.5">1</div>
             <div>
               <h3 class="font-display font-bold text-base sm:text-lg text-teal-950">ממלאים את "מפת הקשר" (כל אחד לבד)</h3>
               <p class="text-xs sm:text-sm text-stone-600 mt-1">10 שאלות קצרות בפרטיות מלאה (התשובות מוסתרות מבן/בת הזוג) שממפות איפה אתם חזקים ומה דורש חיזוק.</p>
+              <p class="text-xs sm:text-sm font-semibold text-terra-700 mt-1.5">✓ רואים במה אתם כבר חזקים, ומה כדאי לחזק</p>
             </div>
           </button>
 
-          <button type="button" onclick="selectWalkthroughStep(1)" class="walkthrough-btn w-full text-right p-4 sm:p-5 rounded-2xl border border-stone-200 bg-white hover:bg-stone-50 transition flex items-start gap-4">
+          <button type="button" onclick="selectWalkthroughStep(1, true)" class="walkthrough-btn w-full text-right p-4 sm:p-5 rounded-2xl border border-stone-200 bg-white hover:bg-stone-50 transition flex items-start gap-4">
             <div class="w-9 h-9 rounded-xl bg-stone-200 text-stone-700 font-display font-bold flex items-center justify-center shrink-0 mt-0.5">2</div>
             <div>
               <h3 class="font-display font-bold text-base sm:text-lg text-teal-950">בוחרים שאלה או מסלול שיחה מונחה</h3>
               <p class="text-xs sm:text-sm text-stone-600 mt-1">האפליקציה ממליצה על תרגיל מותאם אישית (למשל "חיבה והערכה" או "שיחה אחרי ריב"), או שבוחרים חופשי מ-17 חפיסות.</p>
+              <p class="text-xs sm:text-sm font-semibold text-terra-700 mt-1.5">✓ לא צריך לחשוב על מה לדבר: יש נקודת פתיחה שמתאימה לכם</p>
             </div>
           </button>
 
-          <button type="button" onclick="selectWalkthroughStep(2)" class="walkthrough-btn w-full text-right p-4 sm:p-5 rounded-2xl border border-stone-200 bg-white hover:bg-stone-50 transition flex items-start gap-4">
+          <button type="button" onclick="selectWalkthroughStep(2, true)" class="walkthrough-btn w-full text-right p-4 sm:p-5 rounded-2xl border border-stone-200 bg-white hover:bg-stone-50 transition flex items-start gap-4">
             <div class="w-9 h-9 rounded-xl bg-stone-200 text-stone-700 font-display font-bold flex items-center justify-center shrink-0 mt-0.5">3</div>
             <div>
               <h3 class="font-display font-bold text-base sm:text-lg text-teal-950">מדברים בתורות, מקשיבים ומשקפים</h3>
               <p class="text-xs sm:text-sm text-stone-600 mt-1">אחד מדבר והשני משקף. אם תרצו, השיחה מתומללת מקומית על המחשב ומזהה רגעי אמפתיה ולקיחת אחריות.</p>
+              <p class="text-xs sm:text-sm font-semibold text-terra-700 mt-1.5">✓ כל אחד מרגיש ששמעו אותו עד הסוף</p>
             </div>
           </button>
 
-          <button type="button" onclick="selectWalkthroughStep(3)" class="walkthrough-btn w-full text-right p-4 sm:p-5 rounded-2xl border border-stone-200 bg-white hover:bg-stone-50 transition flex items-start gap-4">
+          <button type="button" onclick="selectWalkthroughStep(3, true)" class="walkthrough-btn w-full text-right p-4 sm:p-5 rounded-2xl border border-stone-200 bg-white hover:bg-stone-50 transition flex items-start gap-4">
             <div class="w-9 h-9 rounded-xl bg-stone-200 text-stone-700 font-display font-bold flex items-center justify-center shrink-0 mt-0.5">4</div>
             <div>
               <h3 class="font-display font-bold text-base sm:text-lg text-teal-950">מקבלים סיכום עדין ובוחרים צעד לשבוע הקרוב</h3>
               <p class="text-xs sm:text-sm text-stone-600 mt-1">רואים את ירידת המתח, קוראים רגעים טובים מהשיחה ושומרים קובץ PDF אישי עם החלטה קטנה אחת לשבוע הקרוב.</p>
+              <p class="text-xs sm:text-sm font-semibold text-terra-700 mt-1.5">✓ יוצאים עם החלטה אחת קטנה, לא עם רשימת משימות</p>
             </div>
           </button>
         </div>
 
         <!-- Dynamic Interactive Application Mockup Window (7 cols) -->
-        <div class="lg:col-span-7">
+        <div id="walkthrough-mockup" class="lg:col-span-7 scroll-mt-24">
           <div class="rounded-3xl bg-teal-950 p-3 sm:p-5 shadow-2xl border border-teal-800">
             <!-- Window Top Bar -->
             <div class="flex items-center justify-between px-3 pb-3 border-b border-teal-800/80 text-xs text-teal-200">
@@ -686,9 +690,9 @@
                 <span class="w-3 h-3 rounded-full bg-rose-400/80"></span>
                 <span class="w-3 h-3 rounded-full bg-amber-400/80"></span>
                 <span class="w-3 h-3 rounded-full bg-emerald-400/80"></span>
-                <span class="mr-2 font-mono text-[11px] text-teal-300">Couple-Lab-Windows.exe · מצב אופליין מוגן</span>
+                <span class="hidden sm:inline mr-2 font-mono text-[11px] text-teal-300">Couple-Lab-Windows.exe · מצב אופליין מוגן</span>
               </div>
-              <span id="mockup-step-badge" class="bg-teal-800 text-amber-200 px-2.5 py-0.5 rounded-md font-semibold">שלב 1 מתוך 4</span>
+              <span id="mockup-step-badge" class="text-left bg-teal-800 text-amber-200 px-2.5 py-0.5 rounded-md font-semibold">שלב 1 מתוך 4</span>
             </div>
 
             <!-- Dynamic Screen Content -->
@@ -711,7 +715,7 @@
             ארכיטקטורת פרטיות מוחלטת (Zero-Cloud)
           </span>
           <h2 class="font-display text-2xl sm:text-4xl font-extrabold text-white leading-tight">
-            מה שנאמר ביניכם בסלון — <br>נשאר אך ורק על המחשב שלכם.
+            מה שנאמר בסלון נשאר בסלון — <br>ולכן אפשר להגיד הכל.
           </h2>
           <p class="text-teal-100 text-sm sm:text-base leading-relaxed">
             שיחה זוגית היא הדבר הכי אינטימי שיש. לכן בנינו את Couple Lab בלי שרתים, בלי הרשמה ובלי איסוף מידע. אתם יכולים לכבות את ה-Wi-Fi במחשב לגמרי — והאפליקציה, כולל התמלול וזיהוי הדוברים, תמשיך לעבוד באופן מלא.
@@ -969,9 +973,9 @@
           <strong>Couple Lab</strong> · פרויקט אישי, חינמי ופתוח לקהילה (ללא מטרות רווח)
         </div>
         <div class="flex flex-wrap items-center gap-5">
-          <a href="https://github.com/agmonp/couple-lab" target="_blank" rel="noopener noreferrer" class="hover:text-white underline">קוד המקור (MIT)</a>
-          <a href="https://github.com/agmonp/couple-lab/issues" target="_blank" rel="noopener noreferrer" class="hover:text-white underline">דיווח על תקלה</a>
-          <a href="https://github.com/agmonp/couple-lab/releases" target="_blank" rel="noopener noreferrer" class="hover:text-white underline">כל הגרסאות</a>
+          <a href="https://github.com/agmonp/couple-lab" target="_blank" rel="noopener noreferrer" class="hover:text-white underline inline-block py-2">קוד המקור (MIT)</a>
+          <a href="https://github.com/agmonp/couple-lab/issues" target="_blank" rel="noopener noreferrer" class="hover:text-white underline inline-block py-2">דיווח על תקלה</a>
+          <a href="https://github.com/agmonp/couple-lab/releases" target="_blank" rel="noopener noreferrer" class="hover:text-white underline inline-block py-2">כל הגרסאות</a>
         </div>
       </div>
     </div>
@@ -980,8 +984,8 @@
   <!-- ==========================================
        MODAL 1: SAMPLE PDF REPORT (NOAH & YONATAN)
        ========================================== -->
-  <div id="reportModal" class="fixed inset-0 z-50 hidden bg-teal-950/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-    <div class="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-stone-200 my-8 relative">
+  <div id="reportModal" class="fixed inset-0 z-50 hidden bg-teal-950/75 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto">
+    <div class="my-auto bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-stone-200 my-8 relative">
       <div class="flex items-center justify-between pb-4 border-b border-stone-200">
         <div>
           <span class="text-xs font-bold text-teal-800 bg-sage-100 px-2.5 py-0.5 rounded-full">דוגמה לתוצר בסיום שיחה</span>
@@ -1038,8 +1042,8 @@
   <!-- ==========================================
        MODAL 2: MOBILE-TO-DESKTOP PARTNER BRIDGE
        ========================================== -->
-  <div id="partnerModal" class="fixed inset-0 z-50 hidden bg-teal-950/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-    <div class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative">
+  <div id="partnerModal" class="fixed inset-0 z-50 hidden bg-teal-950/75 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto">
+    <div class="my-auto bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative">
       <div class="flex items-center justify-between pb-4 border-b border-stone-200">
         <div>
           <span class="text-xs font-bold text-terra-600 bg-terra-50 px-2.5 py-0.5 rounded-full">גשר מהנייד למחשב הביתי</span>
@@ -1055,7 +1059,7 @@
 
         <div>
           <label for="partner-message-box" class="block text-xs font-bold text-teal-950 mb-1.5">הודעה מוכנה לשליחה (ניתן לערוך):</label>
-          <textarea id="partner-message-box" rows="3" class="w-full rounded-2xl border border-stone-300 p-3.5 text-xs sm:text-sm text-stone-800 focus:outline-none focus:border-teal-800">היי אהוב/ה, מצאתי אפליקציה חינמית ופרטית לגמרי למחשב עם שאלות ושיחות זוגיות מונחות (בהשראת גוטמן). בוא/י נוריד אותה הערב למחשב ל-15 דקות יחד עם כוס תה: https://agmonp.github.io/couple-lab/</textarea>
+          <textarea id="partner-message-box" rows="3" class="w-full rounded-2xl border border-stone-300 p-3.5 text-xs sm:text-sm text-stone-800 focus:outline-none focus:border-teal-800">היי אהוב/ה, מצאתי אפליקציה חינמית ופרטית לגמרי למחשב עם שאלות ושיחות זוגיות מונחות. בוא/י נוריד אותה הערב למחשב ל-15 דקות יחד עם כוס תה: https://agmonp.github.io/couple-lab/</textarea>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
@@ -1079,8 +1083,8 @@
   <!-- ==========================================
        MODAL 3: DOWNLOAD & SMARTSCREEN HELPER
        ========================================== -->
-  <div id="downloadModal" class="fixed inset-0 z-50 hidden bg-teal-950/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-    <div class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative text-right">
+  <div id="downloadModal" class="fixed inset-0 z-50 hidden bg-teal-950/75 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto">
+    <div class="my-auto bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative text-right">
       <div class="flex items-center justify-between pb-4 border-b border-stone-200">
         <div class="flex items-center gap-2.5">
           <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">✓</div>
@@ -1131,7 +1135,7 @@
     const DECK_DATA = {
       appreciation: {
         title: 'חפיסת חיבה והערכה',
-        principle: 'עקרון גוטמן: טיפוח תרבות של הערכה ומפות אהבה',
+        principle: 'עיקרון: הערכה יומיומית והיכרות מתמשכת',
         cards: [
           {
             q: '"מהו דבר אחד שעשיתי החודש — אפילו קטן מאוד — שגרם לך להרגיש שאנחנו צוות?"',
@@ -1149,7 +1153,7 @@
       },
       after_fight: {
         title: 'מסלול אחרי ויכוח או מתח',
-        principle: 'עקרון גוטמן: פתיחה רכה, לקיחת אחריות וניסיונות תיקון',
+        principle: 'עיקרון: פתיחה רכה ולקיחת אחריות',
         cards: [
           {
             q: '"כשנסתכל אחורה על הוויכוח האחרון שלנו — מה היה הרגש השקט מתחת לכעס (למשל פחד, עייפות או בדידות)?"',
@@ -1167,7 +1171,7 @@
       },
       intimacy: {
         title: 'חפיסת תשוקה ואינטימיות',
-        principle: 'עקרון גוטמן: היענות לפניות לקרבה ושיח פתוח על אינטימיות',
+        principle: 'עיקרון: להיענות לפניות לקרבה',
         cards: [
           {
             q: '"מהו סוג המגע היומיומי (לאו דווקא מיני) שהכי מרגיע אותך וגורם לך להרגיש אהוב/ה?"',
@@ -1185,7 +1189,7 @@
       },
       dreams: {
         title: 'חפיסת חלומות ועולם פנימי',
-        principle: 'עקרון גוטמן: כיבוד חלומות החיים ויצירת משמעות משותפת',
+        principle: 'עיקרון: לכבד חלומות ולבנות משמעות משותפת',
         cards: [
           {
             q: '"אם היינו יכולים לפנות לעצמנו יום אחד בחודש הקרוב שאין בו שום מטלות — איך היית חולם/ת שנבלה אותו יחד?"',
@@ -1241,6 +1245,7 @@
 
       document.getElementById('card-deck-badge').textContent =
         deck.title + ' · קלף ' + (currentCardIndex + 1) + ' מתוך ' + deck.cards.length;
+      document.getElementById('card-principle').textContent = deck.principle;
       document.getElementById('card-question-text').textContent = item.q;
       document.getElementById('card-guidance-text').textContent = item.guide;
     }
@@ -1376,12 +1381,12 @@
             <p class="font-display font-bold text-lg text-teal-950 py-2">
               "כששיחה בינינו הופכת מתוחה, כמה בטוח/ה את/ה מרגיש/ה לבקש הפסקה קצרה בלי שהצד השני יחווה זאת כנטישה?"
             </p>
-            <div class="grid grid-cols-5 gap-2 text-center text-xs font-bold">
-              <div class="p-3 rounded-xl bg-white border border-stone-200">1 · בכלל לא</div>
-              <div class="p-3 rounded-xl bg-white border border-stone-200">2 · מעט</div>
-              <div class="p-3 rounded-xl bg-teal-800 text-white shadow-sm">3 · במידה בינונית</div>
-              <div class="p-3 rounded-xl bg-white border border-stone-200">4 · לרוב כן</div>
-              <div class="p-3 rounded-xl bg-white border border-stone-200">5 · בטוח/ה לגמרי</div>
+            <div class="grid grid-cols-5 gap-1.5 sm:gap-2 text-center text-[11px] sm:text-xs font-bold">
+              <div class="p-2 sm:p-3 rounded-xl bg-white border border-stone-200">1 · בכלל לא</div>
+              <div class="p-2 sm:p-3 rounded-xl bg-white border border-stone-200">2 · מעט</div>
+              <div class="p-2 sm:p-3 rounded-xl bg-teal-800 text-white shadow-sm">3 · במידה בינונית</div>
+              <div class="p-2 sm:p-3 rounded-xl bg-white border border-stone-200">4 · לרוב כן</div>
+              <div class="p-2 sm:p-3 rounded-xl bg-white border border-stone-200">5 · בטוח/ה לגמרי</div>
             </div>
           </div>
           <div class="pt-4 mt-4 border-t border-stone-200 flex items-center justify-between text-xs text-stone-500">
@@ -1478,7 +1483,7 @@
       }
     ];
 
-    function selectWalkthroughStep(idx) {
+    function selectWalkthroughStep(idx, fromClick) {
       const item = WALKTHROUGH_SCREENS[idx];
       if (!item) return;
       document.getElementById('mockup-step-badge').textContent = item.badge;
@@ -1495,6 +1500,10 @@
           badgeCircle.className = 'w-9 h-9 rounded-xl bg-stone-200 text-stone-700 font-display font-bold flex items-center justify-center shrink-0 mt-0.5';
         }
       });
+      // On phones the screen sits below the 4 steps, so bring it into view after a tap.
+      if (fromClick && window.innerWidth < 1024) {
+        document.getElementById('walkthrough-mockup').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }
 
     // 5. Privacy Technical Drawer & FAQ Accordion
