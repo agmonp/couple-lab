@@ -61,7 +61,7 @@ jobs:
         run: |
           npm run build
           if ($LASTEXITCODE -ne 0) { throw "web build failed" }
-          npx electron-builder --win portable --publish never "-c.win.artifactName=Couple-Lab-Windows.exe"
+          npx electron-builder --win portable --publish never "-c.win.artifactName=Couple-Lab-Windows.exe" "-c.compression=normal"
           if ($LASTEXITCODE -ne 0) { throw "electron-builder failed" }
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
           Add-Content $env:GITHUB_ENV "APP_VERSION=$version"
