@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { PartnerId } from "@shared/types";
 import { type JarItem, achievements, jarWaitingFor, other } from "../core/model";
+import { delivered } from "../native/pair";
 import { useStore } from "../store";
 import { Handoff, LockIcon, Screen, say } from "../ui";
 import type { Go } from "../App";
@@ -19,11 +20,19 @@ type View =
  */
 export function Ours({ go }: { go: Go }) {
   const store = useStore();
-  const { state } = store;
+  const { state, me, link } = store;
   const couple = state.couple!;
   const [view, setView] = useState<View>({ name: "list" });
   const [draft, setDraft] = useState("");
   const [saved, setSaved] = useState<PartnerId | null>(null);
+  // Two phones: write as yourself, open what was sent to you, no handing the phone over.
+  const startWriting = () => setView(me ? { name: "write", from: me } : { name: "write-who" });
+  const openFor = (who: PartnerId) => {
+    const note = jarWaitingFor(state, who)[0];
+    if (me && note) setView({ name: "open", who, note });
+    else setView({ name: "open-handoff", who });
+  };
+  const sentByMe = me ? state.jar.filter((n) => n.from === me && !n.openedAt) : [];
 
   if (view.name === "write-who") {
     return (
@@ -96,25 +105,39 @@ export function Ours({ go }: { go: Go }) {
   const opened = state.jar.filter((n) => n.openedAt).reverse();
   const timeline = [...state.timeline].reverse().slice(0, 30);
   return (
-    <Screen tabs actions={<button className="btn btn-primary" onClick={() => setView({ name: "write-who" })}>כותבים פתק הערכה</button>}>
+    <Screen tabs actions={<button className="btn btn-primary" onClick={startWriting}>כותבים פתק הערכה</button>}>
       <div className="stack" style={{ gap: "0.2rem" }}>
         <span className="eyebrow">שלנו</span>
         <h1>מה שבנינו יחד</h1>
       </div>
-      {saved && <p className="notice">{say("הפתק סגור בצנצנת. {t} {t:יראה|תראה} אותו כאן.", couple, { t: couple[saved] })}</p>}
+      {saved && (
+        <p className="notice">
+          {me
+            ? link.connected
+              ? say("הפתק סגור ונשלח לטלפון של {t}. {t} {t:יפתח|תפתח} אותו מתי {t:שירצה|שתרצה}.", couple, { t: couple[saved] })
+              : say("הפתק סגור. הוא יגיע לטלפון של {t} כשהטלפונים ייפגשו, ו{t} {t:יפתח|תפתח} מתי {t:שירצה|שתרצה}.", couple, { t: couple[saved] })
+            : say("הפתק סגור בצנצנת. {t} {t:יראה|תראה} אותו כאן.", couple, { t: couple[saved] })}
+        </p>
+      )}
 
       <div className="card">
         <h3>צנצנת ההערכות</h3>
-        {(["A", "B"] as PartnerId[]).map((p) => {
+        {sentByMe.map((n) => (
+          <div key={n.id} className="row-between small">
+            <span>{say("פתק ל{t}", couple, { t: couple[n.to] })}</span>
+            <span className="muted">{delivered(link, n) ? say("הגיע לטלפון {t:שלו|שלה}", couple, { t: couple[n.to] }) : "יגיע כשהטלפונים ייפגשו"}</span>
+          </div>
+        ))}
+        {(["A", "B"] as PartnerId[]).filter((p) => !me || p === me).map((p) => {
           const waiting = jarWaitingFor(state, p).length;
           return waiting ? (
-            <button key={p} className="list-item" onClick={() => setView({ name: "open-handoff", who: p })}>
+            <button key={p} className="list-item" onClick={() => openFor(p)}>
               <span><strong>{waiting === 1 ? `פתק אחד ל${couple[p].name}` : `${waiting} פתקים ל${couple[p].name}`}</strong><small>נפתח כשנוח</small></span>
               <LockIcon />
             </button>
           ) : null;
         })}
-        {opened.length === 0 && jarWaitingFor(state, "A").length + jarWaitingFor(state, "B").length === 0 && <p className="muted">הצנצנת עוד ריקה.</p>}
+        {opened.length === 0 && state.jar.length === 0 && <p className="muted">הצנצנת עוד ריקה.</p>}
         {opened.slice(0, 6).map((n) => (
           <div key={n.id} className="stack" style={{ gap: 0 }}>
             <span className="small muted">{say("מ{f} ל{t}", couple, { f: couple[n.from], t: couple[n.to] })}</span>

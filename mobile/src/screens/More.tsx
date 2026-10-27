@@ -70,6 +70,14 @@ export function More({ go }: { go: Go }) {
       )}
 
       <div className="list">
+        {isNative && (
+          <button className="list-item" onClick={() => go({ name: "pair" })}>
+            <span>
+              <strong>שני טלפונים</strong>
+              <small>{store.link.paired ? (store.link.connected ? "מחוברים עכשיו" : "מחוברים · לא בטווח כרגע") : "כל אחד עונה מהטלפון שלו"}</small>
+            </span>
+          </button>
+        )}
         <button className="list-item" onClick={() => go({ name: "practice" })}><span><strong>שפת הרטט</strong><small>לתרגל שוב את ארבעת הדפוסים</small></span></button>
         <button className="list-item" onClick={() => go({ name: "names" })}><span><strong>שמות ולשון פנייה</strong><small>{`${state.couple?.A.name} ו${state.couple?.B.name}`}</small></span></button>
         <button className="list-item" onClick={() => go({ name: "privacy" })}><span><strong>פרטיות</strong><small>מה נשמר ואיפה</small></span><LockIcon /></button>
@@ -120,16 +128,23 @@ export function PrivacyScreen({ go }: { go: Go }) {
         </>
       ) : <button className="btn btn-secondary" onClick={() => setConfirm(true)}>מחיקת כל המידע</button>
     }>
-      <h2>הכל נשאר בטלפון הזה.</h2>
+      <h2>{store.link.paired ? "הכל נשאר בשני הטלפונים שלכם." : "הכל נשאר בטלפון הזה."}</h2>
       <div className="card stack">
-        <p><strong>אין חשבון, אין שרת, אין ענן.</strong> שום דבר לא נשלח מהאפליקציה לשום מקום.</p>
+        <p><strong>אין חשבון, אין שרת, אין ענן.</strong> שום דבר לא נשלח מהאפליקציה לאינטרנט.</p>
+        {isNative && <p><LockIcon /> <strong>המידע שמור מוצפן</strong> בטלפון, במפתח שנשמר במערכת האבטחה של אנדרואיד.</p>}
+        {store.link.paired && <p><strong>שני טלפונים:</strong> מה שבחרתם לשתף עובר ישירות בין הטלפונים, רק כשהם קרובים, בהצפנה שרק הם מכירים.</p>}
         <p><LockIcon /> <strong>תשובות לפני חשיפה</strong> נשמרות נעולות, ומוצגות רק כששניכם עניתם ואישרתם.</p>
         <p><LockIcon /> <strong>מה שבחרתם לא להראות</strong> בסוף ערב נשאר רק אצל מי שכתב אותו, ולא מופיע בכרטיס.</p>
         <p><strong>שאלות הבטיחות</strong> לפני "אחרי ריב" לא נשמרות בכלל.</p>
         <p><strong>שיתוף</strong> קורה רק כשאתם לוחצים "שיתוף כתמונה", ורק לאפליקציה שתבחרו.</p>
         <p className="small muted">שימו לב: מי שפותח את הטלפון יכול לפתוח גם את האפליקציה. נעילת מסך שומרת עליה.</p>
       </div>
-      {confirm && <p className="notice">המחיקה סופית: תשובות, ערבים, פתקים והגדרות. אי אפשר לשחזר.</p>}
+      {confirm && (
+        <p className="notice">
+          המחיקה סופית: תשובות, ערבים, פתקים והגדרות. אי אפשר לשחזר.
+          {store.link.paired && " הטלפונים גם ינותקו. מה שכבר עבר לטלפון השני נשאר שם, וכל אחד מוחק את שלו."}
+        </p>
+      )}
     </Screen>
   );
 }

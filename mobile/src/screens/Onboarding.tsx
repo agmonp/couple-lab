@@ -29,7 +29,7 @@ function PersonFields({ label, name, form, onName, onForm }: {
   );
 }
 
-export function Onboarding() {
+export function Onboarding({ onJoin }: { onJoin?: () => void }) {
   const store = useStore();
   const [step, setStep] = useState<"hello" | "names">("hello");
   const [aName, setAName] = useState("");
@@ -39,7 +39,12 @@ export function Onboarding() {
 
   if (step === "hello") {
     return (
-      <Screen actions={<button className="btn btn-primary" onClick={() => setStep("names")}>מתחילים</button>}>
+      <Screen actions={
+        <>
+          <button className="btn btn-primary" onClick={() => setStep("names")}>מתחילים</button>
+          {onJoin && <button className="btn btn-quiet" onClick={onJoin}>האפליקציה כבר אצלנו בטלפון השני</button>}
+        </>
+      }>
         <div className="stack" style={{ marginTop: "12vh" }}>
           <span className="eyebrow">Couple Lab</span>
           <h1>שאלה אחת, ערב אחד, שיחה אחת.</h1>

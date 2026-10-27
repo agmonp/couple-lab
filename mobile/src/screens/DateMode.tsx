@@ -9,6 +9,7 @@ import { openDecks, questionText } from "../core/questions";
 import { END_QUESTIONS } from "../content/prompts";
 import { askNotifications, dndStatus, keepAwake, notificationsAllowed, openDndSettings, setDnd, shareImage, vibrate } from "../native/device";
 import { renderSummary } from "../native/summaryImage";
+import { sendSignal } from "../native/pair";
 import { useFaceDown, useNow } from "../hooks";
 import { useStore } from "../store";
 import { Handoff, PrivateNote, Screen, say, youThem } from "../ui";
@@ -67,16 +68,42 @@ export function DateMode({ go }: { go: Go }) {
   const startedIso = useRef("");
   const [, rerender] = useState(0);
 
-  const act = (action: DateAction) => {
+  /** `fromPeer`: the action came from the other phone, so it is not echoed back. */
+  const act = (action: DateAction, fromPeer = false) => {
     if (!dateRef.current) return;
     // A quick second tap on "ready" lands on "done for tonight", which sits in the same spot on the next screen.
     if (action.type === "end" && Date.now() - phaseChangedAt.current < END_TAP_GUARD_MS) return;
-    const result = dateReducer(dateRef.current, action);
-    if (result.state.phase !== dateRef.current.phase) phaseChangedAt.current = Date.now();
+    const before = dateRef.current;
+    const result = dateReducer(before, action);
+    if (result.state.phase !== before.phase) phaseChangedAt.current = Date.now();
     dateRef.current = result.state;
     result.effects.forEach((effect) => void vibrate(effect.haptic));
     rerender((n) => n + 1);
+    // Two phones: the break reaches the other phone too, and so does each "ready".
+    if (store.link.paired) {
+      if (result.state.phase === "break" && before.phase !== "break" && !fromPeer) void sendSignal("break", { returnAt: result.state.breakReturnAt });
+      if (action.type === "ready" && !fromPeer) void sendSignal("break-ready", { who: action.partner });
+      if (before.phase === "break" && result.state.phase !== "break") void sendSignal("break-over");
+    }
   };
+
+  useEffect(
+    () =>
+      store.onSignal((signal) => {
+        if (!dateRef.current) return;
+        if (signal.name === "break" && dateRef.current.phase !== "break") act({ type: "start-break", now: Date.now() }, true);
+        if (signal.name === "break-ready" && (signal.data.who === "A" || signal.data.who === "B")) act({ type: "ready", partner: signal.data.who }, true);
+      }),
+    [store.onSignal] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  // Two phones: the other phone can offer a break button while this one runs the date.
+  useEffect(() => {
+    if (!store.link.paired) return;
+    const on = stage.name === "run";
+    void sendSignal(on ? "date-on" : "date-off");
+  }, [stage.name === "run"]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => void sendSignal("date-off"), []);
 
   const date = dateRef.current;
   const running = stage.name === "run" && date?.phase === "running";
@@ -216,7 +243,9 @@ export function DateMode({ go }: { go: Go }) {
   if (stage.name === "run" && date) {
     if (date.phase === "ended") return <div className="night" style={{ minHeight: "100dvh" }} />;
     if (date.phase === "break") {
-      return <BreakScreen couple={couple} returnAt={date.breakReturnAt ?? Date.now()} ready={date.ready} onReady={(p) => act({ type: "ready", partner: p })} />;
+      // With the other phone in touch, each says "ready" on their own phone.
+      const only = store.link.connected && store.me ? [store.me] : undefined;
+      return <BreakScreen couple={couple} returnAt={date.breakReturnAt ?? Date.now()} ready={date.ready} only={only} onReady={(p) => act({ type: "ready", partner: p })} />;
     }
     const speaker = currentSpeaker(date);
     const listener = other(speaker);

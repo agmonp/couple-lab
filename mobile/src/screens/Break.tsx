@@ -5,6 +5,8 @@ import { BREATH_CYCLE_MS, BREATH_IN_MS, HAPTICS, patternMs } from "../core/hapti
 import type { Couple } from "../core/model";
 import { BREAK_RETURN_LINE, DISTRACTIONS } from "../content/prompts";
 import { stopVibration, vibrate } from "../native/device";
+import { sendSignal } from "../native/pair";
+import { useStore } from "../store";
 import { useNow } from "../hooks";
 import { Screen, say } from "../ui";
 
@@ -12,11 +14,13 @@ import { Screen, say } from "../ui";
  * The agreed 20-minute break. Breathing in the hand (4 in, 6 out), something
  * else to do, and the way back only when both say they are ready.
  */
-export function BreakScreen({ couple, returnAt, ready, onReady }: {
+export function BreakScreen({ couple, returnAt, ready, onReady, only }: {
   couple: Couple;
   returnAt: number;
   ready: Partial<Record<PartnerId, true>>;
   onReady: (partner: PartnerId) => void;
+  /** Two phones: the people who say "ready" on this phone; the other one does it on theirs. */
+  only?: PartnerId[];
 }) {
   const now = useNow(true, 1000);
   const [breathing, setBreathing] = useState(true);
@@ -51,11 +55,19 @@ export function BreakScreen({ couple, returnAt, ready, onReady }: {
       night
       actions={
         <>
-          {(["A", "B"] as PartnerId[]).map((p) => (
-            <button key={p} className={`btn ${ready[p] ? "btn-secondary" : "btn-primary"}`} disabled={!!ready[p]} onClick={() => onReady(p)}>
-              {ready[p] ? say("{p} {p:מוכן|מוכנה}. מחכים ל{o}", couple, { p: couple[p], o: couple[p === "A" ? "B" : "A"] }) : say("{p}: אני {p:מוכן|מוכנה}", couple, { p: couple[p] })}
-            </button>
-          ))}
+          {(["A", "B"] as PartnerId[]).map((p) => {
+            const here = !only || only.includes(p);
+            const label = ready[p]
+              ? say("{p} {p:מוכן|מוכנה}. מחכים ל{o}", couple, { p: couple[p], o: couple[p === "A" ? "B" : "A"] })
+              : here
+                ? say("{p}: אני {p:מוכן|מוכנה}", couple, { p: couple[p] })
+                : say("{p} {p:יאשר|תאשר} בטלפון {p:שלו|שלה}", couple, { p: couple[p] });
+            return (
+              <button key={p} className={`btn ${ready[p] || !here ? "btn-secondary" : "btn-primary"}`} disabled={!!ready[p] || !here} onClick={() => onReady(p)}>
+                {label}
+              </button>
+            );
+          })}
         </>
       }
     >
@@ -81,6 +93,43 @@ export function BreakScreen({ couple, returnAt, ready, onReady }: {
       </ul>
       <p>{BREAK_RETURN_LINE}</p>
     </Screen>
+  );
+}
+
+/**
+ * Two phones: the break as it reaches the phone that is not running the date.
+ * Each person says "ready" on their own phone; it ends when both did, or when
+ * the date phone says the break is over.
+ */
+export function RemoteBreak({ returnAt, onDone }: { returnAt: number; onDone: () => void }) {
+  const store = useStore();
+  const couple = store.state.couple!;
+  const [ready, setReady] = useState<Partial<Record<PartnerId, true>>>({});
+
+  useEffect(
+    () =>
+      store.onSignal((signal) => {
+        const who = signal.data.who;
+        if (signal.name === "break-ready" && (who === "A" || who === "B")) setReady((r) => ({ ...r, [who]: true }));
+        if (signal.name === "break-over") onDone();
+      }),
+    [store.onSignal] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  useEffect(() => {
+    if (ready.A && ready.B) onDone();
+  }, [ready]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <BreakScreen
+      couple={couple}
+      returnAt={returnAt}
+      ready={ready}
+      only={store.me ? [store.me] : undefined}
+      onReady={(p) => {
+        setReady((r) => ({ ...r, [p]: true }));
+        void sendSignal("break-ready", { who: p });
+      }}
+    />
   );
 }
 
