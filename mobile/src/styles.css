@@ -176,9 +176,10 @@ input:focus, textarea:focus, button:focus-visible { outline: 3px solid color-mix
 /* Reveal: two cards flip together. The one festive moment. */
 .reveal-grid { display: grid; gap: 0.8rem; }
 .flip { perspective: 900px; }
-.flip-inner { position: relative; min-height: 8rem; transition: transform 0.9s cubic-bezier(.2,.7,.2,1); transform-style: preserve-3d; }
+/* Both faces share one grid cell, so the card grows to the longer face (a long answer, a guess) instead of clipping it. */
+.flip-inner { position: relative; display: grid; min-height: 8rem; transition: transform 0.9s cubic-bezier(.2,.7,.2,1); transform-style: preserve-3d; }
 .flip.open .flip-inner { transform: rotateY(180deg); }
-.flip-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: var(--radius); padding: 1rem; display: flex; flex-direction: column; gap: 0.4rem; }
+.flip-face { grid-area: 1 / 1; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: var(--radius); padding: 1rem; display: flex; flex-direction: column; gap: 0.4rem; }
 .flip-front { background: var(--forest); color: var(--paper); align-items: center; justify-content: center; }
 .flip-back { background: var(--paper); border: 1px solid var(--divider); transform: rotateY(180deg); overflow: auto; }
 @media (prefers-reduced-motion: reduce) {
