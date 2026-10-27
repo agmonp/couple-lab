@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { BREAK_MINUTES, CALMING_STEPS, clock, secondsUntil } from "@shared/practiceTiming";
 import type { PartnerId } from "@shared/types";
-import { BREATH_CYCLE_MS, BREATH_IN_MS, HAPTICS } from "../core/haptics";
+import { BREATH_CYCLE_MS, BREATH_IN_MS, HAPTICS, patternMs } from "../core/haptics";
 import type { Couple } from "../core/model";
 import { BREAK_RETURN_LINE, DISTRACTIONS } from "../content/prompts";
 import { stopVibration, vibrate } from "../native/device";
@@ -27,14 +27,19 @@ export function BreakScreen({ couple, returnAt, ready, onReady }: {
   useEffect(() => {
     if (!breathing) return;
     let outTimer = 0;
+    let id = 0;
     const cycle = () => {
       setPhase("in");
       void vibrate("breatheIn");
       outTimer = window.setTimeout(() => setPhase("out"), BREATH_IN_MS);
     };
-    cycle();
-    const id = window.setInterval(cycle, BREATH_CYCLE_MS);
+    // The first breath waits for the "break started" signal to finish; a new vibration cuts the one playing.
+    const firstBreath = window.setTimeout(() => {
+      cycle();
+      id = window.setInterval(cycle, BREATH_CYCLE_MS);
+    }, patternMs("breakStart") + 300);
     return () => {
+      window.clearTimeout(firstBreath);
       window.clearInterval(id);
       window.clearTimeout(outTimer);
       void stopVibration();

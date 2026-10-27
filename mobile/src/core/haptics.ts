@@ -69,3 +69,8 @@ export function onOffTimings(name: HapticName) {
   // Breathing becomes four short pulses, one per second, instead of a ramp.
   return name === "breatheIn" ? [0, 160, 840, 160, 840, 160, 840, 160] : HAPTICS[name].timings;
 }
+
+/** How long a pattern plays, so the next one can wait for it instead of cutting it off. */
+export function patternMs(name: HapticName) {
+  return HAPTICS[name].timings.reduce((sum, ms) => sum + ms, 0);
+}
