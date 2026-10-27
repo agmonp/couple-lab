@@ -22,7 +22,7 @@ export function escapeIcsText(text: string) {
   return text.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
 }
 
-export function reminderStart({ daysAhead = 7, hour = 21, minute = 0, now = new Date() }: ReminderOptions) {
+export function reminderStart({ daysAhead = 7, hour = 21, minute = 0, now = new Date() }: Omit<ReminderOptions, "step"> & { step?: string }) {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysAhead, hour, minute, 0);
 }
 
