@@ -66,6 +66,7 @@ export function Ours({ go }: { go: Go }) {
   if (view.name === "open-handoff") {
     return (
       <Handoff
+        tabs
         couple={couple}
         to={view.who}
         lead={say("יש פתק שמחכה ל{p} בצנצנת.", couple, { p: couple[view.who] })}

@@ -74,7 +74,8 @@ button, input, textarea, select { font: inherit; color: inherit; }
   padding: 0.9rem 0 calc(var(--safe-bottom) + 1rem);
   background: linear-gradient(to top, var(--mineral-bg) 75%, transparent);
 }
-.has-tabs .screen-actions { padding-bottom: 0.9rem; }
+/* Both stick to the bottom; on a long screen the action sits above the tabs, not under them. */
+.has-tabs .screen-actions { padding-bottom: 0.9rem; bottom: calc(3.6rem + 1px + var(--safe-bottom)); }
 .has-tabs .screen { min-height: calc(100dvh - 3.6rem - var(--safe-bottom)); }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; min-height: 2.75rem; }
 .back { background: none; border: 0; padding: 0.5rem 0; font-weight: 600; color: var(--forest); min-height: 2.75rem; }
@@ -151,6 +152,7 @@ input:focus, textarea:focus, button:focus-visible { outline: 3px solid color-mix
 .night .btn-primary { background: #e9efe9; color: var(--night); }
 .night .btn-quiet { color: #9fd0c2; }
 .night .back { color: #9fd0c2; }
+.night .lock { color: #9fd0c2; }
 .night .question { font-size: 1.75rem; }
 .night textarea, .night input[type="text"] { background: #13272a; border-color: #2a4a49; color: var(--night-ink); }
 .big-clock { font-family: "Rubik", sans-serif; font-size: 4.5rem; font-weight: 500; text-align: center; font-variant-numeric: tabular-nums; direction: ltr; }
@@ -183,7 +185,8 @@ input:focus, textarea:focus, button:focus-visible { outline: 3px solid color-mix
 .help-line a { font-family: "Rubik", sans-serif; font-weight: 700; font-size: 1.4rem; color: var(--forest); text-decoration: none; min-width: 4.5rem; text-align: center; padding: 0.4rem 0.6rem; border-radius: 10px; background: var(--forest-soft); }
 .night .help-line a { background: #1d3a3b; color: var(--night-ink); }
 .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 3.25rem; }
-.toggle-row input[type="checkbox"] { width: 1.6rem; height: 1.6rem; accent-color: var(--forest); }
+/* Fixed size: in a flex row a checkbox shrinks when its label wraps to two lines. */
+input[type="checkbox"] { flex: none; width: 1.6rem; height: 1.6rem; margin: 0; accent-color: var(--forest); }
 .notice { border-radius: 12px; padding: 0.8rem 1rem; background: var(--forest-soft); font-size: 0.95rem; }
 .night .notice { background: #13272a; }
 .night .list-item { background: #13272a; border-color: #23403f; color: var(--night-ink); }

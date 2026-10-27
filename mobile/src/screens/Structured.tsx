@@ -170,7 +170,7 @@ export function Structured({ go, kind }: { go: Go; kind: StructuredSessionKind }
           {mine.map((q) => (
             <label key={q.key} className="list-item">
               <span>{q.text}</span>
-              <input type="checkbox" checked={answers[q.key]} onChange={(e) => setAnswers({ ...answers, [q.key]: e.target.checked })} style={{ width: "1.6rem", height: "1.6rem" }} />
+              <input type="checkbox" checked={answers[q.key]} onChange={(e) => setAnswers({ ...answers, [q.key]: e.target.checked })} />
             </label>
           ))}
         </div>

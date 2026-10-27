@@ -69,11 +69,11 @@ export function PrivateNote({ children }: { children: ReactNode }) {
  * Pass-the-phone: hides what came before and asks the next person to confirm
  * it is them. Guards against a glance, not a determined partner (QA doc).
  */
-export function Handoff({ couple, to, note, lead, onReady, night = false }: { couple: Couple; to: PartnerId; note?: string; lead?: string; onReady: () => void; night?: boolean }) {
+export function Handoff({ couple, to, note, lead, onReady, night = false, tabs = false }: { couple: Couple; to: PartnerId; note?: string; lead?: string; onReady: () => void; night?: boolean; tabs?: boolean }) {
   const person = couple[to];
   const away = couple[other(to)];
   return (
-    <Screen night={night} actions={<button className="btn btn-primary" onClick={onReady}>{say("אני {p}", couple, { p: person })}</button>}>
+    <Screen night={night} tabs={tabs} actions={<button className="btn btn-primary" onClick={onReady}>{say("אני {p}", couple, { p: person })}</button>}>
       <div style={{ marginTop: "18vh" }} className="stack">
         <span className="eyebrow">מעבירים את הטלפון</span>
         <h1>{say("עכשיו ל{p}", couple, { p: person })}</h1>
