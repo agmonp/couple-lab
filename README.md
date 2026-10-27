@@ -2,7 +2,22 @@
 
 A local, desktop-ready couples practice app for assessments, a unified Practice Studio, question prompts, guided conversation recording, tagged transcript reflection, MediaPipe face/body observations, safety checks, and exports.
 
-**Download (Windows):** https://agmonp.github.io/couple-lab/ — or grab `Couple-Lab-Windows.exe` from [the latest release](https://github.com/agmonp/couple-lab/releases/latest). It is a portable exe: no install, double-click to run.
+**Download (Windows):** https://agmonp.github.io/couple-lab/ — or grab `Couple-Lab-Windows.exe` from [the latest release](https://github.com/agmonp/couple-lab/releases/latest). It is a portable exe: no install, double-click to run. See the [Code signing policy](#code-signing-policy).
+
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).
+
+The Windows exe is built from this repository's source by [`.github/workflows/release-windows.yml`](.github/workflows/release-windows.yml) on GitHub-hosted runners, and only that build is signed. The bundled third-party binaries (Electron, whisper.cpp, sherpa-onnx, MediaPipe) come unchanged from their upstream open-source releases.
+
+Team roles:
+
+- Committers and reviewers: [agmonp](https://github.com/agmonp)
+- Approvers: [agmonp](https://github.com/agmonp)
+
+Every signing request is approved by hand. The maintainer uses multi-factor authentication on GitHub and SignPath.
+
+Privacy: this program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it. The two network features are both started by the user: downloading the Hebrew transcription model (from this repository's GitHub releases, [GitHub privacy statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement)), and the optional bring-your-own-key cloud text analysis, which sends transcript text only to Anthropic ([Anthropic privacy policy](https://www.anthropic.com/legal/privacy)).
 
 ## Accurate Hebrew transcription
 

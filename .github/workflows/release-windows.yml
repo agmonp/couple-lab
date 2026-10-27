@@ -1,0 +1,106 @@
+# Builds the Windows portable exe on a GitHub-hosted runner, so SignPath
+# Foundation can verify that the signed binary came from this repository.
+#   - fetches the bundled models from the official sherpa-onnx releases and the
+#     whisper.cpp engine from our asr-engine release (both checksum-verified)
+#   - builds Couple-Lab-Windows.exe (the name the download button points to)
+#   - signs it through SignPath once the SIGNPATH_* settings exist; until then
+#     the job still runs and publishes the unsigned exe
+# The result goes to a DRAFT release; publish it by hand after checking it.
+name: Release Windows exe
+
+on:
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: Create a draft release v<package.json version> with the exe
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fetch bundled models
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          New-Item -ItemType Directory -Force models\asr\whisper-tiny, models\speaker, models\vad | Out-Null
+          $rel = "https://github.com/k2-fsa/sherpa-onnx/releases/download"
+          curl.exe -fsSL -o models\speaker\3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx "$rel/speaker-recongition-models/3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx"
+          $hash = (Get-FileHash models\speaker\3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx -Algorithm SHA256).Hash.ToLower()
+          if ($hash -ne "f682b514c05d947ee3fa91cd6ec6c5c7543479a128373fa29b1faedccd21fd11") { throw "speaker model checksum mismatch: $hash" }
+          curl.exe -fsSL -o models\vad\silero_vad.onnx "$rel/asr-models/silero_vad.onnx"
+          curl.exe -fsSL -o "$env:RUNNER_TEMP\whisper-tiny.tar.bz2" "$rel/asr-models/sherpa-onnx-whisper-tiny.tar.bz2"
+          tar -xjf "$env:RUNNER_TEMP\whisper-tiny.tar.bz2" -C $env:RUNNER_TEMP
+          $src = "$env:RUNNER_TEMP\sherpa-onnx-whisper-tiny"
+          Copy-Item "$src\tiny-encoder.int8.onnx", "$src\tiny-decoder.int8.onnx", "$src\tiny-tokens.txt" models\asr\whisper-tiny\
+          Get-ChildItem models -Recurse -File | ForEach-Object { "$($_.FullName) $((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()) $($_.Length)" }
+
+      - name: Fetch whisper.cpp engine
+        shell: pwsh
+        run: ./scripts/fetch-asr-engine.ps1
+
+      - name: Build portable exe
+        shell: pwsh
+        run: |
+          npm run build
+          if ($LASTEXITCODE -ne 0) { throw "web build failed" }
+          npx electron-builder --win portable --publish never "-c.win.artifactName=Couple-Lab-Windows.exe"
+          if ($LASTEXITCODE -ne 0) { throw "electron-builder failed" }
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          Add-Content $env:GITHUB_ENV "APP_VERSION=$version"
+          Get-Item release-desktop\Couple-Lab-Windows.exe | Select-Object Name, Length
+
+      - name: Upload unsigned exe
+        id: upload-unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: Couple-Lab-Windows-unsigned
+          path: release-desktop/Couple-Lab-Windows.exe
+          if-no-files-found: error
+
+      - name: Sign with SignPath
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          github-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: signed
+
+      - name: Pick the exe to release
+        shell: pwsh
+        run: |
+          $exe = if (Test-Path signed\Couple-Lab-Windows.exe) { "signed\Couple-Lab-Windows.exe" } else { "release-desktop\Couple-Lab-Windows.exe" }
+          $sig = Get-AuthenticodeSignature $exe
+          "Signature: $($sig.Status) $($sig.SignerCertificate.Subject)"
+          Add-Content $env:GITHUB_ENV "RELEASE_EXE=$exe"
+
+      - name: Create draft release
+        if: ${{ inputs.create_release }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v$env:APP_VERSION" --repo "${{ github.repository }}" --target "${{ github.sha }}" --draft `
+            --title "Couple Lab $env:APP_VERSION" --generate-notes "$env:RELEASE_EXE"

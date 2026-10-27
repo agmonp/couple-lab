@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Artifact configuration to paste into the SignPath project.
+     The workflow uploads Couple-Lab-Windows.exe through actions/upload-artifact,
+     which zips it, so the root is a zip-file holding the one exe we sign. -->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <zip-file>
+    <pe-file path="Couple-Lab-Windows.exe" product-name="Couple Lab">
+      <authenticode-sign />
+    </pe-file>
+  </zip-file>
+</artifact-configuration>
