@@ -148,14 +148,16 @@ export async function scheduleDaily(id: number, hour: number, minute: number, te
   if (!isNative) return;
   await LocalNotifications.cancel({ notifications: [{ id }] });
   await LocalNotifications.schedule({
-    notifications: [{ id, title: text.title, body: text.body, schedule: { on: { hour, minute }, allowWhileIdle: true } }]
+    notifications: [{ id, title: text.title, body: text.body, schedule: { on: { hour, minute }, allowWhileIdle: true }, isExactNotification: false }]
   });
 }
 
+// Reminders are inexact on purpose: a few minutes either way is fine, and an exact alarm
+// would send people to the "Alarms & reminders" settings screen with no explanation.
 export async function scheduleOnce(id: number, at: Date, text: { title: string; body: string }) {
   if (!isNative) return;
   await LocalNotifications.cancel({ notifications: [{ id }] });
-  await LocalNotifications.schedule({ notifications: [{ id, title: text.title, body: text.body, schedule: { at, allowWhileIdle: true } }] });
+  await LocalNotifications.schedule({ notifications: [{ id, title: text.title, body: text.body, schedule: { at, allowWhileIdle: true }, isExactNotification: false }] });
 }
 
 export async function cancelNotification(id: number) {
