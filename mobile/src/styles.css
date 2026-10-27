@@ -32,6 +32,9 @@
   --gutter: 1.25rem;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* Landscape: the navigation bar and the camera cutout sit at the sides. */
+  --side-left: max(var(--gutter), env(safe-area-inset-left, 0px));
+  --side-right: max(var(--gutter), env(safe-area-inset-right, 0px));
   color-scheme: light;
 }
 
@@ -59,7 +62,7 @@ button, input, textarea, select { font: inherit; color: inherit; }
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  padding: calc(var(--safe-top) + 1rem) var(--gutter) 0;
+  padding: calc(var(--safe-top) + 1rem) var(--side-right) 0 var(--side-left);
 }
 /* Content scrolls under the transparent status bar; this keeps the clock and icons readable. */
 .status-scrim { position: fixed; top: 0; inset-inline: 0; height: var(--safe-top); background: var(--mineral-bg); z-index: 30; }
@@ -135,7 +138,8 @@ input:focus, textarea:focus, button:focus-visible { outline: 3px solid color-mix
 /* Bottom tabs */
 .tabs {
   position: sticky; bottom: 0; display: grid; grid-template-columns: repeat(3, 1fr);
-  background: var(--paper); border-top: 1px solid var(--divider); padding-bottom: var(--safe-bottom);
+  background: var(--paper); border-top: 1px solid var(--divider);
+  padding: 0 env(safe-area-inset-right, 0px) var(--safe-bottom) env(safe-area-inset-left, 0px);
 }
 .tabs button { background: none; border: 0; min-height: 3.6rem; font-weight: 600; color: var(--muted); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.15rem; font-size: 0.85rem; }
 .tabs button[aria-current="page"] { color: var(--forest); }
@@ -157,7 +161,7 @@ input:focus, textarea:focus, button:focus-visible { outline: 3px solid color-mix
 .night textarea, .night input[type="text"] { background: #13272a; border-color: #2a4a49; color: var(--night-ink); }
 .big-clock { font-family: "Rubik", sans-serif; font-size: 4.5rem; font-weight: 500; text-align: center; font-variant-numeric: tabular-nums; direction: ltr; }
 .blackout { position: fixed; inset: 0; background: #000; color: #2f3b3b; display: flex; align-items: center; justify-content: center; text-align: center; padding: 2rem; z-index: 50; }
-.break-button { position: fixed; top: calc(var(--safe-top) + 0.75rem); inset-inline-start: var(--gutter); z-index: 40; min-height: 2.75rem; padding: 0.4rem 1rem; border-radius: 999px; border: 1px solid #2a4a49; background: #13272a; color: var(--night-ink); font-weight: 700; }
+.break-button { position: fixed; top: calc(var(--safe-top) + 0.75rem); inset-inline-start: var(--side-right); z-index: 40; min-height: 2.75rem; padding: 0.4rem 1rem; border-radius: 999px; border: 1px solid #2a4a49; background: #13272a; color: var(--night-ink); font-weight: 700; }
 
 .breath {
   width: 9rem; height: 9rem; border-radius: 50%; margin: 1rem auto; background: radial-gradient(circle, #2e6a63, #173a3a);
