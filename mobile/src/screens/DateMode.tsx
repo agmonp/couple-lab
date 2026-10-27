@@ -45,6 +45,8 @@ function pickCards(deck: Deck, count: number): QuestionRef[] {
   return cards;
 }
 
+const END_TAP_GUARD_MS = 800;
+
 export function DateMode({ go }: { go: Go }) {
   const store = useStore();
   const { state, settings } = store;
@@ -60,13 +62,17 @@ export function DateMode({ go }: { go: Go }) {
   const [step, setStep] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const dateRef = useRef<DateState | null>(null);
+  const phaseChangedAt = useRef(0);
   const dndApplied = useRef(false);
   const startedIso = useRef("");
   const [, rerender] = useState(0);
 
   const act = (action: DateAction) => {
     if (!dateRef.current) return;
+    // A quick second tap on "ready" lands on "done for tonight", which sits in the same spot on the next screen.
+    if (action.type === "end" && Date.now() - phaseChangedAt.current < END_TAP_GUARD_MS) return;
     const result = dateReducer(dateRef.current, action);
+    if (result.state.phase !== dateRef.current.phase) phaseChangedAt.current = Date.now();
     dateRef.current = result.state;
     result.effects.forEach((effect) => void vibrate(effect.haptic));
     rerender((n) => n + 1);
