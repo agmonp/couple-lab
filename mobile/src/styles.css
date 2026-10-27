@@ -80,6 +80,9 @@ button, input, textarea, select { font: inherit; color: inherit; }
 /* Both stick to the bottom; on a long screen the action sits above the tabs, not under them. */
 .has-tabs .screen-actions { padding-bottom: 0.9rem; bottom: calc(3.6rem + 1px + var(--safe-bottom)); }
 .has-tabs .screen { min-height: calc(100dvh - 3.6rem - var(--safe-bottom)); }
+/* Keyboard up: the action follows the content instead of covering the field. */
+.keyboard-open .screen-actions { position: static; }
+.keyboard-open .tabs { display: none; }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; min-height: 2.75rem; }
 .back { background: none; border: 0; padding: 0.5rem 0; font-weight: 600; color: var(--forest); min-height: 2.75rem; }
 .eyebrow { font-size: 0.85rem; font-weight: 700; color: var(--forest); letter-spacing: 0.02em; }
