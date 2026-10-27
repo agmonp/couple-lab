@@ -262,7 +262,7 @@ export function describeStructuredFlowSteps(steps: StructuredStepBoundary[]): St
   }));
 }
 
-function stressChangeWord(delta: number): string {
+export function stressChangeWord(delta: number): string {
   if (delta <= -3) return "ירד בהרבה";
   if (delta < 0) return "ירד";
   if (delta === 0) return "נשאר דומה";
@@ -279,7 +279,9 @@ function stressChangeWord(delta: number): string {
 export function summarizeStressChange(
   before: Partial<Record<PartnerId, number>> | undefined,
   after: Partial<Record<PartnerId, number>> | undefined,
-  nameFor: (partner: PartnerId) => string
+  nameFor: (partner: PartnerId) => string,
+  /** The verb "marked" for this partner; callers that know the grammatical form pass it. */
+  markedVerbFor: (partner: PartnerId) => string = () => "סימן/ה"
 ): string | null {
   if (!before || !after) return null;
   const parts: string[] = [];
@@ -287,7 +289,7 @@ export function summarizeStressChange(
     const from = before[partner];
     const to = after[partner];
     if (typeof from !== "number" || typeof to !== "number") return;
-    parts.push(`הלחץ ש${nameFor(partner)} סימן/ה ${stressChangeWord(to - from)} — מ-${from} ל-${to}`);
+    parts.push(`הלחץ ש${nameFor(partner)} ${markedVerbFor(partner)} ${stressChangeWord(to - from)} — מ-${from} ל-${to}`);
   });
   return parts.length ? parts.join(" · ") : null;
 }

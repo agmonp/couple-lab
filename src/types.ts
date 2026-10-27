@@ -85,11 +85,26 @@ export interface AssessmentState {
   schemaVersion?: 2;
 }
 
+/**
+ * Content depth, from light to the full depth of therapeutic conversations:
+ * 1 love maps · 2 fondness & admiration · 3 turning toward · 4 listening & stress ·
+ * 5 gentle conflict · 6 dreams within gridlock · 7 shared meaning & intimacy.
+ */
+export type DepthLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
 export interface Deck {
   id: string;
   title: string;
   lens: string;
   purpose: string;
+  /** Which depth layer the deck belongs to (docs/ANDROID_APP_PLAN.md §5). */
+  depthLevel?: DepthLevel;
+  /** The therapeutic aim in one plain line, shown before the deck is opened. */
+  therapeuticGoal?: string;
+  /** A realistic time for one sitting, in minutes. */
+  timeMinutes?: number;
+  /** True when the deck only works with each partner on their own phone. */
+  needsBothPhones?: boolean;
   cards: string[];
 }
 
