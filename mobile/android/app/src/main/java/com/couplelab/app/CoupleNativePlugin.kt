@@ -108,10 +108,10 @@ class CoupleNativePlugin : Plugin() {
         call.resolve(result)
     }
 
+    /** Opened on top of this app, not in a new task: on HyperOS a new task joins whatever Settings screen was open, and Back went there. */
     @PluginMethod
     fun openDndSettings(call: PluginCall) {
-        val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        context.startActivity(intent)
+        activity.startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
         call.resolve()
     }
 
