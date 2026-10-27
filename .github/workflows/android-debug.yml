@@ -1,0 +1,65 @@
+# Builds the Couple Lab Android app (mobile/) as a debug APK and keeps it as
+# a workflow artifact. No signing, no release, nothing published.
+name: Android debug APK
+
+on:
+  push:
+    branches: [local-hebrew]
+    paths:
+      - "mobile/**"
+      - "src/**"
+      - ".github/workflows/android-debug.yml"
+  pull_request:
+    paths:
+      - "mobile/**"
+      - "src/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Install
+        run: npm ci
+
+      - name: Type check and tests
+        run: |
+          npm run typecheck
+          npm test
+
+      - name: Build web and sync Android
+        run: |
+          npx vite build
+          npx cap sync android
+
+      - name: Assemble debug APK
+        working-directory: mobile/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: couple-lab-debug-apk
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
