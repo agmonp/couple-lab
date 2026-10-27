@@ -28,8 +28,13 @@ export interface QuestionRef {
 
 export interface CoupleSet { A: { name: string; form: AddressForm }; B: { name: string; form: AddressForm } }
 export interface DailyChosen extends QuestionRef { day: string }
-export interface AnswerLocked { day: string; text: string }
-export interface AnswerRevealed { day: string; text: string }
+/** Private. `guess` is "what I think the other answered"; `question` is what this answer answers. */
+export interface AnswerLocked { day: string; text: string; guess?: string; question?: QuestionRef }
+export interface AnswerRevealed { day: string; text: string; guess?: string; question?: QuestionRef }
+/** Two phones: "I answered", without the answer. Lets the other phone say "מחכה לך". */
+export interface AnswerReady { day: string; question?: QuestionRef }
+/** Two phones: this partner agrees to open today's answers. */
+export interface RevealConsent { day: string }
 export interface Reflection { good?: string; learned?: string }
 export interface DateFinished {
   id: string;
@@ -61,14 +66,34 @@ export interface StructuredFinished {
 export interface DayState {
   day: string;
   question?: QuestionRef;
+  /** Answers held on this phone, still closed. */
   locked: Partial<Record<PartnerId, string>>;
+  lockedGuess: Partial<Record<PartnerId, string>>;
+  /** Who answered, as far as this phone knows (its own locks plus the other phone's "answered"). */
+  ready: Partial<Record<PartnerId, true>>;
+  consent: Partial<Record<PartnerId, true>>;
   revealed: Partial<Record<PartnerId, string>>;
+  /** Each one's guess of the other's answer, open once revealed. */
+  guesses: Partial<Record<PartnerId, string>>;
+  /** The question each one answered, when it is known to differ from `question`. */
+  asked: Partial<Record<PartnerId, QuestionRef>>;
+}
+
+export function answered(d: DayState | undefined, partner: PartnerId) {
+  return !!d && (d.locked[partner] !== undefined || !!d.ready[partner] || d.revealed[partner] !== undefined);
+}
+
+export function bothRevealed(d: DayState | undefined) {
+  return !!d && d.revealed.A !== undefined && d.revealed.B !== undefined;
 }
 
 export interface JarItem extends JarNote {
   from: PartnerId;
   writtenAt: string;
   openedAt?: string;
+  /** Where the note was written, to tell whether the other phone has it yet. */
+  deviceId: string;
+  seq: number;
 }
 
 export interface TimelineItem {
@@ -109,7 +134,8 @@ export function deckLayer(id: string): DepthLevel {
 
 export function derive(log: EventLog): AppState {
   const state: AppState = { days: {}, dates: [], structured: [], jar: [], unlockedLayer: 1, consent: {}, timeline: [] };
-  const day = (key: string) => (state.days[key] ??= { day: key, locked: {}, revealed: {} });
+  const day = (key: string) =>
+    (state.days[key] ??= { day: key, locked: {}, lockedGuess: {}, ready: {}, consent: {}, revealed: {}, guesses: {}, asked: {} });
 
   for (const event of log.all()) {
     state.lastActivityAt = event.at;
@@ -123,19 +149,36 @@ export function derive(log: EventLog): AppState {
         // A later choice ("something lighter") wins until someone has answered.
         const p = event.payload as DailyChosen;
         const d = day(p.day);
-        if (!d.question || (d.locked.A === undefined && d.locked.B === undefined)) d.question = { deckId: p.deckId, index: p.index };
+        if (!d.question || (!answered(d, "A") && !answered(d, "B"))) d.question = { deckId: p.deckId, index: p.index };
         break;
       }
       case "answer-locked": {
         const p = event.payload as AnswerLocked;
-        day(p.day).locked[event.author] = p.text;
+        const d = day(p.day);
+        d.locked[event.author] = p.text;
+        if (p.guess) d.lockedGuess[event.author] = p.guess;
+        if (p.question) d.asked[event.author] = p.question;
+        break;
+      }
+      case "answer-ready": {
+        const p = event.payload as AnswerReady;
+        const d = day(p.day);
+        d.ready[event.author] = true;
+        if (p.question) d.asked[event.author] = p.question;
+        break;
+      }
+      case "reveal-consent": {
+        day((event.payload as RevealConsent).day).consent[event.author] = true;
         break;
       }
       case "answer-revealed": {
         const p = event.payload as AnswerRevealed;
         const d = day(p.day);
+        const first = d.revealed[event.author] === undefined;
         d.revealed[event.author] = p.text;
-        if (d.revealed.A !== undefined && d.revealed.B !== undefined) {
+        if (p.guess) d.guesses[event.author] = p.guess;
+        if (p.question) d.asked[event.author] = p.question;
+        if (first && bothRevealed(d)) {
           state.timeline.push({ at: event.at, kind: "reveal", title: "חשפנו תשובות לשאלת היום" });
         }
         break;
@@ -154,7 +197,7 @@ export function derive(log: EventLog): AppState {
       }
       case "jar-note": {
         const p = event.payload as JarNote;
-        state.jar.push({ ...p, from: event.author, writtenAt: event.at });
+        state.jar.push({ ...p, from: event.author, writtenAt: event.at, deviceId: event.deviceId, seq: event.seq });
         break;
       }
       case "jar-opened": {

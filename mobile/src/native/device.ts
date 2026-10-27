@@ -45,8 +45,37 @@ export async function saveValue(key: string, value: string) {
   }
 }
 
+/**
+ * The event log. On the phone it lives in an encrypted file (key in Android
+ * Keystore, plan §3.4), where the background sync can read it too. A log from
+ * before that, still in Preferences, moves over once.
+ */
+export async function loadEvents(): Promise<string | null> {
+  if (!isNative) return loadValue(EVENTS_KEY);
+  const { Pair } = await import("./pair");
+  const stored = (await Pair.storeRead({ key: "events" })).text;
+  if (stored !== null) return stored;
+  const old = (await Preferences.get({ key: EVENTS_KEY })).value;
+  if (old !== null) {
+    await Pair.storeWrite({ key: "events", text: old });
+    await Preferences.remove({ key: EVENTS_KEY });
+  }
+  return old;
+}
+
+export async function saveEvents(text: string) {
+  if (!isNative) return saveValue(EVENTS_KEY, text);
+  const { Pair } = await import("./pair");
+  await Pair.storeWrite({ key: "events", text });
+}
+
+const EVENTS_KEY = "cl.events";
+
 export async function clearAll() {
   if (isNative) {
+    const { Pair } = await import("./pair");
+    await Pair.unpair().catch(() => {});
+    await Pair.storeWrite({ key: "events", text: null }).catch(() => {});
     await Preferences.clear();
     await LocalNotifications.cancel({ notifications: [{ id: 1 }, { id: 2 }] }).catch(() => {});
     return;
