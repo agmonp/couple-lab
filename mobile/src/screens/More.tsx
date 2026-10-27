@@ -78,6 +78,7 @@ export function More({ go }: { go: Go }) {
             </span>
           </button>
         )}
+        <button className="list-item" onClick={() => go({ name: "map" })}><span><strong>מפת הקשר</strong><small>עשרה תחומים, פעם בחודש, נפתחת יחד</small></span></button>
         <button className="list-item" onClick={() => go({ name: "practice" })}><span><strong>שפת הרטט</strong><small>לתרגל שוב את ארבעת הדפוסים</small></span></button>
         <button className="list-item" onClick={() => go({ name: "names" })}><span><strong>שמות ולשון פנייה</strong><small>{`${state.couple?.A.name} ו${state.couple?.B.name}`}</small></span></button>
         <button className="list-item" onClick={() => go({ name: "privacy" })}><span><strong>פרטיות</strong><small>מה נשמר ואיפה</small></span><LockIcon /></button>

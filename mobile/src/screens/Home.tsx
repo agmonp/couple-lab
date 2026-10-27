@@ -4,8 +4,9 @@ import { answered, bothRevealed, dayKey, deckById, deeperLayerOffer, jarWaitingF
 import { WELCOME_BACK } from "../content/prompts";
 import { vibrate } from "../native/device";
 import { linkAvailable, sendSignal } from "../native/pair";
+import { activeRound, latestOpenMap, mapDone, mapRound } from "../core/relationshipMap";
 import { useStore } from "../store";
-import { LockIcon, Screen, say } from "../ui";
+import { Icon, LockIcon, Logo, Screen, say } from "../ui";
 import type { Go } from "../App";
 
 const LAYERS: Record<number, { name: string; goal: string }> = {
@@ -61,6 +62,24 @@ export function Home({ go }: { go: Go }) {
       : "כל אחד עונה בסתר. התשובות נפתחות רק כששניכם עניתם, יחד.";
   const invite = !link.paired && linkAvailable && state.dates.length >= 2;
 
+  // The relationship map: offered until it opens for this month; never pushed during a date.
+  const round = activeRound(state);
+  const lastMap = latestOpenMap(state);
+  const mapCard = (() => {
+    const doneA = mapDone(round, "A");
+    const doneB = mapDone(round, "B");
+    if (lastMap && lastMap.round === mapRound() && !doneA && !doneB) return null;
+    if (doneA && doneB) return { title: "פותחים את מפת הקשר יחד", detail: "שניכם מילאתם. המפה נפתחת כששניכם מאשרים." };
+    if (doneA || doneB) {
+      const waiting = doneA ? "B" : "A";
+      if (me && me !== waiting) return { title: "המפה שלך נסגרה", detail: say("מחכים ש{p} {p:ימלא את שלו|תמלא את שלה}.", couple, { p: couple[waiting] }) };
+      return { title: say("{p}, המפה שלך מחכה", couple, { p: couple[waiting] }), detail: say("{o} כבר {o:מילא|מילאה}. עשר שאלות, חמש דקות.", couple, { o: couple[doneA ? "A" : "B"] }) };
+    }
+    return lastMap
+      ? { title: "מפת הקשר של החודש", detail: "ממלאים שוב, כדי לראות מה זז מאז הפעם הקודמת." }
+      : { title: "איפה אנחנו עכשיו?", detail: "מפת הקשר: עשר שאלות לכל אחד, לבד. נפתחת יחד, עם שלושה נושאים לתרגל." };
+  })();
+
   return (
     <Screen
       tabs
@@ -73,9 +92,10 @@ export function Home({ go }: { go: Go }) {
         </>
       }
     >
+      <Logo />
       <div className="stack" style={{ gap: "0.2rem" }}>
         <span className="eyebrow">הערב שלנו</span>
-        <h1>{say("{a} ו{b}", couple)}</h1>
+        <h1>{couple.A.name} <span className="accent">{`ו${couple.B.name}`}</span></h1>
       </div>
 
       {welcomeBack && !d?.locked.A && !d?.locked.B && <p className="notice">{WELCOME_BACK}</p>}
@@ -107,6 +127,19 @@ export function Home({ go }: { go: Go }) {
           ))}
         </div>}
       </div>
+
+      {mapCard && (
+        <button className="list-item" onClick={() => go({ name: "map" })}>
+          <span className="row" style={{ alignItems: "flex-start" }}>
+            <span className="logo-tile" style={{ background: "var(--clay-soft)", color: "var(--clay)", flex: "none" }}><Icon name="map" size={20} /></span>
+            <span>
+              <strong>{mapCard.title}</strong>
+              <small>{mapCard.detail}</small>
+            </span>
+          </span>
+          <span aria-hidden="true">←</span>
+        </button>
+      )}
 
       {showOffer && offer && (
         <div className="card card-warm">

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { AddressForm } from "@shared/deckForms";
 import { useStore } from "../store";
-import { Screen } from "../ui";
+import { Logo, Screen } from "../ui";
 
 /**
  * Value in the first minute, no sign-up: two names and how each wants to be
@@ -45,9 +45,10 @@ export function Onboarding({ onJoin }: { onJoin?: () => void }) {
           {onJoin && <button className="btn btn-quiet" onClick={onJoin}>האפליקציה כבר אצלנו בטלפון השני</button>}
         </>
       }>
-        <div className="stack" style={{ marginTop: "12vh" }}>
-          <span className="eyebrow">Couple Lab</span>
-          <h1>שאלה אחת, ערב אחד, שיחה אחת.</h1>
+        <div className="stack" style={{ gap: "1rem" }}>
+          <Logo />
+          <img className="hero-art" src="./hero.webp" alt="" />
+          <h1>שאלה אחת, ערב אחד, <span className="accent">שיחה אחת.</span></h1>
           <p className="lead">טלפון אחד מספיק. בלי הרשמה ובלי חשבון: כל מה שתכתבו נשאר בטלפון הזה.</p>
           <p className="muted">בזמן השיחה הטלפון מונח עם המסך למטה, והעיניים עליכם.</p>
         </div>

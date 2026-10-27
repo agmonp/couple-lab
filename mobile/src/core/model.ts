@@ -2,6 +2,7 @@ import { decks } from "@shared/data";
 import type { AddressForm, AddressedPerson } from "@shared/deckForms";
 import type { Deck, DepthLevel, PartnerId, StructuredSessionKind } from "@shared/types";
 import type { EventLog } from "./events";
+import { type MapRound, type MapScores, emptyRound, mapOpen } from "./relationshipMap";
 
 /** Stage 1 offers the light layers; 4–7 wait for a couples therapist's review (plan §5). */
 export const MAX_LAYER_THIS_STAGE: DepthLevel = 3;
@@ -61,6 +62,14 @@ export interface StructuredFinished {
   stoppedEarly: boolean;
 }
 
+/** "מפת הקשר" (core/relationshipMap.ts). `map-locked` is private; the others shared. */
+export interface MapLocked { round: string; scores: MapScores }
+export interface MapReady { round: string }
+export interface MapConsent { round: string }
+export interface MapRevealed { round: string; scores: MapScores }
+/** Private, never shared or shown again: the safety questions at the end of a map. */
+export interface SafetyCheck { round: string; flags: string[] }
+
 // Derived state -------------------------------------------------------------
 
 export interface DayState {
@@ -98,7 +107,7 @@ export interface JarItem extends JarNote {
 
 export interface TimelineItem {
   at: string;
-  kind: "reveal" | "date" | "jar" | "structured" | "layer";
+  kind: "reveal" | "date" | "jar" | "structured" | "layer" | "map";
   title: string;
 }
 
@@ -113,6 +122,8 @@ export interface AppState {
   weeklyStep?: WeeklyStep & { at: string };
   lastActivityAt?: string;
   timeline: TimelineItem[];
+  /** Relationship maps by round ("YYYY-MM"). */
+  maps: Record<string, MapRound>;
 }
 
 export function other(partner: PartnerId): PartnerId {
@@ -133,7 +144,8 @@ export function deckLayer(id: string): DepthLevel {
 }
 
 export function derive(log: EventLog): AppState {
-  const state: AppState = { days: {}, dates: [], structured: [], jar: [], unlockedLayer: 1, consent: {}, timeline: [] };
+  const state: AppState = { days: {}, dates: [], structured: [], jar: [], unlockedLayer: 1, consent: {}, timeline: [], maps: {} };
+  const map = (round: string) => (state.maps[round] ??= emptyRound(round));
   const day = (key: string) =>
     (state.days[key] ??= { day: key, locked: {}, lockedGuess: {}, ready: {}, consent: {}, revealed: {}, guesses: {}, asked: {} });
 
@@ -221,6 +233,30 @@ export function derive(log: EventLog): AppState {
       }
       case "weekly-step": {
         state.weeklyStep = { ...(event.payload as WeeklyStep), at: event.at };
+        break;
+      }
+      case "map-locked": {
+        const p = event.payload as MapLocked;
+        map(p.round).locked[event.author] = p.scores;
+        break;
+      }
+      case "map-ready": {
+        map((event.payload as MapReady).round).ready[event.author] = true;
+        break;
+      }
+      case "map-consent": {
+        map((event.payload as MapConsent).round).consent[event.author] = true;
+        break;
+      }
+      case "map-revealed": {
+        const p = event.payload as MapRevealed;
+        const r = map(p.round);
+        const first = r.revealed[event.author] === undefined;
+        r.revealed[event.author] = p.scores;
+        if (first && mapOpen(r)) {
+          r.openedAt = event.at;
+          state.timeline.push({ at: event.at, kind: "map", title: "פתחנו יחד את מפת הקשר" });
+        }
         break;
       }
       default:

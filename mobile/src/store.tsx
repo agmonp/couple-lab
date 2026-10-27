@@ -14,6 +14,7 @@ import {
   isWelcomeBack
 } from "./core/model";
 import { pickDailyQuestion, seededRandom } from "./core/questions";
+import { type MapScores, activeRound, mapDone } from "./core/relationshipMap";
 import { DAILY_ID, WEEKLY_ID, dailyNotificationText, weeklyStepText, weeklyStepTime } from "./core/reminders";
 import { clearAll, loadEvents, loadValue, saveEvents, saveValue, scheduleDaily, scheduleOnce } from "./native/device";
 import { type LinkStatus, type Signal, NO_LINK, Pair, drainInbox, linkAvailable, linkStatus } from "./native/pair";
@@ -66,6 +67,12 @@ export interface Store {
   writeJar(from: PartnerId, to: PartnerId, text: string): void;
   openJar(id: string, by: PartnerId): void;
   consentLayer(level: DepthLevel, partner: PartnerId): void;
+  /** Saves one partner's relationship map, closed. `safety` (private) are the ticked safety concerns. */
+  lockMap(partner: PartnerId, scores: MapScores, safety: string[]): void;
+  /** One phone: both said yes on this screen. */
+  revealMap(): void;
+  /** Two phones: this phone's person agrees; the maps open once both did. */
+  consentMap(): void;
   setWeeklyStep(text: string): Promise<void>;
   updateSettings(patch: Partial<Settings>): Promise<void>;
   eraseEverything(): Promise<void>;
@@ -265,6 +272,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       consentLayer(level, partner) {
         commit((l) => l.append({ layer: "shared", author: partner, type: "layer-consent", payload: { level } }));
       },
+      lockMap(partner, scores, safety) {
+        const { round } = activeRound(state);
+        commit((l) => {
+          l.append({ layer: "private", author: partner, type: "map-locked", payload: { round, scores } });
+          if (safety.length) l.append({ layer: "private", author: partner, type: "safety-check", payload: { round, flags: safety } });
+          if (me) l.append({ layer: "shared", author: partner, type: "map-ready", payload: { round } });
+        });
+      },
+      revealMap() {
+        const r = activeRound(state);
+        commit((l) => {
+          for (const partner of ["A", "B"] as PartnerId[]) {
+            const scores = r.locked[partner];
+            if (scores && r.revealed[partner] === undefined) l.append({ layer: "shared", author: partner, type: "map-revealed", payload: { round: r.round, scores } });
+          }
+        });
+      },
+      consentMap() {
+        const r = activeRound(state);
+        if (!me || r.consent[me]) return;
+        commit((l) => l.append({ layer: "shared", author: me, type: "map-consent", payload: { round: r.round } }));
+      },
       async setWeeklyStep(text) {
         const at = weeklyStepTime();
         commit((l) => l.append({ layer: "shared", author: me ?? "A", type: "weekly-step", payload: { text, remindAt: at.toISOString() } }));
@@ -323,17 +352,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
   }, [log, state, settings, welcomeBack, link, me, peerDateOn]);
 
-  // Two phones: once both agreed, this phone opens its own person's answer. The
+  // Two phones: once both agreed, this phone opens its own person's answer (and map). The
   // other phone does the same with its own, so the texts cross only after both said yes.
   useEffect(() => {
     if (!me || !log) return;
     const due = Object.values(state.days).filter(
       (d) => d.consent.A && d.consent.B && d.locked[me] !== undefined && d.revealed[me] === undefined && answered(d, "A") && answered(d, "B")
     );
-    if (!due.length) return;
+    const dueMaps = Object.values(state.maps).filter(
+      (r) => r.consent.A && r.consent.B && r.locked[me] !== undefined && r.revealed[me] === undefined && mapDone(r, "A") && mapDone(r, "B")
+    );
+    if (!due.length && !dueMaps.length) return;
     for (const d of due) {
       log.append({ layer: "shared", author: me, type: "answer-revealed", payload: { day: d.day, text: d.locked[me], guess: d.lockedGuess[me], question: d.asked[me] } });
     }
+    for (const r of dueMaps) log.append({ layer: "shared", author: me, type: "map-revealed", payload: { round: r.round, scores: r.locked[me] } });
     void persist(log).then(() => void Pair.pushNow().catch(() => {}));
     setVersion((v) => v + 1);
   }, [state, me, log]); // eslint-disable-line react-hooks/exhaustive-deps

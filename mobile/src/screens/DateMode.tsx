@@ -48,12 +48,15 @@ function pickCards(deck: Deck, count: number): QuestionRef[] {
 
 const END_TAP_GUARD_MS = 800;
 
-export function DateMode({ go }: { go: Go }) {
+export function DateMode({ go, deckId }: { go: Go; deckId?: string }) {
   const store = useStore();
   const { state, settings } = store;
   const couple = state.couple!;
   const open = openDecks(state.unlockedLayer);
-  const [stage, setStage] = useState<Stage>({ name: "pick" });
+  const [stage, setStage] = useState<Stage>(() => {
+    const deck = open.find((d) => d.id === deckId);
+    return deck ? { name: "setup", deck } : { name: "pick" };
+  });
   const [first, setFirst] = useState<PartnerId>("A");
   const [count, setCount] = useState(3);
   const [dndWanted, setDndWanted] = useState(settings.dndOnDates);

@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { PartnerId } from "@shared/types";
 import { type JarItem, achievements, jarWaitingFor, other } from "../core/model";
 import { delivered } from "../native/pair";
+import { latestOpenMap } from "../core/relationshipMap";
 import { useStore } from "../store";
 import { Handoff, LockIcon, Screen, say } from "../ui";
 import type { Go } from "../App";
@@ -145,6 +146,13 @@ export function Ours({ go }: { go: Go }) {
           </div>
         ))}
       </div>
+
+      {latestOpenMap(state) && (
+        <button className="list-item" onClick={() => go({ name: "map" })}>
+          <span><strong>מפת הקשר שלנו</strong><small>שלושת הנושאים שבחרנו לתרגל</small></span>
+          <span aria-hidden="true">←</span>
+        </button>
+      )}
 
       {earned.length > 0 && (
         <div className="card">

@@ -11,12 +11,16 @@ import { Ours } from "./screens/Ours";
 import { More, NamesScreen, PracticeScreen, PrivacyScreen, SafetyScreen } from "./screens/More";
 import { PairScreen } from "./screens/Pair";
 import { RemoteBreak } from "./screens/Break";
+import { MapScreen } from "./screens/Map";
 import { isNative, vibrate } from "./native/device";
+import { Icon } from "./ui";
 
 export type Route =
   | { name: "home" }
   | { name: "daily" }
-  | { name: "date" }
+  /** `deckId`: open the evening on this deck (from the relationship map). */
+  | { name: "date"; deckId?: string }
+  | { name: "map" }
   | { name: "structured"; kind: StructuredSessionKind }
   | { name: "ours" }
   | { name: "more" }
@@ -30,10 +34,10 @@ export type Route =
 
 export type Go = (route: Route) => void;
 
-const TABS: { route: Route["name"]; label: string }[] = [
-  { route: "home", label: "הערב שלנו" },
-  { route: "ours", label: "שלנו" },
-  { route: "more", label: "עוד" }
+const TABS: { route: Route["name"]; label: string; icon: "home" | "heart" | "more" }[] = [
+  { route: "home", label: "הערב שלנו", icon: "home" },
+  { route: "ours", label: "שלנו", icon: "heart" },
+  { route: "more", label: "עוד", icon: "more" }
 ];
 
 const PAIR_LINK = /^couplelab:\/\/pair\?/;
@@ -94,7 +98,8 @@ export function App() {
   switch (route.name) {
     case "home": screen = <Home go={go} />; break;
     case "daily": screen = <Daily go={go} />; break;
-    case "date": screen = <DateMode go={go} />; break;
+    case "date": screen = <DateMode go={go} deckId={route.deckId} />; break;
+    case "map": screen = <MapScreen go={go} />; break;
     case "structured": screen = <Structured go={go} kind={route.kind} />; break;
     case "ours": screen = <Ours go={go} />; break;
     case "more": screen = <More go={go} />; break;
@@ -113,6 +118,7 @@ export function App() {
         <nav className="tabs" aria-label="ניווט">
           {TABS.map((tab) => (
             <button key={tab.route} aria-current={route.name === tab.route ? "page" : undefined} onClick={() => go({ name: tab.route } as Route)}>
+              <Icon name={tab.icon} />
               {tab.label}
             </button>
           ))}
