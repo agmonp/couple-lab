@@ -1,4 +1,4 @@
-import { Capacitor, registerPlugin } from "@capacitor/core";
+import { Capacitor, registerPlugin, SystemBars, SystemBarsStyle } from "@capacitor/core";
 import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
 import { Haptics } from "@capacitor/haptics";
 import { LocalNotifications } from "@capacitor/local-notifications";
@@ -78,6 +78,12 @@ export async function vibrate(name: HapticName) {
 export async function stopVibration() {
   if (isNative) await CoupleNative.cancelVibration().catch(() => {});
   else if ("vibrate" in navigator) navigator.vibrate(0);
+}
+
+/** Status bar icons to match the screen: dark icons on the light screens, light ones at night. */
+export function setBarsForNight(night: boolean) {
+  if (!isNative) return;
+  SystemBars.setStyle({ style: night ? SystemBarsStyle.Dark : SystemBarsStyle.Light }).catch(() => {});
 }
 
 let wakeLock: { release(): Promise<void> } | null = null;

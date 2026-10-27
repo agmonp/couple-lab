@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
+import { setBarsForNight } from "./native/device";
 import { resolveForms, type FormRoles } from "@shared/deckForms";
 import type { PartnerId } from "@shared/types";
 import { type Couple, other } from "./core/model";
@@ -28,8 +29,10 @@ export function Screen({
   title?: string;
   tabs?: boolean;
 }) {
+  useEffect(() => setBarsForNight(night), [night]);
   return (
     <div className={`${night ? "night" : ""} ${tabs ? "has-tabs" : ""}`} style={{ minHeight: "100%" }}>
+      <div className="status-scrim" aria-hidden="true" />
       <section className="screen">
         {(onBack || title) && (
           <div className="topbar">
