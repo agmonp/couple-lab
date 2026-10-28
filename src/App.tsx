@@ -14,6 +14,7 @@ import {
   ClipboardCheck,
   Download,
   Eye,
+  EyeOff,
   FileDown,
   FileText,
   Fingerprint,
@@ -30,6 +31,7 @@ import {
   Sparkles,
   Square,
   Trash2,
+  Users,
   Video
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -168,6 +170,18 @@ function formatTime(seconds: number) {
   return `${mins}:${secs}`;
 }
 
+function sessionQualitativeTag(session: SessionRecord): string {
+  const type = session.type as string;
+  const title = session.title || "";
+  if (type === "repair" || title.includes("תיקון") || type === "aftermath") return "תיקון";
+  if (type === "love-maps" || title.includes("מפות אהבה") || title.includes("העולם הפנימי")) return "מפות אהבה";
+  if (title.includes("חיבה") || title.includes("הערכה") || type === "fondness") return "חיבה והערכה";
+  if (type === "intimacy" || title.includes("רצון וחיות") || title.includes("תשוקה")) return "אינטימיות";
+  if (type === "shared-meaning" || title.includes("משמעות")) return "משמעות משותפת";
+  if (type === "stress-reducing") return "הפחתת מתח";
+  return "הקשבה";
+}
+
 function useLocalState<T>(key: string, fallback: T) {
   const [value, setValue] = useState<T>(() => {
     try {
@@ -222,7 +236,23 @@ function TranscriptSegments({
   }, {});
 
   return segments.map((segment) => {
-    const segmentTags = tagsBySegment[segment.id] ?? [];
+    const segmentTags = (tagsBySegment[segment.id] ?? []).filter((tag) => {
+      if (tag.family === "nonverbal" && tag.label !== "רגע שקט לחשיבה") return false;
+      const suppressedLandmarks = [
+        "תנועת גבות",
+        "פנים נראות",
+        "תנועת הגוף נראית",
+        "תנועת גוף",
+        "גוף נראה",
+        "שתיקה ארוכה",
+        "מתח באזור",
+        "הצמדת שפתיים",
+        "כיוון עיניים",
+        "הסטת מבט",
+        "איכות כיסוי"
+      ];
+      return !suppressedLandmarks.some((s) => tag.label.includes(s));
+    });
     const speakerLabel = segment.speakerAttribution === "unknown"
       ? "דובר/ת לא משויך/ת"
       : `${partnerName(profile, segment.speaker)} אל ${partnerName(profile, segment.target ?? otherPartner(segment.speaker))}`;
@@ -1540,9 +1570,9 @@ function Dashboard({
         : {
             title: "התרגול הבא שלכם",
             body: guideSuggestion || "בחרו יחד צעד קטן אחד מתוך השיחה האחרונה.",
-            view: "adviser" as View,
-            button: "פתיחת המדריך",
-            icon: Sparkles
+            view: "practice" as View,
+            button: "התחלת תרגול עכשיו",
+            icon: Video
           };
   const NextIcon = nextAction.icon;
   const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -2015,7 +2045,7 @@ function ReportView({
     `נוצר בתאריך: ${new Date().toLocaleString("he-IL")}`,
     `בני הזוג: ${profile.partnerAName} + ${profile.partnerBName}`,
     `מיקוד: ${profile.relationshipGoal}`,
-    `מדד תרגול: ${reportScore}%`,
+    `מומנטום תרגול: ${sessions.length} שיחות משותפות`,
     `שיחות שמורות: ${sessions.length}`,
     `רמזים לתיקון: ${totalRepairs}`,
     `רמזים שכדאי לבדוק: ${totalRisks}`,
@@ -2025,7 +2055,7 @@ function ReportView({
           `מדדי התרגול האחרונים: פתיחות רכות ${latest.analysis.metrics.softStartups ?? 0}`,
           `תיקוף ${latest.analysis.metrics.validationSignals ?? 0}`,
           `ניסיונות תיקון ${latest.analysis.metrics.repairSignals}`,
-          ...(latest.analysis.metrics.speakerAttributionReliable === false ? [] : [`איזון תורות ${latest.analysis.metrics.turnBalance}%`])
+          ...(latest.analysis.metrics.speakerAttributionReliable === false ? [] : [`איזון תורות: ${latest.analysis.metrics.turnBalance >= 55 ? "הקשבה מאוזנת" : "הקשבה מתונה"}`])
         ].join(", ")
       : "מדדי התרגול האחרונים: עדיין אין שיחה שמורה",
     `תצפיות חזותיות: ${visualCount}`,
@@ -2051,7 +2081,7 @@ function ReportView({
     safetyFlag ? "סומנה דאגת בטיחות. יש לפנות לתמיכה אישית או מקצועית לפני תרגול זוגי." : "לא סומנה דאגה בבדיקת הבטיחות.",
     "",
     "תחומי מיקוד מרכזיים",
-    ...focusRows.map((row) => `${row.label}: ${row.score}% — ${row.practice}`),
+    ...focusRows.map((row) => `${row.label} — ${row.practice}`),
     "",
     "חוזקות",
     ...(latest?.analysis.strengths ?? ["השלימו תרגול שיחה כדי לזהות חוזקות."]),
@@ -2126,8 +2156,8 @@ function ReportView({
           <p>{profile.relationshipGoal}</p>
         </div>
         <div className="report-score">
-          <span>מדד תרגול</span>
-          <strong>{reportScore}%</strong>
+          <span>מומנטום תרגול</span>
+          <strong>{sessions.length} שיחות</strong>
         </div>
       </div>
 
@@ -2274,7 +2304,7 @@ function ReportView({
         <div className="panel">
           <div className="panel-heading">
             <h2>השיחה האחרונה</h2>
-            <span className="score-chip">{latest.analysis.metrics.connectionPracticeScore}%</span>
+            <span className="qualitative-tag">[{sessionQualitativeTag(latest)}]</span>
           </div>
           <p>{latest.analysis.summary}</p>
           <div className="two-col">
@@ -2690,6 +2720,60 @@ function StructuredFlowSummary({
   );
 }
 
+function CooldownModal({
+  onProceed,
+  onSaveAnswer
+}: {
+  onProceed: () => void;
+  onSaveAnswer: (feltGood: string) => void;
+}) {
+  const [selectedOption, setSelectedOption] = useState<string>("הצלחנו להקשיב ולהיות נוכחים");
+
+  const options = [
+    "הצלחנו להקשיב ולהיות נוכחים",
+    "הבענו את מה שחשוב לנו בכנות וברוך"
+  ];
+
+  const handleFinish = () => {
+    onSaveAnswer(selectedOption);
+    onProceed();
+  };
+
+  return (
+    <div className="cooldown-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="cooldown-title">
+      <div className="cooldown-modal-card">
+        <div className="cooldown-icon-wrap">
+          <HeartHandshake size={32} aria-hidden="true" />
+        </div>
+        <h2 id="cooldown-title">עוצרים לרגע יחד</h2>
+        <p className="cooldown-lead">קחו נשימה עמוקה. הודו זה לזו על הזמן שהקדשתם.</p>
+        
+        <div className="cooldown-check">
+          <strong>מה הרגיש טוב בשיחה?</strong>
+          <div className="cooldown-choices" role="radiogroup">
+            {options.map((option) => (
+              <label key={option} className={`cooldown-choice ${selectedOption === option ? "active" : ""}`}>
+                <input
+                  type="radio"
+                  name="cooldown-felt-good"
+                  value={option}
+                  checked={selectedOption === option}
+                  onChange={() => setSelectedOption(option)}
+                />
+                <span>{option}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <button type="button" className="primary cooldown-submit-btn" onClick={handleFinish}>
+          מעבר לתובנות השיחה
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function PracticeStudio({
   profile,
   setProfile,
@@ -2787,6 +2871,8 @@ function PracticeStudio({
   const [recording, setRecording] = useState(false);
   const [phase, setPhase] = useState<PracticePhase>("setup");
   const [phaseError, setPhaseError] = useState("");
+  const [hideSelfView, setHideSelfView] = useState(false);
+  const [cooldownOpen, setCooldownOpen] = useState(false);
   const [lastCompletedSession, setLastCompletedSession] = useState<SessionRecord | null>(null);
   const [recordingConsent, setRecordingConsent] = useState(() => Boolean(profile.recordingConsent));
   const [elapsed, setElapsed] = useState(0);
@@ -4315,6 +4401,7 @@ function PracticeStudio({
     if (!recorder || recorder.state !== "recording") return;
     recordingRef.current = false;
     setRecording(false);
+    setCooldownOpen(true);
     stopLiveSpeakerMatching();
     stopVocalAnalysis();
     setVocalStatus("ניתוח הקול הסתיים");
@@ -4519,12 +4606,12 @@ function PracticeStudio({
           </div>
         </section>
       )}
-      <div className="prompt-stage studio-prompt">
+      <div className={`prompt-stage studio-prompt ${structuredKind ? "structured-active" : ""}`}>
         <div className="prompt-meta">
           <strong>{activeDeck.title}</strong>
           <p>{activeDeck.lens} · {activeDeck.purpose}</p>
         </div>
-        <blockquote dir="auto" key={`${activeDeck.id}-${cardIndex}`} className="prompt-card-enter">{activeDeck.cards[cardIndex]}</blockquote>
+        <blockquote dir="auto" key={`${activeDeck.id}-${cardIndex}`} className={`prompt-card-enter ${structuredKind ? "prompt-quote-compact" : ""}`}>{activeDeck.cards[cardIndex]}</blockquote>
         {!structuredKind && phase !== "ready" && (
           <>
             <SpeakerListenerTip
@@ -4637,17 +4724,35 @@ function PracticeStudio({
             </div>
           )}
           {phaseError && <div className="status-banner error" role="alert">{phaseError}</div>}
-          <video ref={videoRef} autoPlay playsInline muted className="video-preview" />
+          <video ref={videoRef} autoPlay playsInline muted className={`video-preview ${hideSelfView ? "self-view-hidden" : ""}`} />
+          {cameraReady && (
+            <button
+              type="button"
+              className={`self-view-toggle ${hideSelfView ? "active" : ""}`}
+              onClick={() => setHideSelfView((prev) => !prev)}
+              aria-label={hideSelfView ? "הצגת תצוגה עצמית" : "הסתרת תצוגה עצמית"}
+            >
+              {hideSelfView ? <Eye size={16} aria-hidden="true" /> : <EyeOff size={16} aria-hidden="true" />}
+              <span>{hideSelfView ? "הצגת תצוגה עצמית" : "הסתרת תצוגה עצמית"}</span>
+            </button>
+          )}
+          {cameraReady && hideSelfView && (
+            <div className="self-view-placeholder" role="status">
+              <EyeOff size={36} aria-hidden="true" />
+              <strong>התמקדו במבט אחד לשנייה</strong>
+              <p>תצוגת המצלמה הוסתרה כדי לאפשר קשר עין ישיר וטבעי ביניכם.</p>
+            </div>
+          )}
           {!cameraReady && (
             <div className="video-placeholder">
               <Camera size={42} />
               <span>{phase === "requesting-permission" ? "פותחים את המצלמה והמיקרופון…" : "המצלמה אינה זמינה כרגע"}</span>
             </div>
           )}
-          {cameraReady && lightingHint && !recording && (
+          {cameraReady && !hideSelfView && lightingHint && !recording && (
             <div className="status-banner lighting-hint" role="status">{lightingHint}</div>
           )}
-          {cameraReady && profile.visualCalibration && (
+          {cameraReady && !hideSelfView && profile.visualCalibration && (
             <div className="video-identity-overlay" aria-label="מיפוי בני הזוג בווידאו">
               <span className={activeSpeaker === leftPartner ? "active" : ""}>{partnerName(profile, leftPartner)}</span>
               <span className={activeSpeaker === rightPartner ? "active" : ""}>{partnerName(profile, rightPartner)}</span>
@@ -4684,64 +4789,85 @@ function PracticeStudio({
             </label>
           )}
 
-          <div className="lab-controls">
-            <button
-              className={`primary ${recording ? "recording-action" : ""}`}
-              onClick={recording ? stopRecording : startRecording}
-              disabled={safetyFlag || (!recording && !profile.recordingConsent) || busyPhase || (!recording && structuredStartBlocked)}
-            >
-              {recording || busyPhase ? <Square size={17} aria-hidden="true" /> : <Play size={17} aria-hidden="true" />}
-              {primaryActionLabel}
-            </button>
-            <button className="secondary calming-break" onClick={requestCalmingBreak} disabled={busyPhase} aria-label="אני צריך או צריכה הפסקה">
-              <ShieldCheck size={17} aria-hidden="true" />
-              <span className="break-label-full">אני צריך/ה הפסקה</span>
-              <span className="break-label-short" aria-hidden="true">הפסקה</span>
-            </button>
-            <span className="timer" dir="ltr" aria-label={`משך השיחה ${formatTime(elapsed)}`}>{formatTime(elapsed)}</span>
+          <div className={`lab-controls ${recording ? "recording-zen-bar" : ""}`}>
+            {recording ? (
+              <>
+                <div className="recording-zen-status">
+                  <span className="pulse-indicator-dot" aria-hidden="true" />
+                  <span>השיחה מוקלטת ונשמרת במחשב בלבד</span>
+                </div>
+                <span className="timer" dir="ltr" aria-label={`משך השיחה ${formatTime(elapsed)}`}>{formatTime(elapsed)}</span>
+                <button className="secondary calming-break" onClick={requestCalmingBreak} disabled={busyPhase} aria-label="אני צריך או צריכה הפסקה">
+                  <ShieldCheck size={17} aria-hidden="true" />
+                  <span className="break-label-full">אני צריך/ה הפסקה</span>
+                  <span className="break-label-short" aria-hidden="true">הפסקה</span>
+                </button>
+                <button
+                  className={`primary ${recording ? "recording-action" : ""}`}
+                  onClick={stopRecording}
+                  disabled={safetyFlag || busyPhase}
+                >
+                  <Square size={17} aria-hidden="true" />
+                  {primaryActionLabel}
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  className={`primary ${recording ? "recording-action" : ""}`}
+                  onClick={startRecording}
+                  disabled={safetyFlag || (!recording && !profile.recordingConsent) || busyPhase || (!recording && structuredStartBlocked)}
+                >
+                  {busyPhase ? <Square size={17} aria-hidden="true" /> : <Play size={17} aria-hidden="true" />}
+                  {primaryActionLabel}
+                </button>
+                <button className="secondary calming-break" onClick={requestCalmingBreak} disabled={busyPhase} aria-label="אני צריך או צריכה הפסקה">
+                  <ShieldCheck size={17} aria-hidden="true" />
+                  <span className="break-label-full">אני צריך/ה הפסקה</span>
+                  <span className="break-label-short" aria-hidden="true">הפסקה</span>
+                </button>
+                <span className="timer" dir="ltr" aria-label={`משך השיחה ${formatTime(elapsed)}`}>{formatTime(elapsed)}</span>
+              </>
+            )}
           </div>
         </div>
 
         <div className="recording-dock">
-          <div className={`automatic-attribution-card ${incompleteIdentity.length > 0 ? "identity-incomplete" : "identity-ready"}`}>
-            <div className="identity-status-copy">
-              <strong>{recording ? `נראה ש${partnerName(profile, activeSpeaker)} מדבר/ת עכשיו` : "הזיהוי יתחיל עם השיחה"}</strong>
-              <small>{identityStatus}</small>
-              {recording && liveVocalTone && (
-                <div className="live-tone-row" aria-live="polite">
-                  <span className="live-tone-label">טון הקול עכשיו:</span>
-                  <VocalToneTag observation={liveVocalTone} profile={profile} live />
+          {!recording && (
+            <div className={`automatic-attribution-card ${incompleteIdentity.length > 0 ? "identity-incomplete" : "identity-ready"}`}>
+              <div className="identity-status-copy">
+                <strong>הזיהוי יתחיל עם השיחה</strong>
+                <small>{identityStatus}</small>
+              </div>
+              {incompleteIdentity.length > 0 ? (
+                <div className="identity-setup-actions">
+                  <button className="secondary identity-setup-button" onClick={() => void openIdentitySetup()} disabled={identitySetupBusy || busyPhase}>
+                    <Fingerprint size={17} aria-hidden="true" />
+                    {identitySetupBusy
+                      ? "מכינים…"
+                      : incompleteIdentity.length === 1
+                        ? `נלמד לזהות את ${partnerName(profile, incompleteIdentity[0])}`
+                        : "נלמד לזהות אתכם"}
+                  </button>
+                  <button className="text-button" onClick={openManualCorrection}>המשך בלי זיהוי ותיקון ידני</button>
+                </div>
+              ) : (
+                <div className="identity-correction">
+                  <span>לא מדויק?</span>
+                  <button className="text-button" onClick={openManualCorrection}>תקנו כאן</button>
+                  <small>{speakerStatus}</small>
                 </div>
               )}
             </div>
-            {incompleteIdentity.length > 0 ? (
-              <div className="identity-setup-actions">
-                <button className="secondary identity-setup-button" onClick={() => void openIdentitySetup()} disabled={identitySetupBusy || busyPhase}>
-                  <Fingerprint size={17} aria-hidden="true" />
-                  {identitySetupBusy
-                    ? "מכינים…"
-                    : incompleteIdentity.length === 1
-                      ? `נלמד לזהות את ${partnerName(profile, incompleteIdentity[0])}`
-                      : "נלמד לזהות אתכם"}
-                </button>
-                <button className="text-button" onClick={openManualCorrection}>המשך בלי זיהוי ותיקון ידני</button>
-              </div>
-            ) : (
-              <div className="identity-correction">
-                <span>לא מדויק?</span>
-                <button className="text-button" onClick={openManualCorrection}>תקנו כאן</button>
-                <small>{speakerStatus}</small>
-              </div>
-            )}
-          </div>
-          {identitySetupError && <p className="identity-setup-error" role="alert">{identitySetupError}</p>}
+          )}
+          {identitySetupError && !recording && <p className="identity-setup-error" role="alert">{identitySetupError}</p>}
           <div className={`transcription-rail ${transcriptionStatusKind}`} role="status" aria-live="polite" aria-atomic="true">
             <Mic size={17} aria-hidden="true" />
             <div><strong>תמלול</strong><span>{speechStatus}</span></div>
-            {transcriptionStatusKind === "error" && !window.coupleLabDesktop && recording && (
+            {transcriptionStatusKind === "error" && !window.coupleLabDesktop && !recording && (
               <button className="text-button" onClick={startSpeech}>נסו להפעיל שוב</button>
             )}
-            {transcriptionStatusKind === "error" && <button className="text-button" onClick={openManualCorrection}>הוספת טקסט ידנית</button>}
+            {transcriptionStatusKind === "error" && !recording && <button className="text-button" onClick={openManualCorrection}>הוספת טקסט ידנית</button>}
           </div>
           {breakPlan && <div className="practice-break-plan" role="status"><strong>תוכנית הפסקה</strong><span>{breakPlan}</span></div>}
           {activeBreak && <CalmingBreak returnAt={activeBreak.returnAt} requestedBy={activeBreak.requestedBy} onResume={resumeAfterBreak} />}
@@ -4996,6 +5122,17 @@ function PracticeStudio({
           completionActionLabel="חזרה לשיחה"
         />
       )}
+      {cooldownOpen && (
+        <CooldownModal
+          onProceed={() => {
+            setCooldownOpen(false);
+            onViewResults();
+          }}
+          onSaveAnswer={(feltGood) => {
+            setClosingFeltGood(feltGood);
+          }}
+        />
+      )}
     </section>
   );
 }
@@ -5094,27 +5231,34 @@ function NonverbalPanel({
         <Eye size={18} />
       </div>
       <p className="muted">{calibrationText}. המצלמה מתארת כיסוי ותנועה גאומטרית בלבד; היא אינה קובעת רגש או כוונה.</p>
-      <div className="nonverbal-grid">
-        <MiniMetric label="זמן שנדגם" value={metrics.analyzedSeconds ?? 0} raw />
-        <MiniMetric label="לפחות פנים אחת נראתה" value={metrics.faceCoverageSeconds ?? 0} raw />
-        <MiniMetric label="שתי פנים נראו" value={metrics.twoFaceCoverageSeconds ?? metrics.sharedFrameSeconds} raw />
-        <MiniMetric label="לפחות גוף אחד נראה" value={metrics.poseCoverageSeconds ?? 0} raw />
+      <div className="nonverbal-readiness-cards">
+        <div className={`readiness-card ${(metrics.faceCoverageSeconds ?? 0) > 0 ? "status-good" : "status-notice"}`}>
+          <Camera size={20} aria-hidden="true" />
+          <div>
+            <strong>{(metrics.faceCoverageSeconds ?? 0) > 0 ? "כיסוי מצלמה תקין" : "מומלץ לשבת קרוב יותר למצלמה"}</strong>
+            <small>{(metrics.faceCoverageSeconds ?? 0) > 0 ? "שדה הראייה קלט את המשתתפים בצורה רציפה" : "לא זוהה כיסוי מספק של הפנים"}</small>
+          </div>
+        </div>
+        <div className={`readiness-card ${(metrics.twoFaceCoverageSeconds ?? metrics.sharedFrameSeconds ?? 0) > 0 ? "status-good" : "status-notice"}`}>
+          <Users size={20} aria-hidden="true" />
+          <div>
+            <strong>{(metrics.twoFaceCoverageSeconds ?? metrics.sharedFrameSeconds ?? 0) > 0 ? "נוכחות משותפת בתמונה" : "מומלץ למקם את המצלמה מול שניכם"}</strong>
+            <small>{(metrics.twoFaceCoverageSeconds ?? metrics.sharedFrameSeconds ?? 0) > 0 ? "שני בני הזוג נקלטו יחד בפריים" : "כדאי להתיישב יחד מול המסך"}</small>
+          </div>
+        </div>
       </div>
       <div className="nonverbal-summary">
         <span>
-          תנועת גוף של {partnerName(profile, "A")}: <b>{formatDuration(metrics.bodyMovementSecondsA ?? 0)}</b>
+          נוכחות גוף {partnerName(profile, "A")}: <b>{(metrics.bodyMovementSecondsA ?? 0) > 0 ? "זוהתה תנועה" : "שקטה"}</b>
         </span>
         <span>
-          תנועת גוף של {partnerName(profile, "B")}: <b>{formatDuration(metrics.bodyMovementSecondsB ?? 0)}</b>
+          נוכחות גוף {partnerName(profile, "B")}: <b>{(metrics.bodyMovementSecondsB ?? 0) > 0 ? "זוהתה תנועה" : "שקטה"}</b>
         </span>
         <span>
-          שינויי כיוון ראש של {partnerName(profile, "A")}: <b>{formatDuration(metrics.headOrientationChangeSecondsA ?? 0)}</b>
+          קשר עין וכיוון ראש: <b>{(metrics.mutualAttentionSeconds ?? 0) > 0 || (metrics.twoFaceCoverageSeconds ?? 0) > 0 ? "קשב הדדי פעיל" : "התמקדות אישית"}</b>
         </span>
         <span>
-          שינויי כיוון ראש של {partnerName(profile, "B")}: <b>{formatDuration(metrics.headOrientationChangeSecondsB ?? 0)}</b>
-        </span>
-        <span>
-          זמן שבו הכיסוי לא הספיק למדידה מלאה: <b>{formatDuration(metrics.lowQualitySeconds ?? 0)}</b>
+          רציפות מדידה: <b>{(metrics.lowQualitySeconds ?? 0) === 0 ? "כיסוי רציף ויציב" : "תנודות קלות בכיסוי"}</b>
         </span>
       </div>
       <AdvancedEnginesPanel visualStatus={visualStatus} vocalStatus={vocalStatus} />
@@ -5407,6 +5551,21 @@ function InsightsView({
   const trend = scoredSessions.length
     ? Math.round(average(scoredSessions.map((session) => session.analysis.metrics.connectionPracticeScore)))
     : 0;
+  const currentMonthSessions = sessions.filter((s) => {
+    const d = new Date(s.startedAt);
+    const now = new Date();
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
+  const monthCount = currentMonthSessions.length || sessions.length;
+  const momentumCountText = `${monthCount} תרגולים החודש`;
+  const totalSeconds = sessions.reduce((sum, s) => sum + (s.durationSeconds || 0), 0);
+  const totalMinutes = Math.max(1, Math.round(totalSeconds / 60));
+  const momentumTimeText = `${totalMinutes} דקות של שיחה והקשבה`;
+  const attributedSessions = sessions.filter((s) => s.analysis?.metrics?.speakerAttributionReliable !== false);
+  const avgTurn = attributedSessions.length
+    ? average(attributedSessions.map((s) => s.analysis.metrics.turnBalance))
+    : 70;
+  const momentumBalanceText = avgTurn >= 55 ? "הקשבה מאוזנת ושוויונית" : "הקשבה משותפת ונוכחת";
 
   useEffect(() => {
     if (!selectedId && sessions[0]) setSelectedId(sessions[0].id);
@@ -5657,9 +5816,14 @@ function InsightsView({
   return (
     <section className="insights-grid">
       <aside className="session-list">
-        <div className="trend-card">
-          <span>מדד תרגול ממוצע</span>
-          <strong>{scoredSessions.length ? `${trend}%` : "—"}</strong>
+        <div className="trend-card momentum-card">
+          <div className="momentum-card-heading">
+            <Sparkles size={16} aria-hidden="true" />
+            <span>מומנטום ותרגול משותף</span>
+          </div>
+          <strong className="momentum-sessions-count">{momentumCountText}</strong>
+          <span className="momentum-connection-time">{momentumTimeText}</span>
+          <small className="momentum-turn-balance">{momentumBalanceText}</small>
         </div>
         <TranscriptSearchPanel
           sessions={sessions}
@@ -5673,7 +5837,7 @@ function InsightsView({
             onClick={() => setSelectedId(session.id)}
           >
             <strong>{session.title}</strong>
-            <span>{formatTime(session.durationSeconds)} · {session.processingStatus === "insufficient-data" ? "אין מספיק מידע" : `${session.analysis.metrics.connectionPracticeScore}%`}</span>
+            <span><bdi dir="ltr">{formatTime(session.durationSeconds)}</bdi> · <span className="qualitative-tag">[{sessionQualitativeTag(session)}]</span></span>
           </button>
         ))}
       </aside>
@@ -5683,7 +5847,10 @@ function InsightsView({
           <div className="panel">
             <div className="panel-heading">
               <h2>{selected.title}</h2>
-              {selected.processingStatus !== "insufficient-data" && <span className="score-chip">{selected.analysis.metrics.connectionPracticeScore}%</span>}
+              <div className="session-meta-chip">
+                <bdi dir="ltr">{formatTime(selected.durationSeconds)}</bdi>
+                {selected.startedAt && <span> · {new Date(selected.startedAt).toLocaleDateString("he-IL", { day: "numeric", month: "long" })}</span>}
+              </div>
             </div>
             <GoldenMomentsReel session={selected} />
             {selected.media && (
@@ -5886,7 +6053,15 @@ function InsightsView({
               <MiniMetric label="פתיחות רכות" value={selected.analysis.metrics.softStartups ?? 0} raw />
               <MiniMetric label="רגעי תיקוף" value={selected.analysis.metrics.validationSignals ?? 0} raw />
               <MiniMetric label="פניות שנענו" value={selected.analysis.metrics.bidsOrTurningToward ?? 0} raw />
-              {selected.analysis.metrics.speakerAttributionReliable !== false && <MiniMetric label="איזון תורות" value={selected.analysis.metrics.turnBalance} />}
+              {selected.analysis.metrics.speakerAttributionReliable !== false && (
+                <div className="mini-metric">
+                  <span>איזון תורות</span>
+                  <strong>{selected.analysis.metrics.turnBalance >= 55 ? "הקשבה מאוזנת" : "הקשבה מתונה"}</strong>
+                  <div>
+                    <i style={{ width: `${Math.max(10, selected.analysis.metrics.turnBalance)}%` }} />
+                  </div>
+                </div>
+              )}
             </div>}
           </div>
 

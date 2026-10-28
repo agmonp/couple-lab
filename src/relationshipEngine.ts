@@ -426,8 +426,10 @@ function visualHits(observations: VisualObservation[], segments: TranscriptSegme
   });
 }
 
+const landmarkVisualLabels = new Set<VisualObservation["label"]>(["face-visible", "body-visible", "brow-movement", "brow-tension", "looking-away", "eyes-turned-sideways", "head-turned-away", "head-orientation-offset", "head-orientation-change", "body-movement", "mouth-tension", "mouth-press", "wrists-near-opposite-shoulders", "body-near-frame-edge", "closed-posture", "leaning-away"]);
+
 function visualTags(observations: VisualObservation[], segments: TranscriptSegment[]): InteractionTag[] {
-  return observations.filter((observation) => observation.label !== "capture-quality").map((observation) => {
+  return observations.filter((observation) => observation.label !== "capture-quality" && !landmarkVisualLabels.has(observation.label)).map((observation) => {
     const linkedSegment = findLinkedSegment(segments, observation.seconds);
     const stressCue = visualStressLabels.has(observation.label);
 
@@ -471,7 +473,7 @@ function vocalLabel(observation: VocalObservation) {
     "tense-voice": "מתח אפשרי בקול",
     "flat-withdrawn": "קול שטוח או מרוחק אפשרי",
     "warm-engaged": "טון חם ומעורב אפשרי",
-    "long-pause": "שתיקה ארוכה"
+    "long-pause": "רגע שקט לחשיבה"
   };
   return labelMap[observation.label];
 }
@@ -958,10 +960,14 @@ export function analyzeSession(
   const metrics = buildMetrics(segments, allHits, signals, cues, observations, vocalObservations, timelineTags);
   const allTags = timelineTags;
 
+  const sessionDuration = segments.length > 0 ? ((segments[segments.length - 1].endSeconds ?? segments[segments.length - 1].seconds) - segments[0].seconds) : 0;
+  const isShortSession = sessionDuration < 30 && evidence.words < 25;
   const summary =
     segments.length === 0
       ? "לא נקלט תמלול. אפשר להוסיף הערה ידנית או להשתמש בתמלול הדפדפן כדי ליצור התבוננות עשירה יותר."
-      : `בשיחה הזו זוהו ${metrics.positiveSignals} רגעים חיוביים ו־${metrics.repairSignals} ניסיונות תיקון. נמצאו גם ${metrics.fourHorsemenSignals} רגעים שכדאי להתבונן בהם ו־${allTags.length} נקודות מסומנות. זהו סיכום לתרגול, לא קביעה לגבי הקשר או הרגשות.`;
+      : isShortSession
+        ? "תרגול קצר של התכווננות ונוכחות. גם רגעים קטנים של עצירה משותפת בונים ביטחון בקשר."
+        : "הקדשתם זמן לשיחה משמעותית. זוהו רגעים של הקשבה והבעת צורך. כשיש נושאים רגישים, זכרו לעצור לנשימה ולהשתמש בפתיחה רכה.";
 
   return {
     summary,

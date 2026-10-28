@@ -42,7 +42,14 @@ describe("analyzeSession data quality", () => {
     );
     expect(result.dataQuality?.status).toBe("sufficient");
     expect(result.metrics.validationSignals).toBeGreaterThan(0);
-    expect(result.summary).toContain("בשיחה הזו");
+    expect(result.summary).toContain("תרגול קצר של התכווננות ונוכחות");
+  });
+
+  it("provides a supportive mediator summary for longer conversations", () => {
+    const s1 = { ...segment("אני רוצה לספר מה עבר עלינו השבוע ואיך הרגשתי"), seconds: 0, endSeconds: 20 };
+    const s2 = { ...segment("אני מקשיב לך ורוצה שנבין זה את זו טוב יותר בנושא החשוב הזה"), seconds: 22, endSeconds: 45 };
+    const result = analyzeSession([s1, s2], defaultSignals, [], "daily-check-in", []);
+    expect(result.summary).toContain("הקדשתם זמן לשיחה משמעותית");
   });
 
   it("does not infer speaker balance from a whole-session transcript without diarization", () => {
