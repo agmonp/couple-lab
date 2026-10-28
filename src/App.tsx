@@ -1556,7 +1556,7 @@ function Dashboard({
           title: "מתחילים תרגול מודרך ראשון",
           body: "בוחרים שאלה, מדברים בקצב שלכם ומסיימים בשמירה ובסיכום.",
           view: "practice" as View,
-          button: "לבחירת תרגול",
+          button: "התחלת תרגול עכשיו",
           icon: Video
         }
       : sharedStep

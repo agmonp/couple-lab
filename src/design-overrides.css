@@ -387,13 +387,13 @@ summary:focus-visible {
 }
 
 .home-space {
-  gap: 0;
+  gap: 16px;
 }
 
 .home-intro {
   position: relative;
-  padding: 22px 0 36px;
-  border-bottom: 1px solid var(--line);
+  padding: 16px 0 20px;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
 }
 
 .home-couple {
@@ -415,25 +415,29 @@ summary:focus-visible {
 
 .home-intro > p {
   max-width: 64ch;
-  margin: 18px 0 0;
+  margin: 12px 0 0;
   color: var(--muted);
   font-size: 1.02rem;
 }
 
 .home-settings {
   position: absolute;
-  inset: 22px auto auto 0;
+  inset: 16px auto auto 0;
 }
 
 .home-primary-action {
-  min-height: 300px;
-  padding: 48px clamp(28px, 5vw, 72px);
+  min-height: auto;
+  padding: 34px clamp(24px, 4vw, 44px);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 40px;
-  color: #f8f5ef;
-  background: var(--ink);
+  gap: 32px;
+  color: var(--ink);
+  background: linear-gradient(135deg, #fffdf9 0%, #f4f8f6 100%);
+  border: 1px solid color-mix(in srgb, var(--teal) 24%, var(--line));
+  border-radius: 20px;
+  box-shadow: 0 6px 24px rgba(19, 42, 43, 0.05);
+  margin: 10px 0 16px;
 }
 
 .home-primary-action > div {
@@ -441,26 +445,41 @@ summary:focus-visible {
 }
 
 .home-primary-action h2 {
-  margin: 0 0 12px;
-  font-size: clamp(2rem, 4vw, 4.2rem);
-  line-height: 1;
+  margin: 0 0 10px;
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  line-height: 1.15;
+  color: var(--teal);
+  letter-spacing: -0.01em;
 }
 
 .home-primary-action p {
   max-width: 60ch;
   margin: 0;
-  color: #cbd6d1;
+  color: #556965;
+  font-size: 1.05rem;
+  line-height: 1.55;
 }
 
 .home-primary-action .primary {
   flex: 0 0 auto;
   color: #fff;
-  background: var(--honey);
-  box-shadow: none;
+  background: #184a4c;
+  box-shadow: 0 4px 14px rgba(24, 74, 76, 0.22);
+  min-height: 50px;
+  padding: 0 28px;
+  font-size: 1.08rem;
+  font-weight: 700;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.2s ease;
 }
 
 .home-primary-action .primary:hover:not(:disabled) {
-  background: var(--honey-hover);
+  background: #103537;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(24, 74, 76, 0.3);
 }
 
 .shared-memory {
@@ -473,21 +492,22 @@ summary:focus-visible {
 .home-secondary-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.75fr);
-  border-bottom: 1px solid var(--line);
+  gap: 18px;
+  border-bottom: 0;
 }
 
 .home-summary-section,
 .home-rhythm-section {
-  min-height: 210px;
-  padding: 32px 34px;
-}
-
-.home-summary-section {
-  border-left: 1px solid var(--line);
+  min-height: 180px;
+  padding: 24px 28px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(19, 42, 43, 0.03);
 }
 
 .compact-empty {
-  min-height: 100px;
+  min-height: 90px;
   align-items: start;
   justify-items: start;
   text-align: start;
@@ -507,12 +527,12 @@ summary:focus-visible {
 .home-rhythm-dots {
   display: flex;
   gap: 8px;
-  margin-top: 28px;
+  margin-top: 24px;
 }
 
 .home-rhythm-dots span {
   width: 28px;
-  height: 5px;
+  height: 6px;
   border-radius: 999px;
   background: #d5d9d3;
 }
@@ -523,33 +543,47 @@ summary:focus-visible {
 
 .home-links {
   display: flex;
-  gap: 6px;
+  gap: 10px;
   flex-wrap: wrap;
-  padding: 22px 0;
+  padding: 12px 0 20px;
 }
 
 .home-links button {
   min-height: 44px;
-  padding: 0 14px;
+  padding: 0 16px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
   color: var(--ink);
-  background: transparent;
+  background: var(--surface);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+  transition: all 0.15s ease;
 }
 
 .home-links button:hover {
-  background: #e9e6df;
+  background: #fff;
+  border-color: color-mix(in srgb, var(--teal) 30%, var(--line));
+  transform: translateY(-1px);
 }
 
 .home-links button span {
   color: var(--muted);
+  font-size: 0.85rem;
 }
 
 .home-links .quiet-danger-link {
   margin-inline-start: auto;
+  border: 1px dashed var(--line);
+  background: transparent;
+  color: var(--muted);
+}
+
+.home-links .quiet-danger-link:hover {
   color: var(--coral);
+  border-color: var(--coral-soft);
+  background: var(--coral-soft);
 }
 
 .practice-grid {
